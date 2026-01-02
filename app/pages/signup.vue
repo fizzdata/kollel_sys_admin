@@ -9,6 +9,12 @@ const confirmshow = ref(false);
 const toast = useToast();
 const api = useApi();
 const isSubmitting = ref(false);
+const router = useRouter();
+const token = useCookie("kollel_sys_token");
+const org = useCookie("kollel_sys_org");
+const user = useCookie("kollel_sys_user");
+const hasAccess = useCookie("kollel_sys_has_access");
+
 const schema = yup.object({
   name: yup
     .string()
@@ -48,11 +54,12 @@ async function onSubmit(event) {
     });
 
     if (response?.success) {
-      localStorage.setItem("kollel_sys_token", response?.access_token || "");
-      localStorage.setItem(
-        "kollel_sys_user",
-        JSON.stringify(response?.user || "")
-      );
+      token.value = response?.access_token || "";
+      org.value = response?.org || null;
+      user.value = response?.user || null;
+      hasAccess.value = response?.has_access || [];
+      router.push("/users");
+
       toast.add({
         title: "Success",
         description: response?.message || "Signup Successfully",

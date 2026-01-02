@@ -26,6 +26,9 @@ const items = ref([
       "<p>The system keeps detailed records of each student’s attendance, performance, and bonuses. Administrators can generate detailed reports based on a variety of parameters, such as individual attendance percentages, total hours attended, bonus calculations, and more.  </p><p class='pt-2'> These reports provide valuable insights into each student’s participation, enabling admins to track progress and address any concerns effectively. </p>",
   },
 ]);
+
+const token = useCookie("kollel_sys_token");
+const redirectTo = computed(() => (token.value ? "/users" : "/login"));
 </script>
 
 <template>
@@ -35,7 +38,9 @@ const items = ref([
         Comprehensive Attendance and Performance System for Kollelim
       </h1>
       <div class="text-center">
-        <UButton size="xl" class="my-5" to="/login">Go to your account</UButton>
+        <UButton size="xl" class="my-5" :to="redirectTo"
+          >Go to your account</UButton
+        >
       </div>
       <p class="text-lg text-gray-700 mb-6 font-medium">
         The program is a comprehensive and automated system designed for

@@ -14,25 +14,89 @@ import {
 
 const sidebarOpen = ref(false);
 const route = useRoute();
+const api = useApi();
+const router = useRouter();
+const user = useCookie("kollel_sys_user");
+const hasAccess = useCookie("kollel_sys_has_access");
+const token = useCookie("kollel_sys_token");
 
+const toast = useToast();
 const navigation = [
-  { name: "Payroll", href: "/payroll" },
-  { name: "Transaction", href: "#" },
-  { name: "User Management", href: "#" },
-  { name: "Clocking Department", href: "#" },
-  { name: "Payment Management", href: "#" },
-  { name: "College Management", href: "#" },
+  { name: "Payroll", href: "/payroll", key: "payroll" },
+  { name: "Transaction", href: "/transactions", key: "transactions" },
+  { name: "User Management", href: "/users", key: "users" },
+  { name: "Clocking Department", href: "/clocking", key: "clocking" },
+  { name: "Payments Management", href: "/payments", key: "payments" },
+  { name: "College Management", href: "/college", key: "college" },
+  { name: "Setting", href: "/setting", key: "settings" },
 ];
 
-const teams = [
-  { id: 1, name: "Profile", href: "#" },
-  { id: 2, name: "Login", href: "/login" },
-];
-const userNavigation = [
-  { name: "Your profile", href: "#" },
-  { name: "Sign out", href: "#" },
-];
+const filteredNavigation = computed(() =>
+  navigation.filter((item) => hasAccess.value.includes(item.key))
+);
+
 const isActive = (href) => route.path === href;
+
+const logout = async () => {
+  // Redirect to login
+  navigateTo("/login");
+  // Clear cookies
+  useCookie("kollel_sys_token").value = null;
+  useCookie("kollel_sys_org").value = null;
+  useCookie("kollel_sys_user").value = null;
+  useCookie("kollel_sys_has_access").value = null;
+
+  toast.add({
+    description: `Admin Logout Successfully`,
+    color: "success",
+    timeout: 2000,
+  });
+
+  return;
+  try {
+    // Send the full sign-up data to the server
+    const response = await api("/api/logout", {
+      method: "POST",
+      body: { token: token.value }, // Send payload in body
+    });
+    if (response?.success) {
+      toast.add({
+        description: response?.message || `User Logout Successfully`,
+        color: "success",
+        timeout: 2000,
+      });
+      token.value = null;
+
+      // Redirect to login
+      navigateTo("/login");
+      // Clear cookies
+      useCookie("kollel_sys_token").value = null;
+      useCookie("kollel_sys_org").value = null;
+      useCookie("kollel_sys_user").value = null;
+      useCookie("kollel_sys_has_access").value = null;
+    }
+
+    if (!response?._data?.success && !response?.success) {
+      toast.add({
+        title: "Error",
+        description:
+          response?.message ||
+          response?._data?.message ||
+          `Something went wrong. Please try again later.`,
+        color: "red",
+        timeout: 2000,
+      });
+    }
+    // Redirect or show a success message
+  } catch (error) {
+    console.error("Error during sign-up:", error);
+  }
+};
+
+const userNavigation = [
+  { name: "Setting", href: "/setting" },
+  { name: "Sign out", href: "#", action: logout },
+];
 </script>
 
 <template>
@@ -72,11 +136,11 @@ const isActive = (href) => route.path === href;
                 class="absolute top-0 left-full flex w-16 justify-center pt-5"
               >
                 <button
-                  class="p-2 rounded-md bg-gray-800 text-white hover:bg-gray-500 transition-colors duration-200"
+                  class="-m-2.5 p-2.5 cursor-pointer"
                   @click="sidebarOpen = false"
                   aria-label="Close sidebar"
                 >
-                  ✕
+                  <UIcon name="i-heroicons-x-mark" class="size-6 text-white" />
                 </button>
               </div>
 
@@ -92,7 +156,7 @@ const isActive = (href) => route.path === href;
               <nav class="flex flex-1 flex-col mt-4">
                 <ul class="flex flex-1 flex-col gap-y-3">
                   <!-- Menu Items -->
-                  <li v-for="item in navigation" :key="item.name">
+                  <li v-for="item in filteredNavigation" :key="item.key">
                     <ULink
                       :to="item.href"
                       :class="[
@@ -101,42 +165,9 @@ const isActive = (href) => route.path === href;
                           : 'text-gray-700 hover:bg-gray-100 hover:text-gray-700',
                         'block rounded-md p-2 text-sm font-semibold transition-colors duration-200',
                       ]"
+                      @click="sidebarOpen = false"
                     >
-                      {{ item.name }}
-                    </ULink>
-                  </li>
-
-                  <!-- Account Section -->
-                  <li class="mt-6">
-                    <div
-                      class="text-xs font-semibold text-gray-400 uppercase tracking-wide"
-                    >
-                      Your Account
-                    </div>
-                    <ul class="mt-2 space-y-2">
-                      <li v-for="team in teams" :key="team.id">
-                        <ULink
-                          :to="team.href"
-                          class="flex items-center gap-x-2 rounded-md p-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-200"
-                        >
-                          <!-- <span
-                            class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold"
-                          >
-                            {{ team.initial }}
-                          </span> -->
-                          {{ team.name }}
-                        </ULink>
-                      </li>
-                    </ul>
-                  </li>
-
-                  <!-- Settings -->
-                  <li class="mt-auto">
-                    <ULink
-                      to="/settings"
-                      class="flex items-center gap-x-2 rounded-md p-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-200"
-                    >
-                      Settings
+                      {{ item?.name }}
                     </ULink>
                   </li>
                 </ul>
@@ -147,63 +178,7 @@ const isActive = (href) => route.path === href;
       </Dialog>
     </TransitionRoot>
 
-    <!-- Desktop sidebar -->
-    <!-- <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72">
-      <div
-        class="flex grow flex-col gap-y-5 border-r border-gray-200 bg-gray-100 px-6 pb-4"
-      >
-        <div class="flex h-16 items-center font-bold text-primary">
-          Kollel System
-        </div>
-
-        <nav class="flex flex-1 flex-col">
-          <ul class="flex flex-1 flex-col gap-y-7">
-            <li>
-              <ul class="-mx-2 space-y-1">
-                <li v-for="item in navigation" :key="item.name">
-                  <ULink
-                    :to="item.href"
-                    :class="[
-                      isActive(item.href)
-                        ? 'bg-gray-50 text-primary'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary',
-                      'block rounded-md p-2 text-sm font-semibold',
-                    ]"
-                  >
-                    {{ item.name }}
-                  </ULink>
-                </li>
-              </ul>
-            </li>
-
-            <li>
-              <div class="text-xs font-semibold text-gray-400">
-                Your Account
-              </div>
-              <ul class="-mx-2 mt-2 space-y-1">
-                <li v-for="team in teams" :key="team.id">
-                  <ULink
-                    :to="team.href"
-                    class="flex gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary"
-                  >
-                    {{ team.name }}
-                  </ULink>
-                </li>
-              </ul>
-            </li>
-
-            <li class="mt-auto">
-              <ULink
-                to="/settings"
-                class="block rounded-md p-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary"
-              >
-                Settings
-              </ULink>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div> -->
+    <!-- Desktop Sidebar -->
     <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-80">
       <div
         class="flex grow flex-col gap-y-5 border-r border-gray-200 bg-white/90 backdrop-blur-md shadow-md px-6 pb-4 rounded-tr-2xl rounded-br-2xl"
@@ -218,7 +193,7 @@ const isActive = (href) => route.path === href;
         <nav class="flex flex-1 flex-col">
           <ul class="flex flex-1 flex-col gap-y-4">
             <!-- Menu Items -->
-            <li v-for="item in navigation" :key="item.name">
+            <li v-for="item in filteredNavigation" :key="item.key">
               <ULink
                 :to="item.href"
                 :class="[
@@ -230,41 +205,7 @@ const isActive = (href) => route.path === href;
               >
                 <!-- Optional: Icon -->
                 <!-- <MenuIcon class="w-5 h-5" /> -->
-                {{ item.name }}
-              </ULink>
-            </li>
-
-            <!-- Account Section -->
-            <li class="mt-6">
-              <div
-                class="text-xs font-semibold text-gray-400 uppercase tracking-wide"
-              >
-                Your Account
-              </div>
-              <ul class="mt-2 space-y-2">
-                <li v-for="team in teams" :key="team.id">
-                  <ULink
-                    :to="team.href"
-                    class="flex items-center gap-x-2 rounded-md p-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-200"
-                  >
-                    <!-- <span
-                      class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold"
-                    >
-                      {{ team.initial }}
-                    </span> -->
-                    {{ team.name }}
-                  </ULink>
-                </li>
-              </ul>
-            </li>
-
-            <!-- Settings -->
-            <li class="mt-auto">
-              <ULink
-                to="/settings"
-                class="flex items-center gap-x-2 rounded-md p-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-200"
-              >
-                Settings
+                {{ item?.name }}
               </ULink>
             </li>
           </ul>
@@ -293,14 +234,15 @@ const isActive = (href) => route.path === href;
         <Menu as="div" class="relative">
           <MenuButton class="relative flex items-center gap-2">
             <span class="sr-only">Open user menu</span>
-            <img
-              class="w-8 h-8 rounded-full bg-gray-50 outline-black/5"
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt="Profile"
-            />
+            <UAvatar v-if="user?.name" :alt="user?.name" size="md" cl />
             <span class="hidden lg:flex lg:items-center gap-1">
-              <span class="text-sm font-semibold text-gray-900">Admin</span>
-              <ChevronDownIcon class="w-4 h-4 text-gray-400" />
+              <span class="text-sm font-semibold text-gray-900">
+                {{ user?.name }}
+              </span>
+              <UIcon
+                name="i-heroicons-chevron-down"
+                class="ml-2 size-5 text-gray-800"
+              />
             </span>
           </MenuButton>
 
@@ -326,6 +268,7 @@ const isActive = (href) => route.path === href;
                     active ? 'bg-gray-100' : '',
                     'block px-3 py-2 text-sm font-medium text-gray-900 transition-colors duration-200',
                   ]"
+                  @click="item.action && item.action()"
                 >
                   {{ item.name }}
                 </ULink>

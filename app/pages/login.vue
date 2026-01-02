@@ -4,9 +4,15 @@ import { object, string } from "yup";
 definePageMeta({
   layout: "none",
 });
+const show = ref(false);
 const api = useApi();
 const toast = useToast();
 const isSubmitting = ref(false);
+const router = useRouter();
+const token = useCookie("kollel_sys_token");
+const org = useCookie("kollel_sys_org");
+const user = useCookie("kollel_sys_user");
+const hasAccess = useCookie("kollel_sys_has_access");
 
 const schema = object({
   email: string().email("Invalid email").required("Email is required"),
@@ -32,17 +38,14 @@ const onSubmit = async (event) => {
       method: "POST",
       body: event.data,
     });
+    //getitem, json.parse
 
     if (response?.success) {
-      localStorage.setItem("kollel_sys_token", response?.access_token || "");
-      localStorage.setItem(
-        "kollel_sys_org",
-        JSON.stringify(response?.org || "")
-      );
-      localStorage.setItem(
-        "kollel_sys_user",
-        JSON.stringify(response?.user || "")
-      );
+      token.value = response?.access_token || "";
+      org.value = response?.org || null;
+      user.value = response?.user || null;
+      hasAccess.value = response?.has_access || [];
+      router.push("/users");
 
       loginResetForm();
       toast.add({
@@ -118,11 +121,24 @@ const onSubmit = async (event) => {
         <UFormField label="Password" name="password">
           <UInput
             v-model="state.password"
-            type="password"
-            placeholder="Enter your password"
-            size="lg"
+            placeholder="Password"
+            :type="show ? 'text' : 'password'"
+            :ui="{ trailing: 'pe-1' }"
             class="w-full"
-          />
+          >
+            <template #trailing>
+              <UButton
+                color="neutral"
+                variant="link"
+                size="sm"
+                :icon="show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                :aria-label="show ? 'Hide password' : 'Show password'"
+                :aria-pressed="show"
+                aria-controls="password"
+                @click="show = !show"
+              />
+            </template>
+          </UInput>
         </UFormField>
         <UButton
           type="submit"
