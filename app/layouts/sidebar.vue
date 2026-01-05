@@ -22,13 +22,17 @@ const token = useCookie("kollel_sys_token");
 
 const toast = useToast();
 const navigation = [
-  { name: "Payroll", href: "/payroll", key: "payroll" },
+  { name: "Users", href: "/users", key: "users" },
+  { name: "Students", href: "/students", key: "students" },
+  { name: "Schedule", href: "/schedule", key: "schedule" },
+  { name: "Clockings", href: "/clockings", key: "clockings" },
   { name: "Transaction", href: "/transactions", key: "transactions" },
-  { name: "User Management", href: "/users", key: "users" },
-  { name: "Clocking Department", href: "/clocking", key: "clocking" },
-  { name: "Payments Management", href: "/payments", key: "payments" },
-  { name: "College Management", href: "/college", key: "college" },
+  { name: "Payroll", href: "/payroll", key: "payroll" },
+  { name: "Checks", href: "/checks", key: "checks" },
+  { name: "Reports", href: "/reports", key: "reports" },
   { name: "Setting", href: "/setting", key: "settings" },
+
+  { name: "College Checks", href: "/college-checks", key: "college-checks" },
 ];
 
 const filteredNavigation = computed(() =>
@@ -52,7 +56,7 @@ const logout = async () => {
     timeout: 2000,
   });
 
-  return;
+  //return;
   try {
     // Send the full sign-up data to the server
     const response = await api("/api/logout", {

@@ -7,9 +7,9 @@ definePageMeta({
 <template>
   <UContainer>
     <UCard class="mt-6">
-      <template #header> Students Page </template>
+      <template #header> Users Page </template>
 
-      <p>This is the Students page content.</p>
+      <p>This is the users page content.</p>
     </UCard>
   </UContainer>
 </template>
