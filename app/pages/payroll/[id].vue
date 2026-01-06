@@ -7,6 +7,11 @@ import {
 import { id } from "@nuxt/ui/runtime/locale/index.js";
 import { object, string, number } from "yup";
 
+definePageMeta({
+  layout: "sidebar",
+  middleware: ["auth"],
+});
+
 const df = new DateFormatter("en-US", {
   dateStyle: "medium",
 });
@@ -60,7 +65,6 @@ const route = useRoute();
 const groupId = route.params.id;
 const loading = ref(false);
 const api = useApi();
-const org_pin = ref("12467004"); //94279657//12467004
 const router = useRouter();
 const ruleId = ref(null);
 
@@ -138,16 +142,13 @@ const fetchProcessRules = async (date) => {
   await rulesOptionsFetch(); // Ensure labels are loaded
   try {
     loading.value = true;
-    const response = await api(
-      `/api/payroll/${org_pin.value}/process-rules/group/${groupId}`,
-      {
-        method: "GET",
-        params: {
-          from_date: date?.from_date,
-          till_date: date?.till_date,
-        },
-      }
-    );
+    const response = await api(`/api/payroll/process-rules/group/${groupId}`, {
+      method: "GET",
+      params: {
+        from_date: date?.from_date,
+        till_date: date?.till_date,
+      },
+    });
 
     if (response?.success) {
       processRules.value = response?.data;
@@ -186,7 +187,7 @@ const confirmDeleteRules = async () => {
     isSubmitting.value = true;
 
     const response = await api(
-      `/api/payroll/${org_pin.value}/group/${groupId}/rules/${rulesform.value.id}`,
+      `/api/payroll/group/${groupId}/rules/${rulesform.value.id}`,
       {
         method: "DELETE",
       }
@@ -227,8 +228,8 @@ const onSubmit = async (event) => {
     isSubmitting.value = true;
 
     const endpoint = rulesform.value.id
-      ? `/api/payroll/${org_pin.value}/group/${groupId}/rules/${rulesform.value.id}`
-      : `/api/payroll/${org_pin.value}/group/${groupId}/rules`;
+      ? `/api/payroll/group/${groupId}/rules/${rulesform.value.id}`
+      : `/api/payroll/group/${groupId}/rules`;
 
     const payload = {
       ...event.data,
@@ -274,9 +275,7 @@ const onSubmit = async (event) => {
 
 const fetchGroupDetail = async () => {
   try {
-    const response = await api(
-      `/api/payroll/${org_pin.value}/groups/${groupId}`
-    );
+    const response = await api(`/api/payroll/groups/${groupId}`);
 
     if (response?.success) {
       fetchingGroupDetails.value = response?.group;
@@ -289,7 +288,7 @@ const fetchGroupDetail = async () => {
 const rulesOptionsFetch = async () => {
   try {
     fetchingRulesOptions.value = true;
-    const response = await api(`/api/payroll/${org_pin.value}/rules-options`);
+    const response = await api(`/api/payroll/rules-options`);
 
     if (response?.success) {
       // Metrics dropdown
@@ -323,9 +322,7 @@ const rulesOptionsFetch = async () => {
 
 const fetchRules = async () => {
   try {
-    const response = await api(
-      `/api/payroll/${org_pin.value}/group/${groupId}/rules`
-    );
+    const response = await api(`/api/payroll/group/${groupId}/rules`);
 
     if (response?.success) {
       rules.value = response.pay_rules;
@@ -373,106 +370,100 @@ watch(
 </script>
 
 <template>
-  <UContainer>
-    <div class="pt-6">
-      <UButton
-        variant="outline"
-        color="primary"
-        to="/payroll"
-        icon="i-lucide-arrow-left"
-      >
-        Back to Payroll List
-      </UButton>
+  <div>
+    <UButton
+      variant="outline"
+      color="primary"
+      to="/payroll"
+      icon="i-lucide-arrow-left"
+    >
+      Back to Payroll List
+    </UButton>
 
-      <div v-if="loading" class="flex items-center justify-center pt-10 w-full">
-        <BaseSpinner :show-loader="loading" size="md" />
+    <div v-if="loading" class="flex items-center justify-center pt-10 w-full">
+      <BaseSpinner :show-loader="loading" size="md" />
+    </div>
+
+    <div v-else>
+      <div class="flex justify-between items-center gap-2">
+        <div class="mt-4">
+          <h1><strong>Group Name:</strong> {{ fetchingGroupDetails?.name }}</h1>
+          <p>
+            <strong> Group Amount: </strong>
+            {{ fetchingGroupDetails?.amount }}
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <UButton
+            @click="isModalOpen"
+            icon=""
+            label=" Processing Rules / Conditions"
+            class="mb-4"
+            variant="outline"
+          />
+          <UButton
+            @click="ismodalOpen"
+            icon="i-lucide-plus"
+            label=" Create your Rules / Conditions"
+            class="mb-4"
+            variant="outline"
+          />
+        </div>
+      </div>
+
+      <div v-if="rules.length === 0" class="text-center text-gray-500 mt-10">
+        No Rules found. Please add some rules.
       </div>
 
       <div v-else>
-        <div class="flex justify-between items-center gap-2">
-          <div class="mt-4">
-            <h1>
-              <strong>Group Name:</strong> {{ fetchingGroupDetails?.name }}
-            </h1>
-            <p>
-              <strong> Group Amount: </strong>
-              {{ fetchingGroupDetails?.amount }}
-            </p>
-          </div>
-          <div class="flex gap-2">
-            <UButton
-              @click="isModalOpen"
-              icon=""
-              label=" Processing Rules / Conditions"
-              class="mb-4"
-              variant="outline"
-            />
-            <UButton
-              @click="ismodalOpen"
-              icon="i-lucide-plus"
-              label=" Create your Rules / Conditions"
-              class="mb-4"
-              variant="outline"
-            />
-          </div>
-        </div>
+        <h3 class="font-bold text-xl mb-4">Rules ({{ rules?.length }})</h3>
 
-        <div v-if="rules.length === 0" class="text-center text-gray-500 mt-10">
-          No Rules found. Please add some rules.
-        </div>
-
-        <div v-else>
-          <h3 class="font-bold text-xl mb-4">Rules ({{ rules?.length }})</h3>
-
-          <div
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          <UCard
+            v-for="rule in rules"
+            :key="rule.id"
+            class="rounded-2xl shadow hover:shadow-xl transition-shadow duration-300"
           >
-            <UCard
-              v-for="rule in rules"
-              :key="rule.id"
-              class="rounded-2xl shadow hover:shadow-xl transition-shadow duration-300"
+            <div>
+              <label>
+                If {{ metricLabels[rule.metric] }} is
+                {{ operaterLabels[rule.operator] }} {{ rule.value }},
+                {{ rule.is_deduction ? "Deduction" : "Bonus" }} is
+                {{ rule.amount_type }}
+                {{ rule.amount }}
+                {{ rule.amount_type === "fixed" ? "dollars" : "percent" }},
+                {{ rule.apply_once ? "once" : "each time" }}
+              </label>
+            </div>
+            <div
+              class="flex justify-between items-baseline text-end gap-6 text-gray-500"
             >
-              <div>
-                <label>
-                  If {{ metricLabels[rule.metric] }} is
-                  {{ operaterLabels[rule.operator] }} {{ rule.value }},
-                  {{ rule.is_deduction ? "Deduction" : "Bonus" }} is
-                  {{ rule.amount_type }}
-                  {{ rule.amount }}
-                  {{ rule.amount_type === "fixed" ? "dollars" : "percent" }},
-                  {{ rule.apply_once ? "once" : "each time" }}
-                </label>
-              </div>
-              <div
-                class="flex justify-between items-baseline text-end gap-6 text-gray-500"
-              >
-                <p class="text-xs mt-2">
-                  {{ rule.description }}
-                </p>
-                <div class="flex gap-2 items-center">
-                  <UButton
-                    icon="i-lucide-square-pen"
-                    size="md"
-                    color="success"
-                    variant="soft"
-                    @click="editRules(rule)"
-                  />
+              <p class="text-xs mt-2">
+                {{ rule.description }}
+              </p>
+              <div class="flex gap-2 items-center">
+                <UButton
+                  icon="i-lucide-square-pen"
+                  size="md"
+                  color="success"
+                  variant="soft"
+                  @click="editRules(rule)"
+                />
 
-                  <UButton
-                    icon="i-lucide-trash-2"
-                    size="md"
-                    color="error"
-                    variant="soft"
-                    @click="deleteRule(rule)"
-                  />
-                </div>
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="md"
+                  color="error"
+                  variant="soft"
+                  @click="deleteRule(rule)"
+                />
               </div>
-            </UCard>
-          </div>
+            </div>
+          </UCard>
         </div>
       </div>
     </div>
-  </UContainer>
+  </div>
 
   <UModal v-model:open="rulesModalOpen">
     <!-- Custom Header -->

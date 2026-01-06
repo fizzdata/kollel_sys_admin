@@ -8,6 +8,7 @@ import { object, string, number } from "yup";
 
 definePageMeta({
   layout: "sidebar",
+  middleware: ["auth"],
 });
 // const df = new DateFormatter("en-US", {
 //   year: "numeric",
@@ -30,7 +31,6 @@ const calendarRange = ref({
 
 const api = useApi();
 const loading = ref(false);
-const org_pin = ref("16134320"); //94279657//12467004
 const showModal = ref(false);
 const open = ref(false);
 const processRules = ref([]);
@@ -58,7 +58,7 @@ const isModalOpen = async () => {
 const fetchProcessRules = async (date) => {
   try {
     loading.value = true;
-    const response = await api(`/api/payroll/${org_pin.value}/process-rules`, {
+    const response = await api(`/api/payroll/process-rules`, {
       method: "GET",
       params: {
         from_date: date?.from_date,
@@ -86,7 +86,7 @@ const columns = [
         resolveComponent("NuxtLink"),
         {
           to: `/payroll/${row.original.id}`, // dynamic route to user detail page
-          class: "text-primary hover:underline cursor-pointer",
+          class: "text-primary hover:underline",
         },
         row.original.name
       ),
@@ -107,9 +107,6 @@ const columns = [
                 size: "md",
                 color: "success",
                 variant: "soft",
-                ui: {
-                  base: "cursor-pointer",
-                },
                 onClick: () => editGroup(row.original),
               }),
           }
@@ -125,9 +122,6 @@ const columns = [
                 size: "md",
                 color: "error",
                 variant: "soft",
-                ui: {
-                  base: "cursor-pointer",
-                },
                 onClick: () => deleteUser(row.original),
               }),
           }
@@ -138,7 +132,6 @@ const columns = [
 
 const groupSchema = object({
   name: string().required("Name is required"),
-
   base_amount: number()
     .typeError("Base Amount must be a number")
     .required("Base Amount is required"),
@@ -175,8 +168,8 @@ const onSubmit = async (event) => {
     isSubmitting.value = true;
 
     const endpoint = groupForm.value.id
-      ? `/api/payroll/${org_pin.value}/groups/${groupForm.value.id}`
-      : `/api/payroll/${org_pin.value}/groups`;
+      ? `/api/payroll/groups/${groupForm.value.id}`
+      : `/api/payroll/groups`;
 
     const method = groupForm.value.id ? "PUT" : "POST";
     delete event.data.id;
@@ -233,7 +226,7 @@ const onSubmit = async (event) => {
 const fetchGroups = async () => {
   try {
     fetchingGroups.value = true;
-    const response = await api(`/api/payroll/${org_pin.value}/groups`, {
+    const response = await api(`/api/payroll/groups`, {
       method: "GET",
     });
 
@@ -278,12 +271,9 @@ const confirmDeleteGroup = async () => {
   try {
     isSubmitting.value = true;
 
-    const response = await api(
-      `/api/payroll/${org_pin.value}/groups/${groupForm.value.id}`,
-      {
-        method: "DELETE",
-      }
-    );
+    const response = await api(`/api/payroll/groups/${groupForm.value.id}`, {
+      method: "DELETE",
+    });
 
     if (response?.success) {
       toast.add({

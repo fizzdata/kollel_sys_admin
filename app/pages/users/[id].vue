@@ -1,15 +1,18 @@
 <script setup>
+definePageMeta({
+  layout: "sidebar",
+  middleware: ["auth"],
+});
+
 const route = useRoute();
-console.log("🚀 ~ route:", route);
 const studentId = route.params.id;
 const loading = ref(false);
 const api = useApi();
-const org_id = 10869442;
 
 const fetchStudentDetail = async () => {
   try {
     loading.value = true;
-    const response = await api(`/api/${org_id}/students/${studentId}`);
+    const response = await api(`/api/students/${studentId}`);
     console.log("🚀 ~ fetchStudentDetail ~ response:", response);
 
     return;
@@ -33,5 +36,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>User Detail Page</div>
+  <div>
+    <UButton
+      variant="outline"
+      color="primary"
+      to="/users"
+      icon="i-lucide-arrow-left"
+    >
+      Back to Users
+    </UButton>
+
+    <UCard class="mt-6">
+      <template #header> User Detail Page Page </template>
+
+      <p>This is the user detail page content.</p>
+    </UCard>
+  </div>
 </template>

@@ -16,7 +16,6 @@ const items = ref([]);
 const fetchingWages = ref(false);
 const users = ref([]);
 const loading = ref(false);
-const org_pin = "16134320";
 const isActive = ref(false);
 const searchTerm = ref("");
 
@@ -96,9 +95,6 @@ const columns = [
                 size: "md",
                 color: "success",
                 variant: "soft",
-                ui: {
-                  base: "cursor-pointer",
-                },
                 onClick: () => editUser(row.original),
               }),
           }
@@ -143,11 +139,10 @@ const toggleUserStatus = async (user) => {
   user.active = newStatus;
 
   try {
-    const response = await api(`/api/${org_pin}/students/${user.id}/status`, {
+    const response = await api(`/api/students/${user.id}/status`, {
       method: "PATCH",
       body: {
         active: newStatus,
-        org_id: org_pin,
       },
     });
 
@@ -182,8 +177,8 @@ const toggleUserStatus = async (user) => {
 
 const fetchStudents = async () => {
   const fetch = isActive.value
-    ? `/api/${org_pin}/students?active_only=true`
-    : `/api/${org_pin}/students?active_only=false`;
+    ? `/api/students?active_only=true`
+    : `/api/students?active_only=false`;
   try {
     loading.value = true;
     const response = await api(fetch);
@@ -217,7 +212,7 @@ const filteredUsers = computed(() => {
 const fetchwages = async () => {
   try {
     fetchingWages.value = true;
-    const data = await api(`/api/payroll/${org_pin}/groups`);
+    const data = await api(`/api/payroll/groups`);
     if (data?.success) {
       items.value = data.wages_groups.map((item) => ({
         label: item.name,
@@ -242,9 +237,7 @@ const exportUsers = async () => {
 const onSubmit = async (event) => {
   isSubmitting.value = true;
 
-  const endpoint = state.id
-    ? `/api/${org_pin}/students/${state.id}`
-    : `/api/${org_pin}/students`;
+  const endpoint = state.id ? `/api/students/${state.id}` : `/api/students`;
   const method = state.id ? "PUT" : "POST";
   delete event.data.id;
 
@@ -313,7 +306,7 @@ const handleFileSubmit = async () => {
   const formData = new FormData();
   formData.append("file", file.value);
   try {
-    const response = await api(`/api/${org_pin}/students/import`, {
+    const response = await api(`/api/students/import`, {
       method: "POST",
       body: formData,
     });
@@ -410,7 +403,6 @@ const toggleSwitch = async () => {
       :model-value="isActive"
       @update:model-value="toggleSwitch"
       label="Active Only"
-      :ui="{ base: 'cursor-pointer' }"
     />
   </div>
   <!-- User Table -->
@@ -559,7 +551,6 @@ const toggleSwitch = async () => {
           color="primary"
           class="rounded-full p-2"
           icon="i-lucide-x"
-          :ui="{ base: 'cursor-pointer' }"
           @click="
             () => {
               handleClose();
@@ -588,7 +579,6 @@ const toggleSwitch = async () => {
             icon="i-lucide-upload"
             color="neutral"
             variant="outline"
-            :ui="{ base: 'cursor-pointer' }"
             @click="open()"
           />
         </template>
@@ -598,7 +588,7 @@ const toggleSwitch = async () => {
             v-if="files?.length"
             label="Remove all files"
             color="neutral"
-            :ui="{ base: 'cursor-pointer' }"
+            
             @click="removeFile()"
           />
         </template> -->
@@ -627,9 +617,8 @@ const toggleSwitch = async () => {
             icon="i-lucide-download"
             class="rounded-lg h-fit w-64"
             :ui="{
-              base: 'border border-gray-600 cursor-pointer',
+              base: 'border border-gray-600',
             }"
-            @click=""
           />
         </div>
       </div>
@@ -639,7 +628,6 @@ const toggleSwitch = async () => {
         :loading="isSubmitting"
         :disabled="isSubmitting"
         class="w-full flex justify-center items-center mt-4"
-        :ui="{ base: 'cursor-pointer' }"
         @click="handleFileSubmit"
       >
         Import Users
