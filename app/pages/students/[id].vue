@@ -40,10 +40,10 @@ onMounted(async () => {
     <UButton
       variant="outline"
       color="primary"
-      to="/users"
+      to="/students"
       icon="i-lucide-arrow-left"
     >
-      Back to Users
+      Back to Students
     </UButton>
 
     <UCard class="mt-6">
