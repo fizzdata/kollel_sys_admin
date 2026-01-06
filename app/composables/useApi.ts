@@ -2,6 +2,7 @@
 export const useApi = () => {
   const config = useRuntimeConfig();
   const baseUrl = config.public.API_URL;
+  const token = useCookie("kollel_sys_token");
 
   return async (url: string, options: any = {}) => {
     try {
@@ -10,6 +11,7 @@ export const useApi = () => {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
         },
         ...options,
       });

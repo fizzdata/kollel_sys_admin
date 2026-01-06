@@ -31,7 +31,6 @@ const navigation = [
   { name: "Checks", href: "/checks", key: "checks" },
   { name: "Reports", href: "/reports", key: "reports" },
   { name: "Setting", href: "/setting", key: "settings" },
-
   { name: "College Checks", href: "/college-checks", key: "college-checks" },
 ];
 
@@ -39,23 +38,9 @@ const filteredNavigation = computed(() =>
   navigation.filter((item) => hasAccess.value.includes(item.key))
 );
 
-const isActive = (href) => route.path === href;
+const isActive = (href) => route.path.startsWith(href);
 
 const logout = async () => {
-  // Redirect to login
-  navigateTo("/login");
-  // Clear cookies
-  useCookie("kollel_sys_token").value = null;
-  useCookie("kollel_sys_org").value = null;
-  useCookie("kollel_sys_user").value = null;
-  useCookie("kollel_sys_has_access").value = null;
-
-  toast.add({
-    description: `Admin Logout Successfully`,
-    color: "success",
-    timeout: 2000,
-  });
-
   //return;
   try {
     // Send the full sign-up data to the server
@@ -65,7 +50,7 @@ const logout = async () => {
     });
     if (response?.success) {
       toast.add({
-        description: response?.message || `User Logout Successfully`,
+        description: response?.message || `Admin Logout Successfully`,
         color: "success",
         timeout: 2000,
       });
@@ -144,7 +129,7 @@ const userNavigation = [
                   @click="sidebarOpen = false"
                   aria-label="Close sidebar"
                 >
-                  <UIcon name="i-heroicons-x-mark" class="size-6 text-white" />
+                  <UIcon name="i-lucide-x" class="size-6 text-white" />
                 </button>
               </div>
 
@@ -183,7 +168,9 @@ const userNavigation = [
     </TransitionRoot>
 
     <!-- Desktop Sidebar -->
-    <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-80">
+    <div
+      class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col"
+    >
       <div
         class="flex grow flex-col gap-y-5 border-r border-gray-200 bg-white/90 backdrop-blur-md shadow-md px-6 pb-4 rounded-tr-2xl rounded-br-2xl"
       >
@@ -228,7 +215,7 @@ const userNavigation = [
           @click="sidebarOpen = true"
           aria-label="Open sidebar"
         >
-          <UIcon name="i-heroicons-bars-3" class="size-6" />
+          <UIcon name="i-lucide-menu" class="size-6" />
         </button>
 
         <!-- Spacer -->
@@ -236,54 +223,59 @@ const userNavigation = [
 
         <!-- Profile dropdown -->
         <Menu as="div" class="relative">
-          <MenuButton class="relative flex items-center gap-2">
-            <span class="sr-only">Open user menu</span>
-            <UAvatar v-if="user?.name" :alt="user?.name" size="md" cl />
-            <span class="hidden lg:flex lg:items-center gap-1">
-              <span class="text-sm font-semibold text-gray-900">
-                {{ user?.name }}
+          <template #default="{ open }">
+            <MenuButton class="relative flex items-center gap-2">
+              <span class="sr-only">Open user menu</span>
+              <UAvatar v-if="user?.name" :alt="user?.name" size="md" />
+              <span class="hidden lg:flex lg:items-center gap-1 cursor-pointer">
+                <span class="text-sm font-semibold text-gray-900">
+                  {{ user?.name }}
+                </span>
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="ml-2 size-5 text-gray-800 transition-transform duration-200"
+                  :class="{ 'rotate-180': open }"
+                />
               </span>
-              <UIcon
-                name="i-heroicons-chevron-down"
-                class="ml-2 size-5 text-gray-800"
-              />
-            </span>
-          </MenuButton>
+            </MenuButton>
 
-          <transition
-            enter-active-class="transition ease-out duration-100"
-            enter-from-class="transform opacity-0 scale-95"
-            enter-to-class="transform scale-100"
-            leave-active-class="transition ease-in duration-75"
-            leave-from-class="transform scale-100"
-            leave-to-class="transform opacity-0 scale-95"
-          >
-            <MenuItems
-              class="absolute right-0 z-10 mt-2 w-36 origin-top-right rounded-md bg-white py-2 shadow-lg focus:outline-none"
+            <transition
+              enter-active-class="transition ease-out duration-100"
+              enter-from-class="transform opacity-0 scale-95"
+              enter-to-class="transform scale-100"
+              leave-active-class="transition ease-in duration-75"
+              leave-from-class="transform scale-100"
+              leave-to-class="transform opacity-0 scale-95"
             >
-              <MenuItem
-                v-for="item in userNavigation"
-                :key="item.name"
-                v-slot="{ active }"
+              <MenuItems
+                class="absolute right-0 z-10 mt-2 w-36 origin-top-right rounded-md bg-white py-2 shadow-lg focus:outline-none"
               >
-                <ULink
-                  :to="item.href"
-                  :class="[
-                    active ? 'bg-gray-100' : '',
-                    'block px-3 py-2 text-sm font-medium text-gray-900 transition-colors duration-200',
-                  ]"
-                  @click="item.action && item.action()"
+                <MenuItem
+                  v-for="item in userNavigation"
+                  :key="item.name"
+                  v-slot="{ active }"
                 >
-                  {{ item.name }}
-                </ULink>
-              </MenuItem>
-            </MenuItems>
-          </transition>
+                  <ULink
+                    :to="item.href"
+                    :class="[
+                      active ? 'bg-gray-100' : '',
+                      'block px-3 py-2 text-sm font-medium text-gray-900 transition-colors duration-200',
+                    ]"
+                    @click="item.action && item.action()"
+                  >
+                    {{ item.name }}
+                  </ULink>
+                </MenuItem>
+              </MenuItems>
+            </transition>
+          </template>
         </Menu>
       </header>
 
-      <main class="p-2 bg-white/60 min-h-[calc(100vh-64px)]">
-        <slot />
+      <main class="py-10">
+        <div class="px-4 sm:px-6 lg:px-8">
+          <slot />
+        </div>
       </main>
     </div>
   </div>

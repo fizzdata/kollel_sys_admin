@@ -45,7 +45,7 @@ const onSubmit = async (event) => {
       org.value = response?.org || null;
       user.value = response?.user || null;
       hasAccess.value = response?.has_access || [];
-      router.push("/users");
+      router.push(`/${response?.has_access[0]}`);
 
       loginResetForm();
       toast.add({

@@ -30,7 +30,7 @@ const calendarRange = ref({
 
 const api = useApi();
 const loading = ref(false);
-const org_pin = ref("12467004"); //94279657//12467004
+const org_pin = ref("16134320"); //94279657//12467004
 const showModal = ref(false);
 const open = ref(false);
 const processRules = ref([]);
@@ -103,7 +103,7 @@ const columns = [
           {
             default: () =>
               h(resolveComponent("UButton"), {
-                icon: "i-heroicons-pencil-square",
+                icon: "i-lucide-square-pen",
                 size: "md",
                 color: "success",
                 variant: "soft",
@@ -121,7 +121,7 @@ const columns = [
           {
             default: () =>
               h(resolveComponent("UButton"), {
-                icon: "i-heroicons-trash",
+                icon: "i-lucide-trash-2",
                 size: "md",
                 color: "error",
                 variant: "soft",
@@ -335,28 +335,22 @@ watch(
 </script>
 
 <template>
-  <UContainer>
-    <div class="flex justify-between items-center gap-4">
-      <h2 class="text-xl font-bold my-4">Groups</h2>
-      <div class="flex justify-end gap-2">
-        <UButton
-          @click="isGroupModalOpen"
-          icon="la:user-plus"
-          label="New Group"
-        >
-        </UButton>
+  <div class="flex justify-between items-center gap-4">
+    <h2 class="text-xl font-bold my-4">Groups</h2>
+    <div class="flex justify-end gap-2">
+      <UButton @click="isGroupModalOpen" icon="la:user-plus" label="New Group">
+      </UButton>
 
-        <UButton @click="isModalOpen" icon="" label="Process into ready checks">
-        </UButton>
-      </div>
+      <UButton @click="isModalOpen" icon="" label="Process into ready checks">
+      </UButton>
     </div>
-    <UTable
-      :columns="columns"
-      :loading="fetchingGroups"
-      :data="groups"
-      class="flex-1 mt-6"
-    />
-  </UContainer>
+  </div>
+  <UTable
+    :columns="columns"
+    :loading="fetchingGroups"
+    :data="groups"
+    class="flex-1 mt-6"
+  />
 
   <!-- Create Group Modal -->
   <UModal v-model:open="newGroup">

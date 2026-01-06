@@ -22,7 +22,7 @@ const spinnerSize = computed(() => {
     <svg
       aria-hidden="true"
       :class="[spinnerSize]"
-      class="text-gray-200 animate-spin fill-indigo-600"
+      class="text-gray-200 animate-spin fill-primary"
       viewBox="0 0 100 101"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

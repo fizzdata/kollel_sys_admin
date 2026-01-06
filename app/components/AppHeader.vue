@@ -2,20 +2,8 @@
 const route = useRoute();
 
 const token = useCookie("kollel_sys_token");
-const hasAccess = useCookie("kollel_sys_has_access");
 const toast = useToast();
-const navigation = [
-  { name: "Payroll", href: "/payroll", key: "payroll" },
-  { name: "Transaction", href: "/transactions", key: "transactions" },
-  { name: "User Management", href: "/users", key: "users" },
-  { name: "Clocking Department", href: "/clocking", key: "clocking" },
-  { name: "Payments Management", href: "/payments", key: "payments" },
-  { name: "College Management", href: "/college", key: "college" },
-  { name: "Setting", href: "/setting", key: "settings" },
-];
-const filteredNavigation = computed(() =>
-  navigation.filter((item) => hasAccess.value.includes(item.key))
-);
+
 const secondaryNavigation = [
   { name: "Login", href: `/login` },
   { name: "Signup", href: `/signup` },
@@ -91,17 +79,7 @@ const logout = async () => {
           </ULink>
         </div>
         <div v-if="token" class="flex text-center items-center gap-x-4">
-          <ULink
-            v-for="item in filteredNavigation"
-            :key="item.name"
-            :to="item.href"
-            :class="[
-              'nav-link text-white hover:text-white font-medium',
-              route.path === item.href ? 'font-bold' : '',
-            ]"
-          >
-            {{ item.name }}
-          </ULink>
+          <UButton size="xl" to="/users">Go to your account</UButton>
           <div>
             <UButton type="submit" color="neutral" size="lg" @click="logout">
               Logout

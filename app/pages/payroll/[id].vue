@@ -376,11 +376,10 @@ watch(
   <UContainer>
     <div class="pt-6">
       <UButton
-        @click="router.push('/payroll')"
         variant="outline"
         color="primary"
         to="/payroll"
-        icon="i-heroicons-arrow-left-solid"
+        icon="i-lucide-arrow-left"
       >
         Back to Payroll List
       </UButton>
@@ -410,7 +409,7 @@ watch(
             />
             <UButton
               @click="ismodalOpen"
-              icon="i-heroicons-plus"
+              icon="i-lucide-plus"
               label=" Create your Rules / Conditions"
               class="mb-4"
               variant="outline"
@@ -452,7 +451,7 @@ watch(
                 </p>
                 <div class="flex gap-2 items-center">
                   <UButton
-                    icon="i-heroicons-pencil-square"
+                    icon="i-lucide-square-pen"
                     size="md"
                     color="success"
                     variant="soft"
@@ -460,7 +459,7 @@ watch(
                   />
 
                   <UButton
-                    icon="i-heroicons-trash"
+                    icon="i-lucide-trash-2"
                     size="md"
                     color="error"
                     variant="soft"
@@ -479,7 +478,7 @@ watch(
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-indigo-600">
+        <h2 class="text-xl font-bold text-primary">
           {{ rulesform.id ? "Edit Rules" : " Create New Rules" }}
         </h2>
 
@@ -682,7 +681,7 @@ watch(
   <UModal v-model:open="showModal" fullscreen>
     <template #header>
       <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-indigo-600">Processing Rules</h2>
+        <h2 class="text-xl font-bold text-primary">Processing Rules</h2>
 
         <!-- Close Button -->
         <UButton
