@@ -242,8 +242,10 @@ const toggleSwitch = async () => {
 </script>
 
 <template>
-  <div class="flex justify-between items-center gap-4">
-    <h2 class="text-xl font-bold my-4">All Students</h2>
+  <div
+    class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+  >
+    <h2 class="text-xl font-bold my-0 md:my-4">All Students</h2>
     <div class="flex justify-end gap-2">
       <UButton
         @click="isModalOpen"
