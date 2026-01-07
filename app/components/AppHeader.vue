@@ -3,28 +3,13 @@ const route = useRoute();
 
 const token = useCookie("kollel_sys_token");
 const toast = useToast();
-
+const api = useApi();
 const secondaryNavigation = [
   { name: "Login", href: `/login` },
   { name: "Signup", href: `/signup` },
 ];
 
 const logout = async () => {
-  // Redirect to login
-  navigateTo("/login");
-  // Clear cookies
-  useCookie("kollel_sys_token").value = null;
-  useCookie("kollel_sys_org").value = null;
-  useCookie("kollel_sys_user").value = null;
-  useCookie("kollel_sys_has_access").value = null;
-
-  toast.add({
-    description: `Admin Logout Successfully`,
-    color: "success",
-    timeout: 2000,
-  });
-
-  return;
   try {
     // Send the full sign-up data to the server
     const response = await api("/api/logout", {
@@ -33,7 +18,7 @@ const logout = async () => {
     });
     if (response?.success) {
       toast.add({
-        description: response?.message || `User Logout Successfully`,
+        description: response?.message || `Admin Logout Successfully`,
         color: "success",
         timeout: 2000,
       });

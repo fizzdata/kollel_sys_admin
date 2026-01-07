@@ -2,7 +2,7 @@
 import { object, string } from "yup";
 
 definePageMeta({
-  layout: "none",
+  layout: false,
 });
 const show = ref(false);
 const api = useApi();

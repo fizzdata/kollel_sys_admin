@@ -2,7 +2,7 @@
 import * as yup from "yup";
 
 definePageMeta({
-  layout: "none",
+  layout: false,
 });
 const show = ref(false);
 const confirmshow = ref(false);

@@ -16,6 +16,11 @@ export const useApi = () => {
         ...options,
       });
     } catch (error: any) {
+      if (error.response?._data?.reLogin === true) {
+        token.value = null; // Clear cookie correctly
+        navigateTo('/login')
+      }
+
       // ✅ Return the full error response if available
       if (error.response) {
         return error.response; // This allows you to see the actual response error

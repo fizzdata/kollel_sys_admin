@@ -41,7 +41,6 @@ const filteredNavigation = computed(() =>
 const isActive = (href) => route.path.startsWith(href);
 
 const logout = async () => {
-  //return;
   try {
     // Send the full sign-up data to the server
     const response = await api("/api/logout", {
