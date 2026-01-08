@@ -34,7 +34,7 @@ const fetchStudentDetail = async (refresh = false) => {
 
     if (response) {
       student.value = response;
-      clockingsData.value = response?.clockings;
+      clockingsData.value = Object.values(response?.clockings || {});
       transactionsData.value = response?.transactions;
       responsesData.value = response?.Student_responses;
       checksData.value = response?.checks;
@@ -57,7 +57,7 @@ const handleCancel = () => {
 };
 
 const clockingsColumns = [
-  { accessorKey: "date", header: "Date" },
+  { accessorKey: "day", header: "Date" },
   { accessorKey: "morning_in", header: "Morning In" },
   { accessorKey: "morning_out", header: "Morning Out" },
   { accessorKey: "retzifus_morning", header: "Retzifus" },
@@ -73,6 +73,32 @@ const transactionsColumns = [
   { accessorKey: "amount", header: "Amount" },
   { accessorKey: "description", header: "Description" },
 ];
+const checksColumns = [
+  {
+    accessorKey: "student_id",
+    header: "Name",
+    cell: ({ row }) => {
+      return (
+        student.value?.Student?.first_name +
+        " " +
+        student.value?.Student?.last_name
+      );
+    },
+  },
+  { accessorKey: "amount", header: "Amount" },
+  { accessorKey: "check_date", header: "Check Date" },
+  { accessorKey: "check_number", header: "Check Number" },
+  {
+    accessorKey: "cleared",
+    header: "Cleared",
+    cell: ({ row }) => {
+      const cleared = row.original.cleared;
+      return cleared === 1 ? "Paid" : "Not Paid";
+    },
+  },
+  { accessorKey: "pay_to", header: "Pay To" },
+];
+
 const responsesColumns = [
   { accessorKey: "date", header: "Date" },
   { accessorKey: "question", header: "Question" },
@@ -153,6 +179,7 @@ onMounted(async () => {
             <UButton
               v-if="student?.previous"
               variant="link"
+              color="neutral"
               :to="`/students/${student?.previous?.id}`"
               icon="i-lucide-arrow-left"
             >
@@ -168,6 +195,7 @@ onMounted(async () => {
             <UButton
               v-if="student?.next"
               variant="link"
+              color="neutral"
               :to="`/students/${student?.next?.id}`"
               trailing-icon="i-lucide-arrow-right"
             >
@@ -186,7 +214,7 @@ onMounted(async () => {
       <BaseSpinner :show-loader="loading" size="md" />
     </div>
     <div
-      v-else-if="student?.Student && Object.keys(student.Student).length > 0"
+      v-else-if="student?.Student && Object.keys(student?.Student).length > 0"
     >
       <UCard class="rounded-2xl shadow-sm mt-6">
         <div class="flex items-center gap-6">
@@ -343,26 +371,38 @@ onMounted(async () => {
       <UCard v-if="activeTab === '0'">
         <UTable
           :columns="clockingsColumns"
+          :loading="loading"
           :data="clockingsData"
-          class="flex-1 mt-6"
+          class="flex-1 mt-6 max-h-112"
+          sticky
         />
       </UCard>
 
       <UCard v-if="activeTab === '1'">
         <UTable
           :columns="transactionsColumns"
+          :loading="loading"
           :data="transactionsData"
-          class="flex-1 mt-6"
+          class="flex-1 mt-6 max-h-112"
+          sticky
         />
       </UCard>
       <UCard v-if="activeTab === '2'">
-        <div>checks data</div>
+        <UTable
+          :columns="checksColumns"
+          :loading="loading"
+          :data="checksData"
+          class="flex-1 mt-6 max-h-112"
+          sticky
+        />
       </UCard>
       <UCard v-if="activeTab === '3'">
         <UTable
           :columns="responsesColumns"
+          :loading="loading"
           :data="responsesData"
-          class="flex-1 mt-6"
+          class="flex-1 mt-6 max-h-112"
+          sticky
         />
       </UCard>
     </div>

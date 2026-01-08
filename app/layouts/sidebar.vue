@@ -82,6 +82,7 @@ const logout = async () => {
 };
 
 const userNavigation = [
+  { name: "Profile", href: "/profile" },
   { name: "Setting", href: "/setting" },
   { name: "Sign out", href: "#", action: logout },
 ];

@@ -10,7 +10,8 @@ definePageMeta({
   layout: "sidebar",
   middleware: ["auth"],
 });
-
+const open = ref(false);
+const clockingsData = ref([]);
 const isActive = ref(false);
 const CreateClockingModal = ref(false);
 const df = new DateFormatter("en-US", {
@@ -20,11 +21,12 @@ const df = new DateFormatter("en-US", {
 const inValue = shallowRef(new Time(10, 30, 0));
 const outValue = shallowRef(new Time(12, 30, 0));
 const isSubmitting = ref(false);
-
+const loading = ref(false);
+const api = useApi();
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
-// Get date 10 days ago
+// Get date 7 days ago
 const fromDate = todayDate.subtract({ days: 7 });
 
 const calendarRange = ref({
@@ -33,6 +35,10 @@ const calendarRange = ref({
 });
 const toggleSwitch = async () => {
   isActive.value = !isActive.value;
+  await fetchClockings({
+    date_from: calendarRange.value.start?.toString(),
+    date_to: calendarRange.value.end?.toString(),
+  });
 };
 
 const modelValue = shallowRef(today(getLocalTimeZone()));
@@ -41,9 +47,18 @@ const state = ref({
   user: "",
 });
 
-const columns = [
-  { accessorKey: "date", header: "Date" },
-  { accessorKey: "name", header: "Name" },
+const clockingsColumns = [
+  { accessorKey: "day", header: "Date" },
+  {
+    accessorKey: "student_id",
+    header: "Name",
+    cell: ({ row }) => {
+      console.log("row", clockingsData.value);
+      return (
+        row.original.first_yiddish_name + " " + row.original.last_yiddish_name
+      );
+    },
+  },
   { accessorKey: "morning_in", header: "Morning In" },
   { accessorKey: "morning_out", header: "Morning Out" },
   { accessorKey: "retzifus_morning", header: "Retzifus" },
@@ -53,56 +68,53 @@ const columns = [
   { accessorKey: "retzifus_evening", header: "Retzifus" },
   { accessorKey: "total_afternoon", header: "Total Afternoon" },
 ];
-const data = [
-  {
-    date: "2026-01-01",
-    name: "John Doe",
-    morning_in: "09:00 AM",
-    morning_out: "01:00 PM",
-    retzifus_morning: "00:10",
-    total_morning: "03:50",
-    afternoon_in: "02:00 PM",
-    afternoon_out: "06:00 PM",
-    retzifus_evening: "00:05",
-    total_afternoon: "03:55",
+const fetchClockings = async (date) => {
+  try {
+    loading.value = true;
+    const response = await api(`/api/clockings`, {
+      method: "GET",
+      params: {
+        date_from: date?.date_from,
+        date_to: date?.date_to,
+        error_only: isActive.value,
+      },
+    });
+
+    // console.log(fetch);
+    if (response?.success) {
+      clockingsData.value = response?.clockings;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchStudents ~ err:", err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(async () => {
+  await fetchClockings({
+    date_from: calendarRange.value.start?.toString(),
+    date_to: calendarRange.value.end?.toString(),
+  });
+});
+
+// watch for datepicker changes
+watch(
+  () => calendarRange.value,
+  async (val) => {
+    if (!val?.start || !val?.end) return;
+
+    // close popover
+    open.value = false;
+
+    // call API
+    await fetchClockings({
+      date_from: val.start.toString(),
+      date_to: val.end.toString(),
+    });
   },
-  {
-    date: "2026-01-01",
-    name: "Jane Smith",
-    morning_in: "09:15 AM",
-    morning_out: "01:10 PM",
-    retzifus_morning: "00:00",
-    total_morning: "03:55",
-    afternoon_in: "02:05 PM",
-    afternoon_out: "06:10 PM",
-    retzifus_evening: "00:15",
-    total_afternoon: "03:50",
-  },
-  {
-    date: "2026-01-02",
-    name: "Michael Lee",
-    morning_in: "08:50 AM",
-    morning_out: "12:45 PM",
-    retzifus_morning: "00:05",
-    total_morning: "03:50",
-    afternoon_in: "01:45 PM",
-    afternoon_out: "05:30 PM",
-    retzifus_evening: "00:00",
-    total_afternoon: "03:45",
-  },
-  {
-    date: "2026-01-02",
-    name: "Sara Khan",
-    morning_in: "09:05 AM",
-    morning_out: "01:00 PM",
-    retzifus_morning: "00:20",
-    total_morning: "03:35",
-    afternoon_in: "02:10 PM",
-    afternoon_out: "06:00 PM",
-    retzifus_evening: "00:10",
-    total_afternoon: "03:40",
-  },
-];
+  { deep: true }
+);
 </script>
 <template>
   <div class="flex justify-between items-center gap-4">
@@ -166,7 +178,12 @@ const data = [
     />
   </div>
   <!-- Clockings Table -->
-  <UTable :columns="columns" :data="data" class="flex-1 mt-6" />
+  <UTable
+    :columns="clockingsColumns"
+    :loading="loading"
+    :data="clockingsData"
+    class="flex-1 mt-6"
+  />
 
   <!-- Modal for Create New User -->
   <UModal v-model:open="CreateClockingModal">

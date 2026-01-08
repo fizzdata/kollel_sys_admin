@@ -4,7 +4,6 @@ import {
   DateFormatter,
   getLocalTimeZone,
 } from "@internationalized/date";
-import { id } from "@nuxt/ui/runtime/locale/index.js";
 import { object, string, number } from "yup";
 
 definePageMeta({
@@ -18,8 +17,8 @@ const df = new DateFormatter("en-US", {
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
-// Get date 10 days ago
-const fromDate = todayDate.subtract({ days: 10 });
+// Get date 7 days ago
+const fromDate = todayDate.subtract({ days: 7 });
 
 const calendarRange = ref({
   start: fromDate,
@@ -52,21 +51,12 @@ const applyOnceItems = ref(["Apply Once", "Each Time"]);
 const operaterLabels = ref({});
 const metricLabels = ref({});
 
-const operaterLabelsStatic = {
-  equals: "Equals to",
-  not_equals: "Not Equals to",
-  greater_than: "Greater Than",
-  less_than: "Less Than",
-  greater_than_or_equal: "Greater Than or Equal to",
-  less_than_or_equal: "Less Than or Equal to",
-};
-
 const route = useRoute();
 const groupId = route.params.id;
 const loading = ref(false);
+const processRulesLoading = ref(false);
 const api = useApi();
-const router = useRouter();
-const ruleId = ref(null);
+const open = ref(false);
 
 const rules = ref([]);
 const processRules = ref([]);
@@ -81,11 +71,13 @@ const deleteModal = ref(false);
 const showModal = ref(false);
 
 const isModalOpen = async () => {
+  processRulesLoading.value = true;
   showModal.value = true;
   await fetchProcessRules({
     from_date: calendarRange.value.start?.toString(),
     till_date: calendarRange.value.end?.toString(),
   });
+  processRulesLoading.value = false;
 };
 
 // Form State and Schema
@@ -141,7 +133,7 @@ const resetRulesForm = () => {
 const fetchProcessRules = async (date) => {
   await rulesOptionsFetch(); // Ensure labels are loaded
   try {
-    loading.value = true;
+    processRulesLoading.value = true;
     const response = await api(`/api/payroll/process-rules/group/${groupId}`, {
       method: "GET",
       params: {
@@ -156,7 +148,7 @@ const fetchProcessRules = async (date) => {
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
   } finally {
-    loading.value = false;
+    processRulesLoading.value = false;
   }
 };
 
@@ -693,7 +685,12 @@ watch(
     <template #body>
       <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
         <UPopover v-model:open="open">
-          <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
+          <UButton
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-calendar"
+            size="lg"
+          >
             <template v-if="calendarRange.start">
               <template v-if="calendarRange.end">
                 {{ df.format(calendarRange.start.toDate(getLocalTimeZone())) }}
@@ -717,11 +714,18 @@ watch(
           </template>
         </UPopover>
       </UFormField>
-      <div v-if="loading" class="flex items-center justify-center pt-10 w-full">
-        <BaseSpinner :show-loader="loading" size="md" class="my-10 mx-auto" />
+      <div
+        v-if="processRulesLoading"
+        class="flex items-center justify-center pt-10 w-full"
+      >
+        <BaseSpinner
+          :show-loader="processRulesLoading"
+          size="md"
+          class="my-10 mx-auto"
+        />
       </div>
       <div
-        v-if="processRules.length === 0"
+        v-else-if="processRules.length === 0"
         class="text-center text-gray-500 mt-10"
       >
         No Rules found. Please add some rules.
