@@ -279,6 +279,10 @@ const onSubmit = async (event) => {
         duration: 2000,
       });
       state.id = null;
+      await fetchClockings({
+        date_from: calendarRange.value.start?.toString(),
+        date_to: calendarRange.value.end?.toString(),
+      });
     } else if (response?._data?.message) {
       toast.add({
         title: "Failed",
