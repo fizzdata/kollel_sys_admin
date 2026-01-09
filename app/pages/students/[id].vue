@@ -24,6 +24,72 @@ const tabs = [
   { label: "Checks", key: "checks", icon: "i-lucide-file-check" },
   { label: "Responses", key: "responses", icon: "i-lucide-help-circle" },
 ];
+
+const normalizeClockings = (clockings) => {
+  if (!clockings) return [];
+
+  return Object.values(clockings).map((dayEntry) => {
+    // Normalize clocking to array
+    const sessions = Array.isArray(dayEntry.clocking)
+      ? dayEntry.clocking
+      : Object.values(dayEntry.clocking || {});
+
+    const row = {
+      day: dayEntry.day,
+
+      morning_in: "-",
+      morning_out: "-",
+      retzifus_morning: "-",
+      total_morning: "-",
+
+      afternoon_in: "-",
+      afternoon_out: "-",
+      retzifus_evening: "-",
+      total_afternoon: "-",
+    };
+
+    sessions.forEach((s) => {
+      if (s.session === 1) {
+        row.morning_in = secondsToAmPm(s.in);
+        row.morning_out = secondsToAmPm(s.out);
+        row.retzifus_morning = s.retzifus === 0 ? "NO" : "-";
+        row.total_morning = secondsToPercent(s.out - s.in, s.schedule_total);
+      }
+
+      if (s.session === 2) {
+        row.afternoon_in = secondsToAmPm(s.in);
+        row.afternoon_out = secondsToAmPm(s.out);
+        row.retzifus_evening = s.retzifus === 0 ? "NO" : "-";
+        row.total_afternoon = secondsToPercent(s.out - s.in, s.schedule_total);
+      }
+    });
+
+    return row;
+  });
+};
+
+const secondsToAmPm = (seconds) => {
+  if (seconds == null) return "-";
+
+  let hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${secs.toString().padStart(2, "0")} ${ampm}`;
+};
+
+const secondsToPercent = (workedSeconds, scheduledSeconds) => {
+  if (!workedSeconds || !scheduledSeconds) return "-";
+
+  const percent = (workedSeconds / scheduledSeconds) * 100;
+  return `${Math.round(percent)}%`;
+};
+
 const fetchStudentDetail = async (refresh = false) => {
   try {
     if (refresh) {
@@ -34,7 +100,7 @@ const fetchStudentDetail = async (refresh = false) => {
 
     if (response) {
       student.value = response;
-      clockingsData.value = Object.values(response?.clockings || {});
+      clockingsData.value = normalizeClockings(response?.clockings);
       transactionsData.value = response?.transactions;
       responsesData.value = response?.Student_responses;
       checksData.value = response?.checks;
@@ -69,7 +135,7 @@ const clockingsColumns = [
 ];
 const transactionsColumns = [
   { accessorKey: "date", header: "Date" },
-  { accessorKey: "type", header: "Type" },
+  // { accessorKey: "type", header: "Type" },
   { accessorKey: "amount", header: "Amount" },
   { accessorKey: "description", header: "Description" },
 ];
@@ -152,6 +218,43 @@ const toggleStudentStatus = async (student) => {
   }
 };
 
+const handleResetPasswordClick = async (student) => {
+  try {
+    const response = await api(`/api/students/reset-passwords`, {
+      method: "POST",
+      body: {
+        id: student.id,
+      },
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.msg ? response?.msg : "Student deactivated",
+        color: "success",
+        duration: 2000,
+      });
+
+      await fetchStudentDetail(false);
+    } else {
+      toast.add({
+        title: "Failed",
+        description: response?.msg ? response?.msg : "Unable to deactivate.",
+        color: "error",
+        duration: 2000,
+      });
+
+      await fetchStudentDetail(false);
+    }
+  } catch (error) {
+    console.error("Submission error:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred.",
+      color: "error",
+    });
+  }
+};
 onMounted(async () => {
   await fetchStudentDetail(true);
 });
@@ -284,7 +387,7 @@ onMounted(async () => {
                   :class="{ 'rotate-180': student?.Student?.active === 1 }"
                 />
               </button>
-              <button>
+              <button @click="handleResetPasswordClick(student?.Student)">
                 <UIcon name="i-lucide-lock-keyhole-open" class="size-5" />
               </button>
             </div>

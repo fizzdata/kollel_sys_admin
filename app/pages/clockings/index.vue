@@ -5,21 +5,23 @@ import {
   getLocalTimeZone,
   Time,
 } from "@internationalized/date";
+import { object, string, number } from "yup";
 
 definePageMeta({
   layout: "sidebar",
   middleware: ["auth"],
 });
 const open = ref(false);
+const datePickerOpen = ref(false);
 const clockingsData = ref([]);
+const studentsData = ref([]);
 const isActive = ref(false);
 const CreateClockingModal = ref(false);
+const toast = useToast();
 const df = new DateFormatter("en-US", {
   dateStyle: "medium",
 });
 
-const inValue = shallowRef(new Time(10, 30, 0));
-const outValue = shallowRef(new Time(12, 30, 0));
 const isSubmitting = ref(false);
 const loading = ref(false);
 const api = useApi();
@@ -41,10 +43,43 @@ const toggleSwitch = async () => {
   });
 };
 
-const modelValue = shallowRef(today(getLocalTimeZone()));
+const state = reactive({
+  id: undefined,
+  student_id: undefined,
+  day: undefined,
+  in: undefined,
+  out: undefined,
+  user: undefined,
+});
 
-const state = ref({
-  user: "",
+const resetClockingForm = () => {
+  state.id = undefined;
+  state.student_id = undefined;
+  state.day = undefined;
+  state.in = undefined;
+  state.out = undefined;
+  state.user = undefined;
+};
+
+const schema = object({
+  student_id: number()
+    .typeError("User is required") // ensures number, not string
+    .required("User is required"),
+  day: string()
+    .matches(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .required("Date is required"),
+  in: string()
+    .matches(
+      /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/,
+      "In Time must be HH:mm:ss"
+    )
+    .required("In Time is required"),
+  out: string()
+    .matches(
+      /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/,
+      "Out Time must be HH:mm:ss"
+    )
+    .required("Out Time is required"),
 });
 
 const clockingsColumns = [
@@ -61,13 +96,126 @@ const clockingsColumns = [
   },
   { accessorKey: "morning_in", header: "Morning In" },
   { accessorKey: "morning_out", header: "Morning Out" },
-  { accessorKey: "retzifus_morning", header: "Retzifus" },
+  {
+    accessorKey: "retzifus_morning",
+    header: "Retzifus",
+  },
+  {
+    accessorKey: "retzifus_morning",
+    header: "",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center" }, [
+        // Edit User Button
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Edit User" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-square-pen",
+                size: "md",
+                color: "success",
+                variant: "soft",
+                onClick: () => editClocking(row.original, "morning"),
+              }),
+          }
+        ),
+      ]),
+  },
   { accessorKey: "total_morning", header: "Total morning" },
   { accessorKey: "afternoon_in", header: "Afternoon In" },
   { accessorKey: "afternoon_out", header: "Afternoon out" },
   { accessorKey: "retzifus_evening", header: "Retzifus" },
+  {
+    accessorKey: "retzifus_morning",
+    header: "",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center" }, [
+        // Edit User Button
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Edit User" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-square-pen",
+                size: "md",
+                color: "success",
+                variant: "soft",
+                onClick: () => editClocking(row.original, "evening"),
+              }),
+          }
+        ),
+      ]),
+  },
   { accessorKey: "total_afternoon", header: "Total Afternoon" },
 ];
+
+const secondsToAmPm = (seconds) => {
+  if (seconds == null) return "-";
+
+  let hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${secs.toString().padStart(2, "0")} ${ampm}`;
+};
+
+const secondsToPercent = (workedSeconds, scheduledSeconds) => {
+  if (!workedSeconds || !scheduledSeconds) return "-";
+
+  const percent = (workedSeconds / scheduledSeconds) * 100;
+  return `${Math.round(percent)}%`;
+};
+
+const formatClockings = (clockings = []) => {
+  return clockings.map((item) => {
+    const row = {
+      morning_in: "-",
+      morning_out: "-",
+      total_morning: "-",
+      retzifus_morning: "-",
+
+      evening_in: "-",
+      evening_out: "-",
+      total_evening: "-",
+      retzifus_evening: "-",
+      ...item,
+    };
+
+    item.clocking.forEach((session) => {
+      // Morning session
+      if (session.session === 1) {
+        row.morning_in = secondsToAmPm(session.in);
+        row.morning_out = secondsToAmPm(session.out);
+        row.total_morning = secondsToPercent(
+          session.out - session.in,
+          session.schedule_total
+        );
+        row.retzifus_morning = session.retzifus === 0 ? "NO" : "-";
+      }
+
+      // Evening session
+      if (session.session === 2) {
+        row.afternoon_in = secondsToAmPm(session.in);
+        row.afternoon_out = secondsToAmPm(session.out);
+        row.total_afternoon = secondsToPercent(
+          session.out - session.in,
+          session.schedule_total
+        );
+        row.retzifus_evening = session.retzifus === 0 ? "NO" : "-";
+      }
+    });
+
+    return row;
+  });
+};
+
 const fetchClockings = async (date) => {
   try {
     loading.value = true;
@@ -80,15 +228,115 @@ const fetchClockings = async (date) => {
       },
     });
 
-    // console.log(fetch);
     if (response?.success) {
-      clockingsData.value = response?.clockings;
+      studentsData.value = response?.students.map((item) => ({
+        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
+        value: item?.id,
+      }));
+
+      clockingsData.value = formatClockings(response?.clockings);
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
   } finally {
     loading.value = false;
   }
+};
+
+const onSubmit = async (event) => {
+  isSubmitting.value = true;
+
+  const endpoint = state?.id ? `/api/clockings/${state.id}` : `/api/clockings`;
+  const method = state?.id ? "PUT" : "POST";
+
+  const payload = state?.id
+    ? {
+        in: event.data.in,
+        out: event.data.out,
+      }
+    : {
+        in: event.data.in,
+        out: event.data.out,
+        student_id: event.data.student_id,
+        day: event.data.day,
+      };
+
+  try {
+    const response = await api(endpoint, {
+      method: method,
+      body: payload,
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message
+          ? response?.message
+          : state.id
+          ? "Clocking updated successfully"
+          : "Clocking created successfully",
+        color: "success",
+        duration: 2000,
+      });
+      state.id = null;
+    } else if (response?._data?.message) {
+      toast.add({
+        title: "Failed",
+        description: response._data.message,
+        color: "error",
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message || "Something went wrong. Please try again.",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Submission error:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred.",
+      color: "error",
+    });
+  } finally {
+    CreateClockingModal.value = false;
+    isSubmitting.value = false;
+    resetClockingForm();
+  }
+};
+
+const convertTo24Hour = (time12h) => {
+  if (!time12h) return "";
+  const [time, modifier] = time12h.split(" ");
+  let [hours, minutes, seconds] = time.split(":").map(Number);
+
+  if (modifier === "PM" && hours !== 12) hours += 12;
+  if (modifier === "AM" && hours === 12) hours = 0;
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+};
+
+const editClocking = (clock, type) => {
+  state.id = clock.student_id;
+  state.student_id = clock.student_id;
+  state.day = clock.day;
+
+  const userName =
+    clock.first_yiddish_name + " " + clock.last_yiddish_name + " " + clock.day;
+  state.user = userName;
+  if (type === "morning") {
+    state.in = convertTo24Hour(clock.morning_in);
+    state.out = convertTo24Hour(clock.morning_out);
+  } else if (type === "evening") {
+    state.in = convertTo24Hour(clock.afternoon_in);
+    state.out = convertTo24Hour(clock.afternoon_out);
+  }
+
+  CreateClockingModal.value = true;
 };
 
 onMounted(async () => {
@@ -121,7 +369,10 @@ watch(
     <h2 class="text-xl font-bold my-4">This Weeks Clockings</h2>
     <div class="flex justify-end gap-2">
       <UButton
-        @click="CreateClockingModal = true"
+        @click="
+          CreateClockingModal = true;
+          state.id = undefined;
+        "
         icon="i-lucide-plus"
         label="Create New Clockings"
         class="text-white"
@@ -190,7 +441,9 @@ watch(
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Create New Clockings</h2>
+        <h2 class="text-xl font-bold text-primary">
+          {{ state?.id ? "Edit" + " " + state.user : "Create New Clockings" }}
+        </h2>
 
         <!-- Close Button -->
         <UButton
@@ -199,27 +452,38 @@ watch(
           color="primary"
           class="rounded-full p-2"
           icon="i-lucide-x"
-          @click="CreateClockingModal = false"
+          @click="
+            () => {
+              CreateClockingModal = false;
+              resetClockingForm();
+            }
+          "
         >
         </UButton>
       </div>
     </template>
-
+    <!-- :schema="schema" -->
     <template #body>
       <div>
-        <UForm :state="state" class="space-y-4" @submit="onSubmit">
-          <div class="flex flex-col gap-4">
+        <UForm
+          :schema="schema"
+          :state="state"
+          class="space-y-4"
+          @submit="onSubmit"
+        >
+          <div v-if="!state.id" class="flex flex-col gap-4">
             <UFormField label="User" name="user">
               <USelect
-                v-model="state.user"
-                :items="items"
+                v-model.number="state.student_id"
+                :items="studentsData"
                 class="w-full"
                 size="lg"
                 placeholder="Select User"
+                required
               />
             </UFormField>
             <UFormField label="Day" name="day">
-              <UPopover class="w-full">
+              <UPopover class="w-full" v-model:open="datePickerOpen">
                 <UButton
                   color="neutral"
                   variant="outline"
@@ -227,25 +491,45 @@ watch(
                   size="lg"
                 >
                   {{
-                    modelValue
-                      ? df.format(modelValue.toDate(getLocalTimeZone()))
+                    state?.day
+                      ? df.format(state?.day.toDate(getLocalTimeZone()))
                       : "Select a date"
                   }}
                 </UButton>
 
                 <template #content>
-                  <UCalendar v-model="modelValue" class="p-2" />
+                  <UCalendar
+                    v-model="state.day"
+                    class="p-2"
+                    @update:model-value="datePickerOpen = false"
+                  />
                 </template>
               </UPopover>
             </UFormField>
           </div>
           <div class="grid grid-cols-2 my-6 place-items-center">
             <UFormField label="In" class="flex gap-4 items-center">
-              <UInputTime size="lg" :default-value="inValue" />
+              <input
+                v-model="state.in"
+                type="time"
+                name="in"
+                id="in"
+                step="1"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+                required
+              />
             </UFormField>
 
             <UFormField label="Out" class="flex gap-4 items-center">
-              <UInputTime size="lg" :default-value="outValue" />
+              <input
+                v-model="state.out"
+                type="time"
+                name="out"
+                id="out"
+                step="1"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+                required
+              />
             </UFormField>
           </div>
           <div
@@ -254,7 +538,12 @@ watch(
             <UButton
               color="neutral"
               variant="solid"
-              @click="CreateClockingModal = false"
+              @click="
+                () => {
+                  CreateClockingModal = false;
+                  resetClockingForm();
+                }
+              "
             >
               Cancel
             </UButton>
@@ -263,7 +552,7 @@ watch(
               :loading="isSubmitting"
               :disabled="isSubmitting"
             >
-              Create Clockings
+              {{ state?.id ? "Edit" : "Create" }} Clockings
             </UButton>
           </div>
         </UForm>
