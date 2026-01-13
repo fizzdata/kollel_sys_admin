@@ -20,7 +20,7 @@ const responsesData = ref([]);
 const checksData = ref([]);
 const tabs = [
   { label: "Clockings", key: "clockings", icon: "i-lucide-clock" },
-  { label: "Transactions", key: "transactions", icon: "i-lucide-credit-card" },
+  { label: "Deposits", key: "transactions", icon: "i-lucide-credit-card" },
   { label: "Checks", key: "checks", icon: "i-lucide-file-check" },
   { label: "Responses", key: "responses", icon: "i-lucide-help-circle" },
 ];

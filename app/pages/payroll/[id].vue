@@ -1,9 +1,5 @@
 <script setup>
-import {
-  today,
-  DateFormatter,
-  getLocalTimeZone,
-} from "@internationalized/date";
+import { today, getLocalTimeZone } from "@internationalized/date";
 import { object, string, number } from "yup";
 
 definePageMeta({
@@ -11,9 +7,6 @@ definePageMeta({
   middleware: ["auth"],
 });
 
-const df = new DateFormatter("en-US", {
-  dateStyle: "medium",
-});
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -53,106 +46,61 @@ const amountTypeItems = ref([
     value: "percentage",
   },
 ]);
+const route = useRoute();
+const api = useApi();
+const toast = useToast();
 
 const applyOnceItems = ref(["Apply Once", "Each Time"]);
 const activeTab = ref("0");
 const operaterLabels = ref({});
 const metricLabels = ref({});
 
-const route = useRoute();
 const groupId = route.params.id;
 const loading = ref(false);
 const processRulesLoading = ref(false);
 const processChecksLoading = ref(false);
 const processDepositLoading = ref(false);
-const api = useApi();
 const open = ref(false);
 const checksDatePicker = ref(false);
 const depositDatePicker = ref(false);
 
 const rules = ref([]);
-const groupStudents = ref([]);
-const processRules = ref({});
+const processRules = ref([]);
 const processCheckMessage = ref("");
 const processDespositMessage = ref("");
 const rulesModalOpen = ref(false);
 const operatorOptions = ref([]);
 const metricOptions = ref([]);
 const isSubmitting = ref(false);
-const toast = useToast();
 const fetchingRulesOptions = ref(false);
 const fetchingGroupDetails = ref(null);
 const deleteModal = ref(false);
 const showModal = ref(false);
 const processChecksModal = ref(false);
 const processDepositModal = ref(false);
-const students = ref([]);
-const addStudentModal = ref(false);
-const isStudentSubmiting = ref(false);
+
 const fetchingGroupStudents = ref(false);
 const fetchingRules = ref(false);
+
+// Student states
+const groupStudents = ref([]);
+const addStudentModal = ref(false);
+const isStudentSubmiting = ref(false);
+const students = ref([]);
 const studentFetching = ref(false);
-const selectedStudent = ref(null);
-const isStudentDeleting = ref(false);
-const studentState = reactive({
-  student_ids: [],
-});
 
 const items = computed(() => [
   {
-    label: `Rules (${rules?.value?.length || 0})`,
+    label: "Rules",
     key: "rules",
   },
   {
-    label: `Students (${groupStudents?.value?.length || 0})`,
+    label: "Students",
     key: "students",
   },
 ]);
 
-const onAddStudentSubmit = async (event) => {
-  isStudentSubmiting.value = true;
-  try {
-    const payload = {
-      student_ids: event.data.student_ids.map((item) => item.value),
-    };
-
-    // return;
-    const response = await api(`/api/payroll/group/${groupId}/students/add`, {
-      method: "POST",
-      body: payload,
-    });
-
-    if (response?.success) {
-      toast.add({
-        title: "Success",
-        description:
-          response?.message || "Students added to group successfully",
-        color: "success",
-        duration: 2000,
-      });
-
-      await fetchGroupStudents();
-      // Reset form state after submission
-      studentState.student_ids = [];
-    } else {
-      toast.add({
-        title: "Failed",
-        description:
-          response?._data.errors ||
-          response?._data.message ||
-          "Failed to create New Rules",
-        color: "error",
-        duration: 2000,
-      });
-    }
-  } catch (error) {
-    console.error("Error creating Rules:", error);
-  } finally {
-    isStudentSubmiting.value = false;
-    addStudentModal.value = false; // Close the modal
-  }
-};
-const isModalOpen = async () => {
+const isProcessModalOpen = async () => {
   processRulesLoading.value = true;
   showModal.value = true;
   await fetchProcessRules({
@@ -225,7 +173,11 @@ const fetchProcessRules = async (date) => {
     });
 
     if (response?.success) {
-      processRules.value = Object.values(response?.data || {});
+      processRules.value = Array.isArray(response?.data)
+        ? response.data
+        : Object.values(response?.data || {});
+
+      // processRules.value = Object.values(response?.data || {});
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
@@ -237,14 +189,14 @@ const fetchProcessChecks = async (date) => {
   try {
     processChecksLoading.value = true;
     const response = await api(`/api/payroll/group/${groupId}/process/checks`, {
-      method: "GET",
+      method: "POST",
       params: {
         from_date: date?.from_date,
         till_date: date?.till_date,
       },
     });
 
-    if (response?.success) {
+    if (response) {
       processCheckMessage.value = response?.message;
     }
   } catch (err) {
@@ -266,7 +218,7 @@ const fetchProcessDeposit = async (date) => {
     const response = await api(
       `/api/payroll/group/${groupId}/process/deposit`,
       {
-        method: "GET",
+        method: "POST",
         params: {
           from_date: date?.from_date,
           till_date: date?.till_date,
@@ -274,13 +226,13 @@ const fetchProcessDeposit = async (date) => {
       }
     );
 
-    if (response?.success) {
+    if (response) {
       processDespositMessage.value = response?.message;
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
   } finally {
-    processChecksLoading.value = false;
+    processDepositLoading.value = false;
   }
 };
 const isDepositModalOpen = async () => {
@@ -469,10 +421,21 @@ const fetchRules = async (refresh = false) => {
   }
 };
 
+const isCreateRuleModalOpen = async () => {
+  rulesModalOpen.value = true;
+  await rulesOptionsFetch();
+};
+
+const deleteRule = (rule) => {
+  deleteModal.value = true;
+
+  rulesform.value.id = rule.id;
+};
+
 const fetchGroupStudents = async () => {
   try {
     fetchingGroupStudents.value = true;
-    const response = await api(`/api/payroll/group/${groupId}/students`);
+    const response = await api(`/api/payroll/students/group/${groupId}`);
 
     if (response?.success) {
       groupStudents.value = response?.students;
@@ -488,15 +451,9 @@ const fetchGroupStudents = async () => {
   }
 };
 
-const ismodalOpen = async () => {
-  rulesModalOpen.value = true;
-  await rulesOptionsFetch();
-};
-
-const deleteRule = (rule) => {
-  deleteModal.value = true;
-
-  rulesform.value.id = rule.id;
+const handleAddStudent = () => {
+  addStudentModal.value = true;
+  fetchStudents();
 };
 
 const fetchStudents = async () => {
@@ -517,132 +474,54 @@ const fetchStudents = async () => {
   }
 };
 
-const handleAddStudent = () => {
-  addStudentModal.value = true;
-  fetchStudents();
-};
+const studentState = reactive({
+  student_ids: [],
+});
 
-const studentColumns = [
-  { accessorKey: "first_yiddish_name", header: "First Yiddish Name" },
-  { accessorKey: "last_yiddish_name", header: "Last Yiddish Name" },
-  {
-    header: "Quick Actions",
-    cell: ({ row }) =>
-      h("div", { class: "flex gap-2 items-center" }, [
-        // Edit Student Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Student" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-play-circle",
-                size: "md",
-                color: "success",
-                variant: "soft",
-                onClick: () => handleProcessStudent(row.original),
-              }),
-          }
-        ),
-
-        // Edit Student Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Remove Student" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-trash-2",
-                size: "md",
-                color: "error",
-                variant: "soft",
-                loading:
-                  isStudentDeleting.value &&
-                  selectedStudent.value === row.original.id,
-                disabled: isStudentDeleting.value,
-                onClick: () => handleRemoveStudent(row.original),
-              }),
-          }
-        ),
-      ]),
-  },
-];
-
-const handleProcessStudent = async (student) => {
+const onAddStudentSubmit = async (event) => {
+  isStudentSubmiting.value = true;
   try {
-    // isStudentDeleting.value = true;
-    const response = await api(
-      `/api/payroll/group/${groupId}/students/${student.id}/process`,
-      {
-        method: "POST",
-      }
-    );
+    const payload = {
+      student_ids: event.data.student_ids.map((item) => item.value),
+    };
+
+    // return;
+    const response = await api(`/api/payroll/students/group/${groupId}`, {
+      method: "POST",
+      body: payload,
+    });
 
     if (response?.success) {
       toast.add({
         title: "Success",
         description:
-          response?.message || "Student removed from group successfully",
+          response?.message || "Students added to group successfully",
         color: "success",
         duration: 2000,
       });
 
-      await fetchGroupStudents(true);
+      await fetchGroupStudents();
+      // Reset form state after submission
+      studentState.student_ids = [];
     } else {
       toast.add({
         title: "Failed",
         description:
           response?._data.errors ||
           response?._data.message ||
-          "Failed to delete Rules",
+          "Failed to create New Rules",
         color: "error",
         duration: 2000,
       });
     }
   } catch (error) {
-    console.error("Error deleting Rules:", error);
+    console.error("Error creating Rules:", error);
   } finally {
-    // isStudentDeleting.value = false;
+    isStudentSubmiting.value = false;
+    addStudentModal.value = false; // Close the modal
   }
 };
 
-const handleRemoveStudent = async (student) => {
-  try {
-    isStudentDeleting.value = true;
-    const response = await api(
-      `/api/payroll/group/${groupId}/students/${student.id}/remove`,
-      {
-        method: "POST",
-      }
-    );
-
-    if (response?.success) {
-      toast.add({
-        title: "Success",
-        description:
-          response?.message || "Student removed from group successfully",
-        color: "success",
-        duration: 2000,
-      });
-
-      await fetchGroupStudents(true);
-    } else {
-      toast.add({
-        title: "Failed",
-        description:
-          response?._data.errors ||
-          response?._data.message ||
-          "Failed to delete Rules",
-        color: "error",
-        duration: 2000,
-      });
-    }
-  } catch (error) {
-    console.error("Error deleting Rules:", error);
-  } finally {
-    isStudentDeleting.value = false;
-  }
-};
 onMounted(async () => {
   loading.value = true;
   // fetchingRules.value = true;
@@ -652,57 +531,33 @@ onMounted(async () => {
   // fetchingRules.value = false;
 });
 
-// watch for datepicker changes
-watch(
-  () => calendarRange.value,
-  async (val) => {
-    if (!val?.start || !val?.end) return;
+const onDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
 
-    // close popover
-    open.value = false;
+  await fetchProcessRules({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
 
-    // call API
-    await fetchProcessRules({
-      from_date: val.start.toString(),
-      till_date: val.end.toString(),
-    });
-  },
-  { deep: true }
-);
-// watch for Create Check Datepicker changes
-watch(
-  () => checkscalendarRange.value,
-  async (val) => {
-    if (!val?.start || !val?.end) return;
+const onCheckDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
 
-    // close popover
-    checksDatePicker.value = false;
+  await fetchProcessChecks({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
 
-    // call API
-    await fetchProcessChecks({
-      from_date: val.start.toString(),
-      till_date: val.end.toString(),
-    });
-  },
-  { deep: true }
-);
-// watch for Process Deposit Datepicker changes
-watch(
-  () => depositcalendarRange.value,
-  async (val) => {
-    if (!val?.start || !val?.end) return;
+const onDepositDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
 
-    // close popover
-    depositDatePicker.value = false;
+  await fetchProcessDeposit({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
 
-    // call API
-    await fetchProcessDeposit({
-      from_date: val.start.toString(),
-      till_date: val.end.toString(),
-    });
-  },
-  { deep: true }
-);
 // watch for tab changes
 watch(activeTab, (newTab) => {
   if (newTab === "0") {
@@ -763,14 +618,14 @@ watch(activeTab, (newTab) => {
                   label="Processing Rules"
                   variant="solid"
                   color="primary"
-                  @click="isModalOpen"
+                  @click="isProcessModalOpen"
                 />
                 <UButton
                   icon="i-lucide-plus"
                   label="Create Rule"
                   variant="solid"
                   color="primary"
-                  @click="ismodalOpen"
+                  @click="isCreateRuleModalOpen"
                 />
                 <UButton
                   icon="i-lucide-check-square"
@@ -784,7 +639,6 @@ watch(activeTab, (newTab) => {
                   label="Process Deposit"
                   variant="solid"
                   color="primary"
-                  disabled
                   @click="isDepositModalOpen"
                 />
               </template>
@@ -877,15 +731,14 @@ watch(activeTab, (newTab) => {
     </div>
   </template>
   <template v-if="activeTab === '1'">
-    <!-- Students Table -->
-    <UCard>
-      <UTable
-        :columns="studentColumns"
-        :loading="fetchingGroupStudents"
-        :data="groupStudents"
-        class="flex-1 mt-6"
-      />
-    </UCard>
+    <!-- Students Tab -->
+    <PayrollStudents
+      :students="groupStudents"
+      :fetchingGroupStudents="fetchingGroupStudents"
+      :metric-labels="metricLabels"
+      :operater-labels="operaterLabels"
+      @refresh="fetchGroupStudents"
+    />
   </template>
 
   <UModal v-model:open="rulesModalOpen">
@@ -1092,310 +945,36 @@ watch(activeTab, (newTab) => {
   </UModal>
 
   <!-- Modal for Processing Rules -->
-  <UModal v-model:open="showModal" fullscreen>
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Processing Rules</h2>
+  <CommonRulesModal
+    v-model="showModal"
+    title="Processing Rules"
+    :rules="processRules"
+    :loading="processRulesLoading"
+    :metric-labels="metricLabels"
+    :operater-labels="operaterLabels"
+    type="process"
+    @date-change="onDateChange"
+  />
 
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              showModal = false;
-            }
-          "
-        >
-        </UButton>
-      </div>
-    </template>
-    <template #body>
-      <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
-        <UPopover v-model:open="open">
-          <UButton
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-calendar"
-            size="lg"
-          >
-            <template v-if="calendarRange.start">
-              <template v-if="calendarRange.end">
-                {{ df.format(calendarRange.start.toDate(getLocalTimeZone())) }}
-                -
-                {{ df.format(calendarRange.end.toDate(getLocalTimeZone())) }}
-              </template>
-              <template v-else>
-                {{ df.format(calendarRange.start.toDate(getLocalTimeZone())) }}
-              </template>
-            </template>
-            <template v-else> Pick a date </template>
-          </UButton>
+  <!-- Modal for Process Checks Rules -->
+  <CommonRulesModal
+    v-model="processChecksModal"
+    title="Process Checks"
+    :loading="processChecksLoading"
+    :message="processCheckMessage"
+    type="check"
+    @date-change="onCheckDateChange"
+  />
 
-          <template #content>
-            <UCalendar
-              v-model="calendarRange"
-              range
-              :number-of-months="2"
-              class="p-2"
-            />
-          </template>
-        </UPopover>
-      </UFormField>
-      <div
-        v-if="processRulesLoading"
-        class="flex items-center justify-center pt-10 w-full"
-      >
-        <BaseSpinner
-          :show-loader="processRulesLoading"
-          size="md"
-          class="my-10 mx-auto"
-        />
-      </div>
-      <div
-        v-else-if="processRules?.length"
-        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
-      >
-        <UCard
-          v-for="processRule in processRules"
-          :key="processRule.name"
-          class="rounded-2xl shadow hover:shadow-xl transition-shadow duration-300"
-        >
-          <div>
-            <h1>Name: {{ processRule.name }}</h1>
-            <p>Base Price: {{ processRule.base_price }}</p>
-            <p>Net Value: {{ processRule.net_value }}</p>
-          </div>
-
-          <span>Rules:</span>
-          <ul class="space-y-1">
-            <li
-              v-for="(ruleItem, index) in processRule.rules"
-              :key="index"
-              class="text-sm flex justify-between border-l-4 pl-2 py-1 border-gray-200 hover:border-indigo-500 transition-colors"
-            >
-              <div>
-                <label>
-                  If {{ metricLabels[ruleItem.rule.metric] }} is
-                  {{ operaterLabels[ruleItem.rule.operator] }}
-                  {{ ruleItem.rule.value }},
-                  {{ ruleItem.rule.is_deduction ? "Deduction" : "Bonus" }} is
-                  {{ ruleItem.rule.amount_type }}
-                  {{ ruleItem.rule.amount }}
-                  {{
-                    ruleItem.rule.amount_type === "fixed"
-                      ? "dollars"
-                      : "percent"
-                  }},
-                  {{ ruleItem.rule.apply_once ? "once" : "each time" }}
-                </label>
-              </div>
-
-              <!-- <span class="truncate">{{ ruleItem.rule.description }}</span>
-              <span
-                :class="
-                  ruleItem.applies.sign === '+'
-                    ? 'text-green-500'
-                    : 'text-red-500'
-                "
-                class="font-semibold"
-              >
-                {{ ruleItem.applies.sign }}
-                {{
-                  ruleItem.applies.percent
-                    ? ruleItem.applies.net_value + "%"
-                    : "$" + ruleItem.applies.net_value
-                }}
-              </span> -->
-            </li>
-          </ul>
-        </UCard>
-      </div>
-      <div v-else class="text-center text-gray-500 mt-10">
-        No Rules found. Please add some rules.
-      </div>
-    </template>
-  </UModal>
-
-  <!-- Modal for Process Deposit Rules -->
-  <UModal v-model:open="processChecksModal" fullscreen>
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Create Checks</h2>
-
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              processChecksModal = false;
-            }
-          "
-        >
-        </UButton>
-      </div>
-    </template>
-    <template #body>
-      <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
-        <UPopover v-model:open="checksDatePicker">
-          <UButton
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-calendar"
-            size="lg"
-          >
-            <template v-if="checkscalendarRange.start">
-              <template v-if="checkscalendarRange.end">
-                {{
-                  df.format(
-                    checkscalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-                -
-                {{
-                  df.format(checkscalendarRange.end.toDate(getLocalTimeZone()))
-                }}
-              </template>
-              <template v-else>
-                {{
-                  df.format(
-                    checkscalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-              </template>
-            </template>
-            <template v-else> Pick a date </template>
-          </UButton>
-
-          <template #content>
-            <UCalendar
-              v-model="checkscalendarRange"
-              range
-              :number-of-months="2"
-              class="p-2"
-            />
-          </template>
-        </UPopover>
-      </UFormField>
-      <div
-        v-if="processChecksLoading"
-        class="flex items-center justify-center pt-10 w-full"
-      >
-        <BaseSpinner
-          :show-loader="processChecksLoading"
-          size="md"
-          class="my-10 mx-auto"
-        />
-      </div>
-      <div
-        v-else-if="processCheckMessage"
-        class="text-center text-gray-500 mt-10"
-      >
-        {{ processCheckMessage }}
-      </div>
-      <div
-        v-else
-        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
-      >
-        No Checks found. Please add some Checks.
-      </div>
-    </template>
-  </UModal>
-  <!-- Modal for Create Rules -->
-  <UModal v-model:open="processDepositModal" fullscreen>
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Process Deposit</h2>
-
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              processDepositModal = false;
-            }
-          "
-        >
-        </UButton>
-      </div>
-    </template>
-    <template #body>
-      <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
-        <UPopover v-model:open="depositDatePicker">
-          <UButton
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-calendar"
-            size="lg"
-          >
-            <template v-if="depositcalendarRange.start">
-              <template v-if="depositcalendarRange.end">
-                {{
-                  df.format(
-                    depositcalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-                -
-                {{
-                  df.format(depositcalendarRange.end.toDate(getLocalTimeZone()))
-                }}
-              </template>
-              <template v-else>
-                {{
-                  df.format(
-                    depositcalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-              </template>
-            </template>
-            <template v-else> Pick a date </template>
-          </UButton>
-
-          <template #content>
-            <UCalendar
-              v-model="depositDatePicker"
-              range
-              :number-of-months="2"
-              class="p-2"
-            />
-          </template>
-        </UPopover>
-      </UFormField>
-      <div
-        v-if="processDepositLoading"
-        class="flex items-center justify-center pt-10 w-full"
-      >
-        <BaseSpinner
-          :show-loader="processDepositLoading"
-          size="md"
-          class="my-10 mx-auto"
-        />
-      </div>
-      <div
-        v-else-if="processDespositMessage"
-        class="text-center text-gray-500 mt-10"
-      >
-        {{ processDespositMessage }}
-      </div>
-      <div
-        v-else
-        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
-      >
-        No Checks found. Please add some Checks.
-      </div>
-    </template>
-  </UModal>
+  <!-- Modal for Deposit Checks -->
+  <CommonRulesModal
+    v-model="processDepositModal"
+    title="Process Deposit"
+    :loading="processDepositLoading"
+    :message="processDespositMessage"
+    type="deposit"
+    @date-change="onDepositDateChange"
+  />
 
   <!-- Add Student in group -->
   <UModal

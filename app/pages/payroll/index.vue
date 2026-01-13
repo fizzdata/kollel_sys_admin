@@ -50,8 +50,6 @@ const toast = useToast();
 const groups = ref([]);
 const deleteModal = ref(false);
 const fetchingGroups = ref(false);
-const checksDatePicker = ref(false);
-const depositDatePicker = ref(false);
 const processCheckMessage = ref("");
 const processDespositMessage = ref("");
 const processChecksModal = ref(false);
@@ -79,7 +77,7 @@ const isModalOpen = async () => {
 const fetchProcessRules = async (date) => {
   try {
     loading.value = true;
-    const response = await api(`/api/payroll/groups/process`, {
+    const response = await api(`/api/payroll/process`, {
       method: "GET",
       params: {
         from_date: date?.from_date,
@@ -89,7 +87,7 @@ const fetchProcessRules = async (date) => {
 
     // console.log(fetch);
     if (response?.success) {
-      processRules.value = response?.data;
+      processRules.value = Object.values(response?.data || {});
     } else {
       errorProcessMessages.value = response?.message;
     }
@@ -249,8 +247,8 @@ const onSubmit = async (event) => {
 const fetchProcessChecks = async (date) => {
   try {
     processChecksLoading.value = true;
-    const response = await api(`/api/payroll/groups/process/checks`, {
-      method: "GET",
+    const response = await api(`/api/payroll/process/checks`, {
+      method: "POST",
       params: {
         from_date: date?.from_date,
         till_date: date?.till_date,
@@ -277,22 +275,23 @@ const isChecksModalOpen = async () => {
 const fetchProcessDeposit = async (date) => {
   try {
     processDepositLoading.value = true;
-    const response = await api(`/api/payroll/groups/process/deposit`, {
-      method: "GET",
+    const response = await api(`/api/payroll/process/deposit`, {
+      method: "POST",
       params: {
         from_date: date?.from_date,
         till_date: date?.till_date,
       },
     });
+    console.log("🚀 ~ fetchProcessDeposit ~ response:", response);
 
-    if (response?.success) {
+    if (response) {
       processDespositMessage.value = response?.message;
     }
     console.log("createChecks", processDespositMessage.value);
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
   } finally {
-    processChecksLoading.value = false;
+    processDepositLoading.value = false;
   }
 };
 const isDepositModalOpen = async () => {
@@ -406,87 +405,78 @@ const rulesOptionsFetch = async () => {
 };
 
 // watch for datepicker changes
-watch(
-  () => calendarRange.value,
-  async (val) => {
-    if (!val?.start || !val?.end) return;
+const onDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
 
-    // close popover
-    open.value = false;
+  await fetchProcessRules({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
 
-    // call API
-    await fetchProcessRules({
-      from_date: val.start.toString(),
-      till_date: val.end.toString(),
-    });
-  },
-  { deep: true }
-);
 // watch for Create Check Datepicker changes
-watch(
-  () => checkscalendarRange.value,
-  async (val) => {
-    if (!val?.start || !val?.end) return;
+const onCheckDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
 
-    // close popover
-    checksDatePicker.value = false;
+  await fetchProcessChecks({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
 
-    // call API
-    await fetchProcessChecks({
-      from_date: val.start.toString(),
-      till_date: val.end.toString(),
-    });
-  },
-  { deep: true }
-);
 // watch for Process Deposit Datepicker changes
-watch(
-  () => depositcalendarRange.value,
-  async (val) => {
-    if (!val?.start || !val?.end) return;
+const onDepositDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
 
-    // close popover
-    depositDatePicker.value = false;
-
-    // call API
-    await fetchProcessDeposit({
-      from_date: val.start.toString(),
-      till_date: val.end.toString(),
-    });
-  },
-  { deep: true }
-);
+  await fetchProcessDeposit({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
 </script>
 
 <template>
-  <div class="flex justify-between items-center gap-4">
-    <h2 class="text-xl font-bold mb-4">Groups</h2>
-    <div class="flex justify-end gap-2">
-      <UButton @click="isGroupModalOpen" icon="la:user-plus" label="New Group">
-      </UButton>
+  <UCard class="rounded-2xl shadow-sm">
+    <div class="flex justify-between items-center gap-4">
+      <h2 class="text-xl font-bold">Payroll Groups</h2>
+      <div class="flex flex-wrap gap-2 justify-end">
+        <UButton
+          @click="isGroupModalOpen"
+          icon="la:user-plus"
+          label="New Group"
+        >
+        </UButton>
 
-      <UButton @click="isModalOpen" icon="" label="Process into ready checks">
-      </UButton>
+        <UButton
+          @click="isModalOpen"
+          icon="i-lucide-settings"
+          label="Process into ready checks"
+        >
+        </UButton>
+        <UButton
+          @click="isChecksModalOpen"
+          icon="i-lucide-check-square"
+          label="Process Checks"
+        >
+        </UButton>
+
+        <UButton
+          @click="isDepositModalOpen"
+          icon="i-lucide-wallet"
+          label="Process Deposit"
+        >
+        </UButton>
+      </div>
     </div>
-  </div>
-  <div class="flex justify-end gap-2">
-    <UButton @click="isChecksModalOpen" icon="" label="Process Checks">
-    </UButton>
-
-    <UButton
-      @click="isDepositModalOpen"
-      icon=""
-      label="Process Deposit"
-      disabled
-    >
-    </UButton>
-  </div>
-  <UTable
-    :columns="columns"
-    :loading="fetchingGroups"
-    :data="groups"
-    class="flex-1 mt-6"
-  />
+  </UCard>
+  <UCard class="my-6">
+    <UTable
+      :columns="columns"
+      :loading="fetchingGroups"
+      :data="groups"
+      class="flex-1 mt-6"
+    />
+  </UCard>
 
   <!-- Create Group Modal -->
   <UModal v-model:open="newGroup">
@@ -576,144 +566,37 @@ watch(
   </UModal>
 
   <!-- Modal for Processing Rules -->
-  <UModal
-    v-model:open="showModal"
+
+  <CommonRulesModal
+    v-model="showModal"
     title="Processing Rules"
-    :close="{
-      color: 'primary',
-      variant: 'outline',
-      class: 'rounded-full',
-    }"
-    fullscreen
-  >
-    <template #body>
-      <UFormField label="Select Date Range" class="mb-4">
-        <UPopover v-model:open="open">
-          <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
-            <template v-if="calendarRange.start">
-              <template v-if="calendarRange.end">
-                {{ df.format(calendarRange.start.toDate(getLocalTimeZone())) }}
-                -
-                {{ df.format(calendarRange.end.toDate(getLocalTimeZone())) }}
-              </template>
-              <template v-else>
-                {{ df.format(calendarRange.start.toDate(getLocalTimeZone())) }}
-              </template>
-            </template>
-            <template v-else> Pick a date </template>
-          </UButton>
+    :rules="processRules"
+    :loading="loading"
+    :metric-labels="metricLabels"
+    :operater-labels="operaterLabels"
+    type="process"
+    @date-change="onDateChange"
+  />
 
-          <template #content>
-            <UCalendar
-              v-model="calendarRange"
-              range
-              :number-of-months="2"
-              class="p-2"
-            />
-          </template>
-        </UPopover>
-      </UFormField>
-      <div v-if="loading" class="flex items-center justify-center pt-10 w-full">
-        <BaseSpinner :show-loader="loading" size="md" class="my-10 mx-auto" />
-      </div>
+  <!-- Modal for Process Check Rules -->
+  <CommonRulesModal
+    v-model="processChecksModal"
+    title="Process Checks"
+    :loading="processChecksLoading"
+    :message="processCheckMessage"
+    type="check"
+    @date-change="onCheckDateChange"
+  />
 
-      <div
-        v-else-if="processRules?.length > 0"
-        class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8"
-      >
-        <UCard
-          v-for="student in processRules"
-          :key="student.name"
-          class="rounded-2xl shadow hover:shadow-xl transition-shadow duration-300"
-        >
-          <!-- Header: Student Name -->
-          <template #header>
-            <div class="text-lg font-semibold text-gray-800">
-              {{ student.name }}
-            </div>
-          </template>
-
-          <!-- Body: Prices and Rules -->
-          <div class="space-y-4">
-            <!-- Prices -->
-            <div class="flex justify-between items-center">
-              <span class="text-gray-500 font-medium">Base Price: </span>
-              <span class="font-semibold text-text-primary"
-                >${{ student.base_price }}</span
-              >
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-500 font-medium">Net Price: </span>
-              <span class="font-semibold text-green-600"
-                >${{ student.net_price }}</span
-              >
-            </div>
-
-            <!-- Rules -->
-            <div>
-              <h3 class="text-gray-700 font-medium mb-2">Rules:</h3>
-              <ul class="space-y-1">
-                <li
-                  v-for="(ruleItem, index) in student.rules"
-                  :key="index"
-                  class="text-sm flex justify-between border-l-4 pl-2 py-1 border-gray-200 hover:border-gray-500 transition-colors"
-                >
-                  <div>
-                    <label>
-                      If {{ metricLabels[ruleItem.rule.metric] }} is
-                      {{ operaterLabels[ruleItem.rule.operator] }}
-                      {{ ruleItem.rule.value }},
-                      {{ ruleItem.rule.is_deduction ? "Deduction" : "Bonus" }}
-                      is
-                      {{ ruleItem.rule.amount_type }}
-                      {{ ruleItem.rule.amount }}
-                      {{
-                        ruleItem.rule.amount_type === "fixed"
-                          ? "dollars"
-                          : "percent"
-                      }},
-                      {{ ruleItem.rule.apply_once ? "once" : "each time" }}
-                    </label>
-                  </div>
-                  <!-- <span class="truncate">{{ ruleItem.rule.description }}</span>
-                  <span
-                    :class="
-                      ruleItem.applies.sign === '+'
-                        ? 'text-green-500'
-                        : 'text-red-500'
-                    "
-                    class="font-semibold"
-                  >
-                    {{ ruleItem.applies.sign }}
-                    {{
-                      ruleItem.applies.percent
-                        ? ruleItem.applies.value + "%"
-                        : "$" + ruleItem.applies.value
-                    }}
-                  </span> -->
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Footer: Optional -->
-          <!-- <template #footer>
-            <div class="text-right text-sm text-gray-400">
-              Last updated: {{ new Date().toLocaleDateString() }}
-            </div>
-          </template> -->
-        </UCard>
-      </div>
-
-      <!-- Empty state -->
-      <div
-        v-else-if="processRules?.length === 0"
-        class="text-center text-gray-400 mt-10"
-      >
-        {{ errorProcessMessages || "No Processing Rules Found." }}
-      </div>
-    </template>
-  </UModal>
+  <!-- Modal for deposit Rules -->
+  <CommonRulesModal
+    v-model="processDepositModal"
+    title="Process Deposit"
+    :loading="processDepositLoading"
+    :message="processDespositMessage"
+    type="deposit"
+    @date-change="onDepositDateChange"
+  />
 
   <!-- Modal for Delete Payroll -->
   <UModal
@@ -758,183 +641,6 @@ watch(
         >
           Delete
         </UButton>
-      </div>
-    </template>
-  </UModal>
-
-  <!-- Modal for Process Deposit Rules -->
-  <UModal v-model:open="processChecksModal" fullscreen>
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Create Checks</h2>
-
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              processChecksModal = false;
-            }
-          "
-        >
-        </UButton>
-      </div>
-    </template>
-    <template #body>
-      <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
-        <UPopover v-model:open="checksDatePicker">
-          <UButton
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-calendar"
-            size="lg"
-          >
-            <template v-if="checkscalendarRange.start">
-              <template v-if="checkscalendarRange.end">
-                {{
-                  df.format(
-                    checkscalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-                -
-                {{
-                  df.format(checkscalendarRange.end.toDate(getLocalTimeZone()))
-                }}
-              </template>
-              <template v-else>
-                {{
-                  df.format(
-                    checkscalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-              </template>
-            </template>
-            <template v-else> Pick a date </template>
-          </UButton>
-
-          <template #content>
-            <UCalendar
-              v-model="checkscalendarRange"
-              range
-              :number-of-months="2"
-              class="p-2"
-            />
-          </template>
-        </UPopover>
-      </UFormField>
-      <div
-        v-if="processChecksLoading"
-        class="flex items-center justify-center pt-10 w-full"
-      >
-        <BaseSpinner
-          :show-loader="processChecksLoading"
-          size="md"
-          class="my-10 mx-auto"
-        />
-      </div>
-      <div
-        v-else-if="processCheckMessage"
-        class="text-center text-gray-500 mt-10"
-      >
-        {{ processCheckMessage }}
-      </div>
-      <div
-        v-else
-        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
-      >
-        No Checks found. Please add some Checks.
-      </div>
-    </template>
-  </UModal>
-  <!-- Modal for Create Rules -->
-  <UModal v-model:open="processDepositModal" fullscreen>
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Process Deposit</h2>
-
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              processDepositModal = false;
-            }
-          "
-        >
-        </UButton>
-      </div>
-    </template>
-    <template #body>
-      <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
-        <UPopover v-model:open="depositDatePicker">
-          <UButton
-            color="neutral"
-            variant="subtle"
-            icon="i-lucide-calendar"
-            size="lg"
-          >
-            <template v-if="depositcalendarRange.start">
-              <template v-if="depositcalendarRange.end">
-                {{
-                  df.format(
-                    depositcalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-                -
-                {{
-                  df.format(depositcalendarRange.end.toDate(getLocalTimeZone()))
-                }}
-              </template>
-              <template v-else>
-                {{
-                  df.format(
-                    depositcalendarRange.start.toDate(getLocalTimeZone())
-                  )
-                }}
-              </template>
-            </template>
-            <template v-else> Pick a date </template>
-          </UButton>
-
-          <template #content>
-            <UCalendar
-              v-model="depositDatePicker"
-              range
-              :number-of-months="2"
-              class="p-2"
-            />
-          </template>
-        </UPopover>
-      </UFormField>
-      <div
-        v-if="processDepositLoading"
-        class="flex items-center justify-center pt-10 w-full"
-      >
-        <BaseSpinner
-          :show-loader="processDepositLoading"
-          size="md"
-          class="my-10 mx-auto"
-        />
-      </div>
-      <div
-        v-else-if="processDespositMessage"
-        class="text-center text-gray-500 mt-10"
-      >
-        {{ processDespositMessage }}
-      </div>
-      <div
-        v-else
-        class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
-      >
-        No Checks found. Please add some Checks.
       </div>
     </template>
   </UModal>

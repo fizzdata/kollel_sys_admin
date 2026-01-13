@@ -170,8 +170,6 @@ const handleSubmit = () => {
 };
 
 const handleFileSubmit = async () => {
-  console.log("file", file.value);
-
   if (!file.value) {
     toast.add({
       title: "Failed",
@@ -242,25 +240,26 @@ const toggleSwitch = async () => {
 </script>
 
 <template>
-  <div
-    class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
-  >
-    <h2 class="text-xl font-bold my-0 md:my-4">All Students</h2>
-    <div class="flex justify-end gap-2">
-      <UButton
-        @click="isModalOpen"
-        icon="i-lucide-circle-plus"
-        label="Create New Student"
-      />
-      <UButton
-        @click="exportStudent"
-        icon="i-lucide-file-text"
-        label="Import Students"
-      />
+  <UCard class="rounded-2xl shadow-sm">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-xl font-bold">All Students</h2>
+      <div class="flex justify-end gap-2">
+        <UButton
+          @click="isModalOpen"
+          icon="i-lucide-circle-plus"
+          label="Create New Student"
+        />
+        <UButton
+          @click="exportStudent"
+          icon="i-lucide-file-text"
+          label="Import Students"
+        />
+      </div>
     </div>
-  </div>
-
-  <div class="flex gap-4 items-center">
+  </UCard>
+  <div class="flex gap-4 items-center my-6">
     <UInput
       v-model="searchTerm"
       icon="i-lucide-search"
@@ -288,13 +287,14 @@ const toggleSwitch = async () => {
     />
   </div>
   <!-- Students Table -->
-  <UTable
-    :columns="columns"
-    :loading="loading"
-    :data="filteredStudents"
-    class="flex-1 mt-6"
-  />
-
+  <UCard>
+    <UTable
+      :columns="columns"
+      :loading="loading"
+      :data="filteredStudents"
+      class="flex-1 mt-6"
+    />
+  </UCard>
   <!-- Modal for Create New Student -->
   <CommonStudentCreateEditModal
     v-model="showModal"
