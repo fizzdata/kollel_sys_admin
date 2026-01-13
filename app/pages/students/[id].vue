@@ -472,13 +472,14 @@ onMounted(async () => {
       <UTabs v-model="activeTab" :items="tabs" class="mt-6" />
 
       <UCard v-if="activeTab === '0'">
-        <UTable
+        <StudentCalender :items="clockingsData" />
+        <!-- <UTable
           :columns="clockingsColumns"
           :loading="loading"
           :data="clockingsData"
           class="flex-1 mt-6 max-h-112"
           sticky
-        />
+        /> -->
       </UCard>
 
       <UCard v-if="activeTab === '1'">
