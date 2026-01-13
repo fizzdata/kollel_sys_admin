@@ -30,7 +30,6 @@ const navigation = [
   { name: "Payroll", href: "/payroll", key: "payroll" },
   { name: "Checks", href: "/checks", key: "checks" },
   { name: "Reports", href: "/reports", key: "reports" },
-  { name: "Setting", href: "/setting", key: "settings" },
   { name: "College Checks", href: "/college-checks", key: "college-checks" },
 ];
 
@@ -83,7 +82,6 @@ const logout = async () => {
 
 const userNavigation = [
   { name: "Profile", href: "/profile" },
-  { name: "Setting", href: "/setting" },
   { name: "Sign out", href: "#", action: logout },
 ];
 </script>
