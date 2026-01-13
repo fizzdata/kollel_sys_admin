@@ -447,11 +447,7 @@ const onDepositDateChange = async (val) => {
         >
         </UButton>
 
-        <UButton
-          @click="isModalOpen"
-          icon="i-lucide-settings"
-          label="Process into ready checks"
-        >
+        <UButton @click="isModalOpen" icon="i-lucide-settings" label="Process">
         </UButton>
         <UButton
           @click="isChecksModalOpen"
