@@ -1,0 +1,82 @@
+name: Stage development
+
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ secrets.API_URL_DEV }}   
+      NUXT_PUBLIC_CHAT_WS_BASE_URL: ${{ secrets.DEV_CHAT_WS_BASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20' # <--- CHANGE THIS LINE
+          cache: 'npm'      # <--- ADD THIS FOR FASTER BUILDS (Optional but recommended)
+          cache-dependency-path: frontend/package-lock.json  # 👈 cache correct path
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run generate
+
+      - name: Upload frontend build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/.output/public
+
+
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    steps:
+      - name: Setup SSH Key from Base64
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY_BASE64 }}" | base64 -d > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Debug SSH Connection
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key.pem root@${{ secrets.SERVER_IP }} "echo Connected"
+          rm private_key.pem
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download frontend artifacts
+        uses: actions/download-artifact@v4
+        with:
+            name: frontend-build
+            path: frontend/.output/public
+
+      
+      - name: Decode SSH Key
+        run: |
+          printf "%s" "${{ secrets.SSH_PRIVATE_KEY_BASE64 }}" | base64 -d > private_key.pem
+          chmod 600 private_key.pem
+      
+      - name: Setup SSH Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DEV_SERVER_IP }} >> ~/.ssh/known_hosts
+      
+      - name: Upload Frontend
+        run: |
+          scp -i private_key.pem -r frontend/.output/public/* root@${{ secrets.DEV_SERVER_IP }}:/var/www/portalpix/dev/frontend/
+      
+      
+      - name: Cleanup Private Key
+        run: rm private_key.pem
