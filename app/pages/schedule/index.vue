@@ -1,30 +1,24 @@
 <script setup>
-import { DateFormatter, getLocalTimeZone } from "@internationalized/date";
+import { id } from "@nuxt/ui/runtime/locale/index.js";
+import { convertTo24Hour } from "~/common/common";
 
 definePageMeta({
   layout: "sidebar",
   middleware: ["auth"],
 });
-
-const df = new DateFormatter("en-US", {
-  dateStyle: "medium",
-});
-
+const editScheduleModal = ref(false);
 const schedules = ref([]);
-const showModel = ref(false);
-const model = ref({});
 const loading = ref(false);
 const api = useApi();
 const date_from = ref(fromMonth());
 const date_to = ref(nextMonth());
-const populateModalOpen = ref(false);
 const isSubmitting = ref(false);
-const fromDatePickerOpen = ref(false);
-const toDatePickerOpen = ref(false);
+const toast = useToast();
 
 const state = reactive({
-  from_date: null,
-  to_date: null,
+  id: null,
+  start: undefined,
+  end: undefined,
 });
 
 async function fetchSchedules() {
@@ -64,13 +58,69 @@ function handleYearMonth({ from, to }) {
 }
 
 function displayModel(payload) {
-  model.value = payload;
-  showModel.value = true;
+  editScheduleModal.value = true;
+  state.id = payload.id;
+  state.start = convertTo24Hour(payload.start);
+  state.end = convertTo24Hour(payload.end);
 }
 
-const handlePopulateScheduleSubmit = (event) => {
-  console.log("🚀 ~ handlePopulateScheduleSubmit ~ event:", event.data);
-  // populateModalOpen.value=true
+const resetEditSchedule = () => {
+  state.start = undefined;
+  state.end = undefined;
+};
+
+const onSubmit = async (event) => {
+  isSubmitting.value = true;
+  const endpoint = `/api/schedules/update/${state.id}`;
+  const method = "PUT";
+  try {
+    const response = await api(endpoint, {
+      method: method,
+      body: {
+        start: event.data.start,
+        end: event.data.end,
+      },
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message
+          ? response?.message
+          : state.id
+          ? "Schedule updated successfully"
+          : "Schedule created successfully",
+        color: "success",
+        duration: 2000,
+      });
+      state.id = null;
+      await fetchSchedules();
+    } else if (response?._data?.message) {
+      toast.add({
+        title: "Failed",
+        description: response._data.message,
+        color: "error",
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message || "Something went wrong. Please try again.",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Submission error:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred.",
+      color: "error",
+    });
+  } finally {
+    editScheduleModal.value = false;
+    isSubmitting.value = false;
+    resetEditSchedule();
+  }
 };
 
 onMounted(async () => {
@@ -87,7 +137,7 @@ onMounted(async () => {
         <h2 class="text-xl font-bold">Schedules</h2>
         <div class="flex justify-end gap-2">
           <UButton
-            @click="populateModalOpen = true"
+            to="/schedule/populate"
             trailingIcon="i-lucide-arrow-right"
             label=" Populate default schedule"
           />
@@ -101,22 +151,12 @@ onMounted(async () => {
       @year_month="handleYearMonth"
     />
   </div>
-
-  <!--Populate default schedule Modal  -->
-  <UModal
-    v-model:open="populateModalOpen"
-    :ui="{
-      fullscreen: {
-        false: {
-          content: 'w-3xl max-w-4xl rounded-lg shadow-lg ring ring-default',
-        },
-      },
-    }"
-  >
+  <!-- Modal for Edit Schedule -->
+  <UModal v-model:open="editScheduleModal">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Fill the schedule</h2>
+        <h2 class="text-xl font-bold text-primary">Edit Schedule</h2>
 
         <!-- Close Button -->
         <UButton
@@ -125,141 +165,57 @@ onMounted(async () => {
           color="primary"
           class="rounded-full p-2"
           icon="i-lucide-x"
-          @click="populateModalOpen = false"
+          @click="
+            () => {
+              editScheduleModal = false;
+              resetEditSchedule();
+            }
+          "
         >
         </UButton>
       </div>
     </template>
+
     <template #body>
-      <div class="max-w-4xl mx-auto space-y-8">
-        <!-- Default Schedule -->
-        <div>
-          <h2 class="text-2xl font-bold mb-6 text-gray-800">
-            Default Schedule
-          </h2>
-
-          <div class="space-y-3">
-            <!-- Day Row Template -->
-            <div
-              class="flex justify-between items-start bg-gray-50 border border-gray-200 rounded-lg p-3"
-            >
-              <span class="font-semibold text-gray-700 w-32">Sunday</span>
-              <div class="text-gray-600 text-sm space-y-1 text-right">
-                <div>10:00 AM – 02:00 PM</div>
-                <div>03:00 PM – 06:00 PM</div>
-              </div>
-            </div>
-
-            <div
-              class="flex justify-between items-start bg-gray-50 border border-gray-200 rounded-lg p-3"
-            >
-              <span class="font-semibold text-gray-700 w-32">Monday</span>
-              <div class="text-gray-600 text-sm space-y-1 text-right">
-                <div>10:00 AM – 02:00 PM</div>
-                <div>03:00 PM – 06:00 PM</div>
-              </div>
-            </div>
-
-            <div
-              class="flex justify-between items-start bg-gray-50 border border-gray-200 rounded-lg p-3"
-            >
-              <span class="font-semibold text-gray-700 w-32">Tuesday</span>
-              <div class="text-gray-600 text-sm space-y-1 text-right">
-                <div>10:00 AM – 02:00 PM</div>
-                <div>03:00 PM – 06:00 PM</div>
-              </div>
-            </div>
-
-            <div
-              class="flex justify-between items-start bg-gray-50 border border-gray-200 rounded-lg p-3"
-            >
-              <span class="font-semibold text-gray-700 w-32">Wednesday</span>
-              <div class="text-gray-600 text-sm space-y-1 text-right">
-                <div>10:00 AM – 02:00 PM</div>
-                <div>03:00 PM – 06:00 PM</div>
-              </div>
-            </div>
-
-            <div
-              class="flex justify-between items-start bg-gray-50 border border-gray-200 rounded-lg p-3"
-            >
-              <span class="font-semibold text-gray-700 w-32">Friday</span>
-              <div class="text-gray-600 text-sm space-y-1 text-right">
-                <div>01:25 AM – 12:12 PM</div>
-                <div>12:00 AM – 12:00 AM</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Date Picker Form -->
-        <UForm
-          :state="state"
-          class="space-y-4 bg-gray-50 p-6 rounded-xl shadow"
-          @submit="handlePopulateScheduleSubmit"
-        >
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormField label="From Date" name="day">
-              <UPopover class="w-full" v-model:open="fromDatePickerOpen">
-                <UButton
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-calendar"
-                  size="lg"
-                  class="w-full text-left"
-                >
-                  {{
-                    state?.from_date
-                      ? df.format(state?.from_date.toDate(getLocalTimeZone()))
-                      : "Select a date"
-                  }}
-                </UButton>
-
-                <template #content>
-                  <UCalendar
-                    v-model="state.from_date"
-                    class="p-2"
-                    @update:model-value="fromDatePickerOpen = false"
-                  />
-                </template>
-              </UPopover>
+      <div>
+        <UForm :state="state" class="space-y-4" @submit="onSubmit">
+          <div class="grid grid-cols-2 my-6 place-items-center">
+            <UFormField label="Starts" class="flex gap-4 items-center">
+              <input
+                v-model="state.start"
+                type="time"
+                name="start"
+                id="start"
+                step="1"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+                required
+              />
             </UFormField>
 
-            <UFormField label="To Date" name="day">
-              <UPopover class="w-full" v-model:open="toDatePickerOpen">
-                <UButton
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-calendar"
-                  size="lg"
-                  class="w-full text-left"
-                >
-                  {{
-                    state?.to_date
-                      ? df.format(state?.to_date.toDate(getLocalTimeZone()))
-                      : "Select a date"
-                  }}
-                </UButton>
-
-                <template #content>
-                  <UCalendar
-                    v-model="state.to_date"
-                    class="p-2"
-                    @update:model-value="toDatePickerOpen = false"
-                  />
-                </template>
-              </UPopover>
+            <UFormField label="Ends" class="flex gap-4 items-center">
+              <input
+                v-model="state.end"
+                type="time"
+                name="end"
+                id="end"
+                step="1"
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+                required
+              />
             </UFormField>
           </div>
-
-          <!-- Buttons -->
           <div
             class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
           >
             <UButton
               color="neutral"
               variant="solid"
-              @click="populateModalOpen = false"
+              @click="
+                () => {
+                  editScheduleModal = false;
+                  resetEditSchedule();
+                }
+              "
             >
               Cancel
             </UButton>
@@ -268,7 +224,7 @@ onMounted(async () => {
               :loading="isSubmitting"
               :disabled="isSubmitting"
             >
-              Set Schedule
+              Update Schedule
             </UButton>
           </div>
         </UForm>
