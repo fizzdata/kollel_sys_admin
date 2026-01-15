@@ -23,7 +23,9 @@ const df = new DateFormatter("en-US", {
 });
 
 const isSubmitting = ref(false);
+const isImporting = ref(false);
 const loading = ref(false);
+const ImportClockingModal = ref(false);
 const api = useApi();
 // Get today's date
 const todayDate = today(getLocalTimeZone());
@@ -343,6 +345,53 @@ const editClocking = (clock, type) => {
   CreateClockingModal.value = true;
 };
 
+const importClockings = async (formData) => {
+  try {
+    isImporting.value = true;
+    const response = await api(`/api/clockings/import`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description:
+          response?.message || "Clockings imported successfully",
+        color: "success",
+        duration: 2000,
+      });
+      await fetchClockings({
+        date_from: calendarRange.value.start?.toString(),
+        date_to: calendarRange.value.end?.toString(),
+      });
+      ImportClockingModal.value = false;
+    } else if (response?._data?.message) {
+      toast.add({
+        title: "Failed",
+        description: response._data.message,
+        color: "error",
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message || "Something went wrong. Please try again.",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Import error:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred during import.",
+      color: "error",
+    });
+  } finally {
+    isImporting.value = false;
+  }
+};
+
 onMounted(async () => {
   await fetchClockings({
     date_from: calendarRange.value.start?.toString(),
@@ -382,6 +431,12 @@ watch(
         class="text-white"
         color="primary"
         variant="solid"
+      />
+
+      <UButton
+        @click="ImportClockingModal = true"
+        icon="i-lucide-download"
+        label="Import Clockings"
       />
 
       <UButton icon="i-lucide-file-text" label="Export to PDF" />
@@ -563,4 +618,11 @@ watch(
       </div>
     </template>
   </UModal>
+
+  <!-- Import Clockings Modal -->
+  <ClockingsImportModal
+    v-model:open="ImportClockingModal"
+    :isLoading="isImporting"
+    @import="importClockings"
+  />
 </template>

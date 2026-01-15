@@ -30,7 +30,7 @@ const navigation = [
   { name: "Payroll", href: "/payroll", key: "payroll" },
   { name: "Checks", href: "/checks", key: "checks" },
   { name: "Reports", href: "/reports", key: "reports" },
-  { name: "College Checks", href: "/college-checks", key: "college-checks" },
+  { name: "Files", href: "/files", key: "files" },
 ];
 
 const filteredNavigation = computed(() =>
