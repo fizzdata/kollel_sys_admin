@@ -136,20 +136,22 @@ watch(
 );
 </script>
 <template>
-  <div class="flex justify-between items-center gap-4">
-    <h2 class="text-xl font-bold my-4">All Transactions</h2>
-    <div class="flex justify-end gap-2">
-      <UButton
-        @click="newTransactionModal = true"
-        trailing-icon="i-lucide-arrow-right"
-        label="New Transaction"
-      >
-      </UButton>
+  <UCard class="rounded-2xl shadow-sm">
+    <div class="flex justify-between items-center gap-4">
+      <h2 class="text-xl font-bold">All Transactions</h2>
+      <div class="flex justify-end gap-2">
+        <UButton
+          @click="newTransactionModal = true"
+          trailing-icon="i-lucide-arrow-right"
+          label="New Transaction"
+        >
+        </UButton>
 
-      <UButton @click="" icon="i-lucide-file-text" label="Export"> </UButton>
+        <UButton @click="" icon="i-lucide-file-text" label="Export"> </UButton>
+      </div>
     </div>
-  </div>
-  <div class="flex justify-between">
+  </UCard>
+  <div class="flex justify-between my-6">
     <div class="flex gap-4 items-center">
       <UPopover v-model:open="open">
         <UButton
@@ -182,14 +184,16 @@ watch(
       </UPopover>
     </div>
   </div>
-  <!-- Clockings Table -->
-  <UTable
-    :columns="transactionsColumns"
-    :loading="loading"
-    :data="transactionsData"
-    class="flex-1 mt-6"
-  />
 
+  <!-- Clockings Table -->
+  <UCard>
+    <UTable
+      :columns="transactionsColumns"
+      :loading="loading"
+      :data="transactionsData"
+      class="flex-1 mt-6"
+    />
+  </UCard>
   <UModal v-model:open="newTransactionModal">
     <!-- Custom Header -->
     <template #header>

@@ -85,6 +85,8 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true;
 
+  console.log("selectedFile.value", selectedFile.value);
+
   const formData = new FormData();
   formData.append("file", selectedFile.value);
 
@@ -207,7 +209,9 @@ const resetModal = () => {
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex justify-end items-center gap-2 border-t border-gray-200 pt-4">
+        <div
+          class="flex justify-end items-center gap-2 border-t border-gray-200 pt-4"
+        >
           <UButton
             color="neutral"
             variant="solid"

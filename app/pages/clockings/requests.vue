@@ -40,7 +40,7 @@ const data = [
 ];
 </script>
 <template>
-  <div>
+  <div class="mb-4">
     <UButton
       variant="outline"
       color="primary"
@@ -50,13 +50,17 @@ const data = [
       Back to Clockings
     </UButton>
   </div>
-  <div class="flex justify-between items-center gap-4">
-    <h2 class="text-xl font-bold my-4">Requests</h2>
-    <div class="flex justify-end gap-2">
-      <UButton icon="" label="Approve All" color="success" variant="solid" />
-      <UButton icon="" label="Reject All" color="error" variant="solid" />
+  <UCard class="rounded-2xl shadow-sm">
+    <div class="flex justify-between items-center gap-4">
+      <h2 class="text-xl font-bold">Requests</h2>
+      <div class="flex justify-end gap-2">
+        <UButton icon="" label="Approve All" color="success" variant="solid" />
+        <UButton icon="" label="Reject All" color="error" variant="solid" />
+      </div>
     </div>
-  </div>
+  </UCard>
   <!-- Clockings Table -->
-  <UTable :columns="columns" :data="data" class="flex-1 mt-6" />
+  <UCard class="my-8">
+    <UTable :columns="columns" :data="data" class="flex-1 mt-6" />
+  </UCard>
 </template>

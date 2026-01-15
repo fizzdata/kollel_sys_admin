@@ -77,6 +77,11 @@ const resetForm = () => {
 const handlePopulateScheduleSubmit = async ({ data }) => {
   isSubmitting.value = true;
 
+  const payload = {
+    from_date: data.from_date.toString(),
+    to_date: data.to_date.toString(),
+  };
+
   try {
     const response = await api(`/api/schedules/populate`, {
       method: "POST",
@@ -447,14 +452,14 @@ onMounted(async () => {
       </div>
     </div>
   </div>
-
-  <UTable
-    :columns="columns"
-    :data="defaultSchedules"
-    :loading="scheduleFetching"
-    class="flex-1 mt-6"
-  />
-
+  <UCard class="my-8">
+    <UTable
+      :columns="columns"
+      :data="defaultSchedules"
+      :loading="scheduleFetching"
+      class="flex-1 mt-6"
+    />
+  </UCard>
   <!-- Modal for Create Default Schedule -->
   <UModal v-model:open="defaultScheduleModal">
     <!-- Custom Header -->

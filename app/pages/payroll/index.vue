@@ -57,10 +57,134 @@ const processDepositModal = ref(false);
 const errorProcessMessages = ref(null);
 const operaterLabels = ref({});
 const metricLabels = ref({});
+const isProcessAllPayrollModalOpen = ref(false);
+const processAllPayroll = ref([]);
+const errorProcessAllPayrollMessage = ref(null);
+const fetchingAllProcessPayroll = ref(false);
+const isDeletingProcessAllPayroll = ref(false);
 
 const isGroupModalOpen = async () => {
   newGroup.value = true;
   resetGroupForm();
+};
+
+const processAllPayrollBtnClick = () => {
+  isProcessAllPayrollModalOpen.value = true;
+  fetchAllProcessPayroll();
+};
+
+const processAllPayrollColumns = [
+  { accessorKey: "description", header: "Description" },
+  { accessorKey: "date", header: "Date" },
+  { accessorKey: "period", header: "Period" },
+
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status;
+
+      const statusMap = {
+        pending: { color: "warning", label: "Pending" },
+        completed: { color: "success", label: "Completed" },
+        failed: { color: "error", label: "Failed" },
+      };
+
+      const badge = statusMap[status] || {
+        color: "neutral",
+        label: status,
+      };
+
+      return h(
+        resolveComponent("UBadge"),
+        {
+          color: badge.color,
+          variant: "solid",
+          size: "md",
+        },
+        () => badge.label
+      );
+    },
+  },
+
+  { accessorKey: "total", header: "Total" },
+  { accessorKey: "type", header: "Type" },
+
+  {
+    header: "Quick Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center" }, [
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Delete Payroll" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-trash-2",
+                size: "md",
+                color: "error",
+                variant: "soft",
+                disabled: isDeletingProcessAllPayroll.value,
+                onClick: () => deleteProcessAllPayroll(row.original),
+              }),
+          }
+        ),
+      ]),
+  },
+];
+
+const deleteProcessAllPayroll = async (payroll) => {
+  try {
+    isDeletingProcessAllPayroll.value = true;
+
+    const response = await api(`/api/payroll/${payroll.id}`, {
+      method: "DELETE",
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Group deleted successfully",
+        color: "success",
+        duration: 2000,
+      });
+
+      await fetchAllProcessPayroll();
+      // Reset form state after deletion
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to delete group",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting group:", error);
+  } finally {
+    isDeletingProcessAllPayroll.value = false;
+  }
+};
+
+const fetchAllProcessPayroll = async () => {
+  try {
+    fetchingAllProcessPayroll.value = true;
+    const response = await api(`/api/payroll`);
+
+    // console.log(fetch);
+    if (response?.success) {
+      processAllPayroll.value = response?.payrolls;
+    } else {
+      errorProcessAllPayrollMessage.value = response?.message;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchProcessRules ~ err:", err);
+  } finally {
+    fetchingAllProcessPayroll.value = false;
+  }
 };
 
 const isModalOpen = async () => {
@@ -275,6 +399,7 @@ const isChecksModalOpen = async () => {
 const fetchProcessDeposit = async (date) => {
   try {
     processDepositLoading.value = true;
+
     const response = await api(`/api/payroll/process/deposit`, {
       method: "POST",
       params: {
@@ -447,6 +572,11 @@ const onDepositDateChange = async (val) => {
         >
         </UButton>
 
+        <UButton
+          @click="processAllPayrollBtnClick"
+          icon="i-lucide-settings"
+          label="Process All Payroll"
+        />
         <UButton @click="isModalOpen" icon="i-lucide-settings" label="Process">
         </UButton>
         <UButton
@@ -638,6 +768,34 @@ const onDepositDateChange = async (val) => {
           Delete
         </UButton>
       </div>
+    </template>
+  </UModal>
+
+  <!-- Process All Payroll Modal -->
+  <UModal v-model:open="isProcessAllPayrollModalOpen" fullscreen>
+    <template #header>
+      <div class="flex justify-between w-full">
+        <h2 class="text-xl font-bold text-primary">Process All Payroll</h2>
+
+        <!-- Close Button -->
+        <UButton
+          size="sm"
+          variant="outline"
+          color="primary"
+          class="rounded-full p-2"
+          icon="i-lucide-x"
+          @click="isProcessAllPayrollModalOpen = false"
+        >
+        </UButton>
+      </div>
+    </template>
+    <template #body>
+      <UTable
+        :columns="processAllPayrollColumns"
+        :data="processAllPayroll"
+        :loading="fetchingAllProcessPayroll"
+        class="flex-1 mt-6"
+      />
     </template>
   </UModal>
 </template>

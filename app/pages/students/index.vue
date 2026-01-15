@@ -21,6 +21,17 @@ const handleClose = () => {
   selectedStudent.value = null;
 };
 
+const requiredColumns = [
+  "first_name",
+  "last_name",
+  "first_yiddish_name",
+  "last_yiddish_name",
+  "phone",
+  "address",
+  "wage_group",
+  "old_id",
+];
+
 const columns = [
   {
     accessorKey: "first_name",
@@ -169,6 +180,29 @@ const handleSubmit = () => {
   fetchStudents();
 };
 
+const downloadTemplate = () => {
+  // Create CSV template
+  const headers = requiredColumns.join(",");
+  const exampleRow = "Yehudah,Adler,יודל,אדלער,3476757883,0,8,10638";
+  const csvContent = [headers, exampleRow].join("\n");
+
+  // Create blob and download
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "student_template.csv";
+  link.click();
+  window.URL.revokeObjectURL(url);
+
+  toast.add({
+    title: "Success",
+    description: "Template downloaded successfully",
+    color: "success",
+    duration: 2000,
+  });
+};
+
 const handleFileSubmit = async () => {
   if (!file.value) {
     toast.add({
@@ -181,13 +215,17 @@ const handleFileSubmit = async () => {
   }
 
   isSubmitting.value = true;
+
+  console.log(".fileeeee", file.value);
+
   const formData = new FormData();
   formData.append("file", file.value);
   try {
     const response = await api(`/api/students/import`, {
       method: "POST",
-      body: formData,
+      body: file.value,
     });
+    console.log("response......", response);
 
     if (response?.success) {
       importStudentModal.value = false;
@@ -195,7 +233,7 @@ const handleFileSubmit = async () => {
         title: "Success",
         description: response?.message
           ? response?.message
-          : "Data imported successfully",
+          : "Data will be imported shortly",
         color: "success",
         duration: 2000,
       });
@@ -327,6 +365,35 @@ const toggleSwitch = async () => {
       </div>
     </template>
     <template #body>
+      <!-- Required Columns Section -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+        <h3 class="font-semibold text-blue-900 mb-3">Required Columns</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div
+            v-for="(column, index) in requiredColumns"
+            :key="index"
+            class="flex items-center gap-2 text-sm text-blue-800"
+          >
+            <UIcon name="i-lucide-check" class="text-blue-600" />
+            {{ column }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Download Template Section -->
+      <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <p class="text-sm text-gray-600 mb-3">
+          Download the CSV template to get started with the correct format:
+        </p>
+        <UButton
+          @click="downloadTemplate"
+          icon="i-lucide-download"
+          label="Download Template"
+          variant="outline"
+          color="neutral"
+        />
+      </div>
+
       <UFileUpload
         v-model="file"
         icon="i-lucide-file-text"
@@ -347,46 +414,7 @@ const toggleSwitch = async () => {
             @click="open()"
           />
         </template>
-
-        <!-- <template #files-bottom="{ removeFile, files }">
-          <UButton
-            v-if="files?.length"
-            label="Remove all files"
-            color="neutral"
-            
-            @click="removeFile()"
-          />
-        </template> -->
       </UFileUpload>
-
-      <!-- Upload Rules -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4 text-sm mt-2">
-        <div class="flex flex-col gap-3">
-          <div>
-            <p class="font-bold text-gray-700">Required Format:</p>
-            <p class="text-primary">
-              Your Excel must contain the first row as headers:<br />
-              <span class="font-semibold text-brand-700">
-                First Name | Last Name | First Yiddish Name | Last Yiddish Name
-                | Phone | Address | Wage Group
-              </span>
-              <br />
-            </p>
-          </div>
-
-          <!-- Sample download button -->
-          <UButton
-            label="Download Sample Sheet"
-            color="primary"
-            variant="outline"
-            icon="i-lucide-download"
-            class="rounded-lg h-fit w-64"
-            :ui="{
-              base: 'border border-gray-600',
-            }"
-          />
-        </div>
-      </div>
 
       <UButton
         type="submit"

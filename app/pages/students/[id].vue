@@ -1,4 +1,6 @@
 <script setup>
+import { secondsToAmPm, secondsToPercent } from "~/common/common";
+
 definePageMeta({
   layout: "sidebar",
   middleware: ["auth"],
@@ -66,28 +68,6 @@ const normalizeClockings = (clockings) => {
 
     return row;
   });
-};
-
-const secondsToAmPm = (seconds) => {
-  if (seconds == null) return "-";
-
-  let hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12 || 12;
-
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:${secs.toString().padStart(2, "0")} ${ampm}`;
-};
-
-const secondsToPercent = (workedSeconds, scheduledSeconds) => {
-  if (!workedSeconds || !scheduledSeconds) return "-";
-
-  const percent = (workedSeconds / scheduledSeconds) * 100;
-  return `${Math.round(percent)}%`;
 };
 
 const fetchStudentDetail = async (refresh = false) => {

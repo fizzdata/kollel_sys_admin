@@ -6,6 +6,11 @@ import {
   Time,
 } from "@internationalized/date";
 import { object, string, number } from "yup";
+import {
+  convertTo24Hour,
+  secondsToAmPm,
+  secondsToPercent,
+} from "~/common/common";
 
 definePageMeta({
   layout: "sidebar",
@@ -26,6 +31,8 @@ const isSubmitting = ref(false);
 const isImporting = ref(false);
 const loading = ref(false);
 const ImportClockingModal = ref(false);
+const file = ref(null);
+
 const api = useApi();
 // Get today's date
 const todayDate = today(getLocalTimeZone());
@@ -152,28 +159,6 @@ const clockingsColumns = [
   },
   { accessorKey: "total_afternoon", header: "Total Afternoon" },
 ];
-
-const secondsToAmPm = (seconds) => {
-  if (seconds == null) return "-";
-
-  let hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12 || 12;
-
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:${secs.toString().padStart(2, "0")} ${ampm}`;
-};
-
-const secondsToPercent = (workedSeconds, scheduledSeconds) => {
-  if (!workedSeconds || !scheduledSeconds) return "-";
-
-  const percent = (workedSeconds / scheduledSeconds) * 100;
-  return `${Math.round(percent)}%`;
-};
 
 const formatClockings = (clockings = []) => {
   return clockings.map((item) => {
@@ -313,19 +298,6 @@ const onSubmit = async (event) => {
   }
 };
 
-const convertTo24Hour = (time12h) => {
-  if (!time12h) return "";
-  const [time, modifier] = time12h.split(" ");
-  let [hours, minutes, seconds] = time.split(":").map(Number);
-
-  if (modifier === "PM" && hours !== 12) hours += 12;
-  if (modifier === "AM" && hours === 12) hours = 0;
-
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-};
-
 const editClocking = (clock, type) => {
   state.id = clock.student_id;
   state.student_id = clock.student_id;
@@ -346,6 +318,7 @@ const editClocking = (clock, type) => {
 };
 
 const importClockings = async (formData) => {
+  console.log("🚀 ~ importClockings ~ formData:", formData);
   try {
     isImporting.value = true;
     const response = await api(`/api/clockings/import`, {
@@ -356,8 +329,7 @@ const importClockings = async (formData) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description:
-          response?.message || "Clockings imported successfully",
+        description: response?.message || "Clockings imported successfully",
         color: "success",
         duration: 2000,
       });
@@ -392,6 +364,41 @@ const importClockings = async (formData) => {
   }
 };
 
+const exportToPDF = async () => {
+  try {
+    const response = await api(`/api/clockings/pdf`, {
+      method: "GET",
+      params: {
+        date_from: calendarRange.value.start?.toString(),
+        date_to: calendarRange.value.end?.toString(),
+        error_only: isActive.value,
+      },
+      // responseType: "blob",
+    });
+
+    if (response) {
+      // const url = window.URL.createObjectURL(
+      //   new Blob([response.job], { type: "application/pdf" })
+      // );
+      // window.open(url, "_blank");
+      toast.add({
+        title: "Success",
+        description: response?.message || "PDF exported successfully",
+        color: "success",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Export to PDF error:", error);
+  }
+  // window.open(
+  //   `/api/clockings/pdf?date_from=${calendarRange.value.start?.toString()}&date_to=${calendarRange.value.end?.toString()}&error_only=${
+  //     isActive.value
+  //   }`,
+  //   "_blank"
+  // );
+};
+
 onMounted(async () => {
   await fetchClockings({
     date_from: calendarRange.value.start?.toString(),
@@ -418,31 +425,37 @@ watch(
 );
 </script>
 <template>
-  <div class="flex justify-between items-center gap-4">
-    <h2 class="text-xl font-bold my-4">This Weeks Clockings</h2>
-    <div class="flex justify-end gap-2">
-      <UButton
-        @click="
-          CreateClockingModal = true;
-          state.id = undefined;
-        "
-        icon="i-lucide-plus"
-        label="Create New Clockings"
-        class="text-white"
-        color="primary"
-        variant="solid"
-      />
+  <UCard class="rounded-2xl shadow-sm">
+    <div class="flex justify-between items-center gap-4">
+      <h2 class="text-xl font-bold">This Weeks Clockings</h2>
+      <div class="flex justify-end gap-2">
+        <UButton
+          @click="
+            CreateClockingModal = true;
+            state.id = undefined;
+          "
+          icon="i-lucide-plus"
+          label="Create New Clockings"
+          class="text-white"
+          color="primary"
+          variant="solid"
+        />
 
-      <UButton
-        @click="ImportClockingModal = true"
-        icon="i-lucide-download"
-        label="Import Clockings"
-      />
+        <UButton
+          @click="ImportClockingModal = true"
+          icon="i-lucide-download"
+          label="Import Clockings"
+        />
 
-      <UButton icon="i-lucide-file-text" label="Export to PDF" />
+        <UButton
+          icon="i-lucide-file-text"
+          label="Export to PDF"
+          @click="exportToPDF"
+        />
+      </div>
     </div>
-  </div>
-  <div class="flex justify-between">
+  </UCard>
+  <div class="flex justify-between my-6">
     <div class="flex gap-4 items-center">
       <UPopover v-model:open="open">
         <UButton
@@ -488,13 +501,14 @@ watch(
     />
   </div>
   <!-- Clockings Table -->
-  <UTable
-    :columns="clockingsColumns"
-    :loading="loading"
-    :data="clockingsData"
-    class="flex-1 mt-6"
-  />
-
+  <UCard>
+    <UTable
+      :columns="clockingsColumns"
+      :loading="loading"
+      :data="clockingsData"
+      class="flex-1 mt-6"
+    />
+  </UCard>
   <!-- Modal for Create New User -->
   <UModal v-model:open="CreateClockingModal">
     <!-- Custom Header -->
@@ -620,8 +634,8 @@ watch(
   </UModal>
 
   <!-- Import Clockings Modal -->
-  <ClockingsImportModal
-    v-model:open="ImportClockingModal"
+  <CommonClockingsImportModal
+    v-model="ImportClockingModal"
     :isLoading="isImporting"
     @import="importClockings"
   />
