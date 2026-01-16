@@ -137,7 +137,7 @@ watch(
             <div class="flex justify-between">
               <span class="text-gray-500">Net Price</span>
               <span class="font-semibold text-green-600">
-                ${{ rule.net_price }}
+                ${{ rule.net_value }}
               </span>
             </div>
 
@@ -148,7 +148,7 @@ watch(
                 <li
                   v-for="(item, index) in rule.rules"
                   :key="index"
-                  class="text-sm border-l-4 pl-2 py-1 border-gray-200"
+                  class="text-sm border-l-4 pl-2 py-1 border-gray-200 hover:border-primary"
                 >
                   If {{ metricLabels[item.rule.metric] }}
                   {{ operaterLabels[item.rule.operator] }}

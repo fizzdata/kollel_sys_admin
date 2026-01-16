@@ -62,6 +62,8 @@ const processAllPayroll = ref([]);
 const errorProcessAllPayrollMessage = ref(null);
 const fetchingAllProcessPayroll = ref(false);
 const isDeletingProcessAllPayroll = ref(false);
+const deleteAllProcessPayrollConfirmModal = ref(false);
+const selectedPayroll = ref(null);
 
 const isGroupModalOpen = async () => {
   newGroup.value = true;
@@ -125,19 +127,24 @@ const processAllPayrollColumns = [
                 color: "error",
                 variant: "soft",
                 disabled: isDeletingProcessAllPayroll.value,
-                onClick: () => deleteProcessAllPayroll(row.original),
+                onClick: () => onConfirmDeleteProcess(row.original),
               }),
           }
         ),
       ]),
   },
 ];
+const onConfirmDeleteProcess = async (payroll) => {
+  deleteAllProcessPayrollConfirmModal.value = true;
+  selectedPayroll.value = payroll;
+};
 
-const deleteProcessAllPayroll = async (payroll) => {
+const confirmDeleteProcessAllPayroll = async () => {
   try {
     isDeletingProcessAllPayroll.value = true;
 
-    const response = await api(`/api/payroll/${payroll.id}`, {
+    if (!selectedPayroll.value) return;
+    const response = await api(`/api/payroll/${selectedPayroll.value.id}`, {
       method: "DELETE",
     });
 
@@ -166,6 +173,8 @@ const deleteProcessAllPayroll = async (payroll) => {
     console.error("Error deleting group:", error);
   } finally {
     isDeletingProcessAllPayroll.value = false;
+    deleteAllProcessPayrollConfirmModal.value = false;
+    selectedPayroll.value = null;
   }
 };
 
@@ -177,6 +186,7 @@ const fetchAllProcessPayroll = async () => {
     // console.log(fetch);
     if (response?.success) {
       processAllPayroll.value = response?.payrolls;
+      console.log("processAllPayroll", processAllPayroll.value);
     } else {
       errorProcessAllPayrollMessage.value = response?.message;
     }
@@ -796,6 +806,51 @@ const onDepositDateChange = async (val) => {
         :loading="fetchingAllProcessPayroll"
         class="flex-1 mt-6"
       />
+    </template>
+  </UModal>
+  <!-- Modal for Delete Process All Payroll Confirmation -->
+  <UModal
+    v-model:open="deleteAllProcessPayrollConfirmModal"
+    title="Confirm Delete Payroll"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <div>
+        <p>
+          Are you sure you want to delete this
+          <span v-if="selectedPayroll?.type" class="font-bold">
+            {{ selectedPayroll?.type }}?
+          </span>
+        </p>
+      </div>
+      <div class="flex gap-2 justify-end items-center">
+        <UButton
+          color="neutral"
+          variant="solid"
+          class="mt-4"
+          @click="
+            () => {
+              deleteAllProcessPayrollConfirmModal = false;
+            }
+          "
+        >
+          Cancel
+        </UButton>
+        <UButton
+          color="error"
+          variant="solid"
+          class="mt-4"
+          :loading="isDeletingProcessAllPayroll"
+          :disabled="isDeletingProcessAllPayroll"
+          @click="confirmDeleteProcessAllPayroll()"
+        >
+          Delete
+        </UButton>
+      </div>
     </template>
   </UModal>
 </template>
