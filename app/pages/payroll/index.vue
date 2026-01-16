@@ -64,6 +64,19 @@ const fetchingAllProcessPayroll = ref(false);
 const isDeletingProcessAllPayroll = ref(false);
 const deleteAllProcessPayrollConfirmModal = ref(false);
 const selectedPayroll = ref(null);
+const activeTab = ref("0");
+
+const fetchingPayroll = ref(false);
+const fetchingSettings = ref(false);
+const recentPayroll = ref([]);
+
+const settings = ref(null);
+
+const tabs = [
+  { label: "Recent Payroll", key: "recent-payroll" },
+  { label: "Groups", key: "groups" },
+  { label: "Settings", key: "setting" },
+];
 
 const isGroupModalOpen = async () => {
   newGroup.value = true;
@@ -284,6 +297,36 @@ const columns = [
       ]),
   },
 ];
+const recentPayrollColumns = [
+  {
+    accessorKey: "date",
+    header: "Date",
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+  },
+  {
+    accessorKey: "period",
+    header: "Period",
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+  },
+  {
+    accessorKey: "amount-paid",
+    header: "Amount Paid",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+  },
+  {
+    accessorKey: "undo-payroll",
+    header: "Undo Payroll",
+  },
+];
 
 const groupSchema = object({
   name: string().required("Name is required"),
@@ -458,9 +501,53 @@ const fetchGroups = async () => {
   }
 };
 
+const fetchRecentPayroll = async () => {
+  try {
+    fetchingPayroll.value = true;
+    const response = await api(`/api/payroll`);
+
+    if (response?.success) {
+      recentPayroll.value = response?.payrolls;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchGroups ~ err:", err);
+  } finally {
+    fetchingPayroll.value = false;
+  }
+};
+
+const fetchSettings = async () => {
+  try {
+    fetchingSettings.value = true;
+    const response = await api(`/api/payroll/settings`);
+
+    if (response?.success) {
+      settings.value = response?.settings;
+      console.log("settings.value", settings.value);
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchGroups ~ err:", err);
+  } finally {
+    fetchingSettings.value = false;
+  }
+};
+
+// watch for tab changes
+watch(activeTab, (newTab) => {
+  console.log("newTabnewTab", newTab, typeof newTab);
+
+  if (newTab === "0") {
+    fetchRecentPayroll();
+  } else if (newTab === "1") {
+    fetchGroups();
+  } else if (newTab === "2") {
+    fetchSettings();
+  }
+});
+
 onMounted(async () => {
   // Initial fetch when component is mounted
-  await fetchGroups();
+  await fetchRecentPayroll();
 });
 
 const editGroup = (group) => {
@@ -573,7 +660,16 @@ const onDepositDateChange = async (val) => {
 <template>
   <UCard class="rounded-2xl shadow-sm">
     <div class="flex justify-between items-center gap-4">
-      <h2 class="text-xl font-bold">Payroll Groups</h2>
+      <h2 v-if="activeTab === '0'" class="text-xl font-bold">
+        {{
+          activeTab === "0"
+            ? "Recent Payroll"
+            : activeTab === "1"
+            ? "Payroll Groups"
+            : "Payroll Settings"
+        }}
+      </h2>
+
       <div class="flex flex-wrap gap-2 justify-end">
         <UButton
           @click="isGroupModalOpen"
@@ -605,7 +701,16 @@ const onDepositDateChange = async (val) => {
       </div>
     </div>
   </UCard>
-  <UCard class="my-6">
+  <UTabs v-model="activeTab" :items="tabs" variant="link" class="mt-6" />
+  <UCard v-if="activeTab === '0'" class="my-6">
+    <UTable
+      :columns="recentPayrollColumns"
+      :loading="fetchingPayroll"
+      :data="recentPayroll"
+      class="flex-1 mt-6"
+    />
+  </UCard>
+  <UCard v-if="activeTab === '1'" class="my-6">
     <UTable
       :columns="columns"
       :loading="fetchingGroups"
@@ -613,6 +718,12 @@ const onDepositDateChange = async (val) => {
       class="flex-1 mt-6"
     />
   </UCard>
+  <PayrollSettings
+    v-if="activeTab === '2'"
+    :fetchingSettings="fetchingSettings"
+    :data="settings"
+    @refresh="fetchSettings()"
+  />
 
   <!-- Create Group Modal -->
   <UModal v-model:open="newGroup">
