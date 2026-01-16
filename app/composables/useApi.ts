@@ -6,13 +6,20 @@ export const useApi = () => {
 
   return async (url: string, options: any = {}) => {
     try {
+      // Don't set Content-Type if body is FormData (let browser set multipart/form-data)
+      const headers: any = {
+        Accept: "application/json",
+        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
+      };
+
+      // Only set Content-Type if NOT FormData
+      if (!(options.body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
+
       return await $fetch(url, {
         baseURL: baseUrl,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
-        },
+        headers,
         ...options,
       });
     } catch (error: any) {

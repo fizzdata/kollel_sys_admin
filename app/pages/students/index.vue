@@ -223,7 +223,7 @@ const handleFileSubmit = async () => {
   try {
     const response = await api(`/api/students/import`, {
       method: "POST",
-      body: file.value,
+      body: formData,
     });
     console.log("response......", response);
 
