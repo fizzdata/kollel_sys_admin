@@ -31,10 +31,11 @@ const navigation = [
   { name: "Checks", href: "/checks", key: "checks" },
   { name: "Reports", href: "/reports", key: "reports" },
   { name: "Files", href: "/files", key: "files" },
+  { name: "College Checks", href: "/college-checks", key: "college-checks" },
 ];
 
 const filteredNavigation = computed(() =>
-  navigation.filter((item) => hasAccess.value.includes(item.key))
+  navigation.filter((item) => hasAccess.value.includes(item.key)),
 );
 
 const isActive = (href) => route.path.startsWith(href);

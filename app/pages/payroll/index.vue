@@ -117,7 +117,7 @@ const processAllPayrollColumns = [
           variant: "solid",
           size: "md",
         },
-        () => badge.label
+        () => badge.label,
       );
     },
   },
@@ -142,7 +142,7 @@ const processAllPayrollColumns = [
                 disabled: isDeletingProcessAllPayroll.value,
                 onClick: () => onConfirmDeleteProcess(row.original),
               }),
-          }
+          },
         ),
       ]),
   },
@@ -256,7 +256,7 @@ const columns = [
           to: `/payroll/${row.original.id}`, // dynamic route to user detail page
           class: "text-primary hover:underline",
         },
-        row.original.name
+        row.original.name,
       ),
   },
   { accessorKey: "amount", header: "Amount Name" },
@@ -277,7 +277,7 @@ const columns = [
                 variant: "soft",
                 onClick: () => editGroup(row.original),
               }),
-          }
+          },
         ),
 
         h(
@@ -292,7 +292,7 @@ const columns = [
                 variant: "soft",
                 onClick: () => deleteUser(row.original),
               }),
-          }
+          },
         ),
       ]),
   },
@@ -660,13 +660,13 @@ const onDepositDateChange = async (val) => {
 <template>
   <UCard class="rounded-2xl shadow-sm">
     <div class="flex justify-between items-center gap-4">
-      <h2 v-if="activeTab === '0'" class="text-xl font-bold">
+      <h2 class="text-xl font-bold">
         {{
           activeTab === "0"
             ? "Recent Payroll"
             : activeTab === "1"
-            ? "Payroll Groups"
-            : "Payroll Settings"
+              ? "Payroll Groups"
+              : "Payroll Settings"
         }}
       </h2>
 
