@@ -72,7 +72,7 @@ function generateCalendar() {
   const firstHebrewMonth = G2Hnumber(
     currentDate.getFullYear(),
     currentDate.getMonth() + 1,
-    currentDate.getDate()
+    currentDate.getDate(),
   ).split("/")[0];
 
   while (true) {
@@ -93,7 +93,7 @@ function generateCalendar() {
     const nextHebrewMonth = G2Hnumber(
       currentDate.getFullYear(),
       currentDate.getMonth() + 1,
-      currentDate.getDate()
+      currentDate.getDate(),
     ).split("/")[0];
 
     if (nextHebrewMonth !== firstHebrewMonth) {
@@ -198,7 +198,7 @@ watch(() => props.items, generateCalendar, { deep: true });
               <!-- Day Data -->
               <div
                 v-if="day.data"
-                class="mt-2 text-[10px] sm:text-xs p-2 space-y-1 flex flex-col gap-1"
+                class="mt-2 text-[10px] sm:text-xs p-2 space-y-1 flex flex-col items-center justify-center gap-1"
               >
                 <div class="bg-blue-50 rounded">
                   <span class="ml-1 text-gray-900">

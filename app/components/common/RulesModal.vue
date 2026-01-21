@@ -44,7 +44,7 @@ watch(
       calendarOpen.value = false; // ✅ close popover
     }
   },
-  { deep: true }
+  { deep: true },
 );
 </script>
 
@@ -165,7 +165,7 @@ watch(
       </div>
 
       <div
-        v-else-if="type === 'check' && message.type === 'pdf'"
+        v-else-if="type === 'check' && message?.type === 'pdf'"
         class="w-full h-full"
       >
         <iframe :src="message.url" class="w-full h-[80vh] border rounded" />
@@ -179,7 +179,7 @@ watch(
           v-else
           class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
         >
-          No Checks found. Please add some Checks.
+          Please select date range to process checks.
         </div>
       </div>
 

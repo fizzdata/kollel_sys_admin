@@ -312,9 +312,10 @@ onMounted(async () => {
             <div class="flex justify-between">
               <h2 class="text-xl font-semibold">
                 {{
+                  student?.page_title ||
                   student?.Student?.first_name +
-                  " " +
-                  student?.Student?.last_name
+                    " " +
+                    student?.Student?.last_name
                 }}
               </h2>
               <UBadge
@@ -344,7 +345,7 @@ onMounted(async () => {
               </p>
               <p>
                 <span class="font-medium">Wage Group:</span>
-                {{ student?.wage_group }}
+                {{ student?.wage_group?.map((group) => group.name).join(", ") }}
               </p>
             </div>
             <div class="flex gap-1 mt-2 items-center">

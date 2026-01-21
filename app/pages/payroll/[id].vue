@@ -60,14 +60,8 @@ const loading = ref(false);
 const processRulesLoading = ref(false);
 const processChecksLoading = ref(false);
 const processDepositLoading = ref(false);
-const open = ref(false);
-const checksDatePicker = ref(false);
-const depositDatePicker = ref(false);
-
 const rules = ref([]);
 const processRules = ref([]);
-const processCheckMessage = ref("");
-const processDespositMessage = ref("");
 const rulesModalOpen = ref(false);
 const operatorOptions = ref([]);
 const metricOptions = ref([]);
@@ -185,19 +179,37 @@ const fetchProcessRules = async (date) => {
     processRulesLoading.value = false;
   }
 };
-const fetchProcessChecks = async (date) => {
+const fetchProcessChecks = async (data) => {
   try {
     processChecksLoading.value = true;
     const response = await api(`/api/payroll/group/${groupId}/process/checks`, {
       method: "POST",
-      params: {
-        from_date: date?.from_date,
-        till_date: date?.till_date,
+      body: {
+        from_date: data?.from_date,
+        till_date: data?.till_date,
+        description: data?.description,
       },
     });
 
-    if (response) {
-      processCheckMessage.value = response?.message;
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Direct deposit processing started",
+        color: "success",
+        duration: 2000,
+      });
+      processChecksModal.value = false;
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to delete group",
+        color: "error",
+        duration: 2000,
+      });
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
@@ -205,29 +217,41 @@ const fetchProcessChecks = async (date) => {
     processChecksLoading.value = false;
   }
 };
-const isChecksModalOpen = async () => {
-  processChecksModal.value = true;
-  await fetchProcessChecks({
-    from_date: checkscalendarRange.value.start?.toString(),
-    till_date: checkscalendarRange.value.end?.toString(),
-  });
-};
-const fetchProcessDeposit = async (date) => {
+
+const fetchProcessDeposit = async (data) => {
   try {
     processDepositLoading.value = true;
     const response = await api(
       `/api/payroll/group/${groupId}/process/deposit`,
       {
         method: "POST",
-        params: {
-          from_date: date?.from_date,
-          till_date: date?.till_date,
+        body: {
+          from_date: data?.from_date,
+          till_date: data?.till_date,
+          description: data?.description,
         },
-      }
+      },
     );
 
-    if (response) {
-      processDespositMessage.value = response?.message;
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Direct deposit processing started",
+        color: "success",
+        duration: 2000,
+      });
+      processDepositModal.value = false;
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to delete group",
+        color: "error",
+        duration: 2000,
+      });
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
@@ -273,7 +297,7 @@ const confirmDeleteRules = async () => {
       `/api/payroll/group/${groupId}/rules/${rulesform.value.id}`,
       {
         method: "DELETE",
-      }
+      },
     );
 
     if (response?.success) {
@@ -540,21 +564,31 @@ const onDateChange = async (val) => {
   });
 };
 
-const onCheckDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+const onCheckFormSubmit = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
 
   await fetchProcessChecks({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
+    ...val,
   });
 };
 
-const onDepositDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+const onDepositFormSubmit = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
 
   await fetchProcessDeposit({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
+    ...val,
   });
 };
 
@@ -632,14 +666,14 @@ watch(activeTab, (newTab) => {
                   label="Process Checks"
                   variant="solid"
                   color="primary"
-                  @click="isChecksModalOpen"
+                  @click="processChecksModal = true"
                 />
                 <UButton
                   icon="i-lucide-wallet"
                   label="Process Deposit"
                   variant="solid"
                   color="primary"
-                  @click="isDepositModalOpen"
+                  @click="processDepositModal = true"
                 />
               </template>
 
@@ -957,23 +991,21 @@ watch(activeTab, (newTab) => {
   />
 
   <!-- Modal for Process Checks Rules -->
-  <CommonRulesModal
+  <CommonChecksDepositModal
     v-model="processChecksModal"
     title="Process Checks"
     :loading="processChecksLoading"
-    :message="processCheckMessage"
     type="check"
-    @date-change="onCheckDateChange"
+    @submit="onCheckFormSubmit"
   />
 
   <!-- Modal for Deposit Checks -->
-  <CommonRulesModal
+  <CommonChecksDepositModal
     v-model="processDepositModal"
     title="Process Deposit"
     :loading="processDepositLoading"
-    :message="processDespositMessage"
     type="deposit"
-    @date-change="onDepositDateChange"
+    @submit="onDepositFormSubmit"
   />
 
   <!-- Add Student in group -->

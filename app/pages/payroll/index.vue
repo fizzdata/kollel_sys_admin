@@ -10,14 +10,7 @@ definePageMeta({
   layout: "sidebar",
   middleware: ["auth"],
 });
-// const df = new DateFormatter("en-US", {
-//   year: "numeric",
-//   month: "2-digit",
-//   day: "2-digit",
-// });
-const df = new DateFormatter("en-US", {
-  dateStyle: "medium",
-});
+
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -28,19 +21,10 @@ const calendarRange = ref({
   start: fromDate,
   end: todayDate,
 });
-const checkscalendarRange = ref({
-  start: fromDate,
-  end: todayDate,
-});
-const depositcalendarRange = ref({
-  start: fromDate,
-  end: todayDate,
-});
 
 const api = useApi();
 const loading = ref(false);
 const showModal = ref(false);
-const open = ref(false);
 const processRules = ref([]);
 const processChecksLoading = ref(false);
 const processDepositLoading = ref(false);
@@ -50,8 +34,6 @@ const toast = useToast();
 const groups = ref([]);
 const deleteModal = ref(false);
 const fetchingGroups = ref(false);
-const processCheckMessage = ref("");
-const processDespositMessage = ref("");
 const processChecksModal = ref(false);
 const processDepositModal = ref(false);
 const errorProcessMessages = ref(null);
@@ -314,18 +296,42 @@ const recentPayrollColumns = [
     accessorKey: "description",
     header: "Description",
   },
-  {
-    accessorKey: "amount-paid",
-    header: "Amount Paid",
-  },
+  // {
+  //   accessorKey: "amount-paid",
+  //   header: "Amount Paid",
+  // },
   {
     accessorKey: "status",
     header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status;
+
+      const statusMap = {
+        pending: { color: "warning", label: "Pending" },
+        completed: { color: "success", label: "Completed" },
+        failed: { color: "error", label: "Failed" },
+      };
+
+      const badge = statusMap[status] || {
+        color: "neutral",
+        label: status,
+      };
+
+      return h(
+        resolveComponent("UBadge"),
+        {
+          color: badge.color,
+          variant: "solid",
+          size: "md",
+        },
+        () => badge.label,
+      );
+    },
   },
-  {
-    accessorKey: "undo-payroll",
-    header: "Undo Payroll",
-  },
+  // {
+  //   accessorKey: "undo-payroll",
+  //   header: "Undo Payroll",
+  // },
 ];
 
 const groupSchema = object({
@@ -421,63 +427,84 @@ const onSubmit = async (event) => {
   }
 };
 
-const fetchProcessChecks = async (date) => {
+const fetchProcessChecks = async (data) => {
   try {
     processChecksLoading.value = true;
     const response = await api(`/api/payroll/process/checks`, {
       method: "POST",
-      params: {
-        from_date: date?.from_date,
-        till_date: date?.till_date,
+      body: {
+        from_date: data?.from_date,
+        till_date: data?.till_date,
+        description: data?.description,
       },
     });
 
     if (response?.success) {
-      processCheckMessage.value = response?.message;
+      toast.add({
+        title: "Success",
+        description: response?.message || "Checks processed successfully",
+        color: "success",
+        duration: 2000,
+      });
+      processChecksModal.value = false;
+      fetchRecentPayroll();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to delete group",
+        color: "error",
+        duration: 2000,
+      });
     }
-    console.log("createChecks", processCheckMessage.value);
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
   } finally {
     processChecksLoading.value = false;
   }
 };
-const isChecksModalOpen = async () => {
-  processChecksModal.value = true;
-  await fetchProcessChecks({
-    from_date: checkscalendarRange.value.start?.toString(),
-    till_date: checkscalendarRange.value.end?.toString(),
-  });
-};
-const fetchProcessDeposit = async (date) => {
+
+const fetchProcessDeposit = async (data) => {
   try {
     processDepositLoading.value = true;
-
     const response = await api(`/api/payroll/process/deposit`, {
       method: "POST",
-      params: {
-        from_date: date?.from_date,
-        till_date: date?.till_date,
+      body: {
+        from_date: data?.from_date,
+        till_date: data?.till_date,
+        description: data?.description,
       },
     });
-    console.log("🚀 ~ fetchProcessDeposit ~ response:", response);
 
-    if (response) {
-      processDespositMessage.value = response?.message;
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Direct deposit processing started",
+        color: "success",
+        duration: 2000,
+      });
+      processDepositModal.value = false;
+      fetchRecentPayroll();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to delete group",
+        color: "error",
+        duration: 2000,
+      });
     }
-    console.log("createChecks", processDespositMessage.value);
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
   } finally {
     processDepositLoading.value = false;
   }
-};
-const isDepositModalOpen = async () => {
-  processDepositModal.value = true;
-  await fetchProcessDeposit({
-    from_date: depositcalendarRange.value.start?.toString(),
-    till_date: depositcalendarRange.value.end?.toString(),
-  });
 };
 
 const fetchGroups = async () => {
@@ -492,7 +519,6 @@ const fetchGroups = async () => {
         ...g,
         base_amount: g.amount, // backend uses "amount", UI uses "base_amount"
       }));
-      // You can store the fetched groups in a reactive variable if needed
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
@@ -637,22 +663,32 @@ const onDateChange = async (val) => {
 };
 
 // watch for Create Check Datepicker changes
-const onCheckDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+const onProcessCheckFormSubmit = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
 
   await fetchProcessChecks({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
+    ...val,
   });
 };
 
 // watch for Process Deposit Datepicker changes
-const onDepositDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+const onProcessDepositFormSubmit = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
 
   await fetchProcessDeposit({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
+    ...val,
   });
 };
 </script>
@@ -686,14 +722,14 @@ const onDepositDateChange = async (val) => {
         <UButton @click="isModalOpen" icon="i-lucide-settings" label="Process">
         </UButton>
         <UButton
-          @click="isChecksModalOpen"
+          @click="processChecksModal = true"
           icon="i-lucide-check-square"
           label="Process Checks"
         >
         </UButton>
 
         <UButton
-          @click="isDepositModalOpen"
+          @click="processDepositModal = true"
           icon="i-lucide-wallet"
           label="Process Deposit"
         >
@@ -826,23 +862,21 @@ const onDepositDateChange = async (val) => {
   />
 
   <!-- Modal for Process Check Rules -->
-  <CommonRulesModal
+  <CommonChecksDepositModal
     v-model="processChecksModal"
     title="Process Checks"
     :loading="processChecksLoading"
-    :message="processCheckMessage"
     type="check"
-    @date-change="onCheckDateChange"
+    @submit="onProcessCheckFormSubmit"
   />
 
   <!-- Modal for deposit Rules -->
-  <CommonRulesModal
+  <CommonChecksDepositModal
     v-model="processDepositModal"
     title="Process Deposit"
     :loading="processDepositLoading"
-    :message="processDespositMessage"
     type="deposit"
-    @date-change="onDepositDateChange"
+    @submit="onProcessDepositFormSubmit"
   />
 
   <!-- Modal for Delete Payroll -->

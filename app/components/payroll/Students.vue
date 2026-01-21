@@ -24,10 +24,6 @@ const calendarRange = ref({
 });
 
 const route = useRoute();
-console.log("props", props.students);
-
-// const fetchingGroupStudents = ref(false);
-const groupId = route.params.id;
 const selectedStudent = ref(null);
 const isStudentDeleting = ref(false);
 
@@ -54,7 +50,7 @@ const fetchProcessRules = async (data) => {
             from_date: data?.from_date,
             till_date: data?.till_date,
           },
-        }
+        },
       );
 
       if (response?.success) {
@@ -82,7 +78,7 @@ const fetchCheckProcessRules = async (data) => {
             from_date: data?.from_date,
             till_date: data?.till_date,
           },
-        }
+        },
       );
       console.log("responseresponse", response);
 
@@ -125,11 +121,28 @@ const fetchDepositProcessRules = async (data) => {
             from_date: data?.from_date,
             till_date: data?.till_date,
           },
-        }
+        },
       );
 
-      if (response) {
-        depositProcessRules.value = response?.message;
+      if (response?.success) {
+        toast.add({
+          title: "Success",
+          description: response?.message || "Direct deposit processing started",
+          color: "success",
+          duration: 2000,
+        });
+        processStudentDepositModal.value = false;
+      } else {
+        toast.add({
+          title: "Failed",
+          description:
+            response?.message ||
+            response?._data.errors ||
+            response?._data.message ||
+            "Failed to delete group",
+          color: "error",
+          duration: 2000,
+        });
       }
     }
   } catch (error) {
@@ -186,19 +199,11 @@ const handleProcessStudent = async (student) => {
 const handleStudentProcessCheckClick = async (student) => {
   selectedStudent.value = student;
   processStudentCheckModal.value = true;
-  await fetchCheckProcessRules({
-    from_date: calendarRange.value.start?.toString(),
-    till_date: calendarRange.value.end?.toString(),
-  });
 };
 
 const handleStudentProcessDepositClick = async (student) => {
   selectedStudent.value = student;
   processStudentDepositModal.value = true;
-  await fetchDepositProcessRules({
-    from_date: calendarRange.value.start?.toString(),
-    till_date: calendarRange.value.end?.toString(),
-  });
 };
 
 const studentColumns = [
@@ -221,7 +226,7 @@ const studentColumns = [
                 variant: "soft",
                 onClick: () => handleProcessStudent(row.original),
               }),
-          }
+          },
         ),
 
         // Process Check Button
@@ -237,7 +242,7 @@ const studentColumns = [
                 variant: "soft",
                 onClick: () => handleStudentProcessCheckClick(row.original),
               }),
-          }
+          },
         ),
 
         // Process Depost Button
@@ -253,7 +258,7 @@ const studentColumns = [
                 variant: "soft",
                 onClick: () => handleStudentProcessDepositClick(row.original),
               }),
-          }
+          },
         ),
 
         // Edit Student Button
@@ -273,7 +278,7 @@ const studentColumns = [
                 disabled: isStudentDeleting.value,
                 onClick: () => handleRemoveStudent(row.original),
               }),
-          }
+          },
         ),
       ]),
   },
@@ -297,12 +302,17 @@ const onCheckDateChange = async (val) => {
   });
 };
 
-const onDepositDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+const onDepositFormSubmit = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
 
   await fetchDepositProcessRules({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
+    ...val,
   });
 };
 </script>
@@ -334,7 +344,6 @@ const onDepositDateChange = async (val) => {
   <CommonRulesModal
     v-model="processStudentCheckModal"
     title="Student Processing Check Rules"
-    :rules="checkProcessRules"
     :loading="checkProcessRulesLoading"
     :message="checkProcessRules"
     type="check"
@@ -342,13 +351,13 @@ const onDepositDateChange = async (val) => {
   />
 
   <!-- Student Processing Deposit Modal -->
-  <CommonRulesModal
+  <CommonChecksDepositModal
     v-model="processStudentDepositModal"
     title="Student Processing Deposit Rules"
-    :rules="depositProcessRules"
     :loading="depositProcessRulesLoading"
     :message="depositProcessRules"
     type="deposit"
-    @date-change="onDepositDateChange"
+    isStudent
+    @submit="onDepositFormSubmit"
   />
 </template>
