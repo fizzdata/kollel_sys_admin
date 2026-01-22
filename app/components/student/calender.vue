@@ -136,9 +136,9 @@ watch(() => props.items, generateCalendar, { deep: true });
         icon="i-lucide-arrow-left"
         color="primary"
         variant="solid"
-      >
-        Previous
-      </UButton>
+        label="Previous"
+      />
+
       <h2 class="text-2xl font-bold text-gray-900 text-center flex-1">
         {{ month_year() }}
       </h2>
@@ -147,9 +147,8 @@ watch(() => props.items, generateCalendar, { deep: true });
         trailing-icon="i-lucide-arrow-right"
         color="primary"
         variant="solid"
-      >
-        Next
-      </UButton>
+        label="Next"
+      />
     </div>
 
     <!-- Responsive wrapper -->

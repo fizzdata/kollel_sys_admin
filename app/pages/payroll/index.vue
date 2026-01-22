@@ -152,7 +152,6 @@ const confirmDeleteProcessAllPayroll = async () => {
       });
 
       await fetchAllProcessPayroll();
-      // Reset form state after deletion
     } else {
       toast.add({
         title: "Failed",
@@ -178,10 +177,8 @@ const fetchAllProcessPayroll = async () => {
     fetchingAllProcessPayroll.value = true;
     const response = await api(`/api/payroll`);
 
-    // console.log(fetch);
     if (response?.success) {
       processAllPayroll.value = response?.payrolls;
-      console.log("processAllPayroll", processAllPayroll.value);
     } else {
       errorProcessAllPayrollMessage.value = response?.message;
     }
@@ -214,7 +211,6 @@ const fetchProcessRules = async (date) => {
       },
     });
 
-    // console.log(fetch);
     if (response?.success) {
       processRules.value = Object.values(response?.data || {});
     } else {
@@ -241,7 +237,14 @@ const columns = [
         row.original.name,
       ),
   },
-  { accessorKey: "amount", header: "Amount Name" },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    cell: ({ row }) => {
+      const val = row.original.amount;
+      return `$${val}`;
+    },
+  },
   {
     header: "Quick Actions",
     cell: ({ row }) =>
@@ -549,7 +552,6 @@ const fetchSettings = async () => {
 
     if (response?.success) {
       settings.value = response?.settings;
-      console.log("settings.value", settings.value);
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
@@ -560,8 +562,6 @@ const fetchSettings = async () => {
 
 // watch for tab changes
 watch(activeTab, (newTab) => {
-  console.log("newTabnewTab", newTab, typeof newTab);
-
   if (newTab === "0") {
     fetchRecentPayroll();
   } else if (newTab === "1") {
@@ -711,29 +711,27 @@ const onProcessDepositFormSubmit = async (val) => {
           @click="isGroupModalOpen"
           icon="la:user-plus"
           label="New Group"
-        >
-        </UButton>
-
+        />
         <UButton
           @click="processAllPayrollBtnClick"
           icon="i-lucide-settings"
           label="Process All Payroll"
         />
-        <UButton @click="isModalOpen" icon="i-lucide-settings" label="Process">
-        </UButton>
+        <UButton
+          @click="isModalOpen"
+          icon="i-lucide-settings"
+          label="Process"
+        />
         <UButton
           @click="processChecksModal = true"
           icon="i-lucide-check-square"
           label="Process Checks"
-        >
-        </UButton>
-
+        />
         <UButton
           @click="processDepositModal = true"
           icon="i-lucide-wallet"
           label="Process Deposit"
-        >
-        </UButton>
+        />
       </div>
     </div>
   </UCard>
@@ -799,6 +797,7 @@ const onProcessDepositFormSubmit = async (val) => {
             v-model="groupState.name"
             placeholder="Enter group name"
             class="w-full"
+            size="lg"
           />
         </UFormField>
 
@@ -808,6 +807,7 @@ const onProcessDepositFormSubmit = async (val) => {
             type="number"
             placeholder="Enter base amount"
             class="w-full"
+            size="lg"
           />
         </UFormField>
 
@@ -818,6 +818,7 @@ const onProcessDepositFormSubmit = async (val) => {
             placeholder="Enter min amount"
             min="0"
             class="w-full"
+            size="lg"
           />
         </UFormField>
 
@@ -827,22 +828,21 @@ const onProcessDepositFormSubmit = async (val) => {
           <UButton
             color="neutral"
             variant="solid"
+            label="Cancel"
             @click="
               () => {
                 handleClose();
                 newGroup = false;
               }
             "
-          >
-            Cancel
-          </UButton>
+          />
+
           <UButton
             type="submit"
             :loading="isSubmitting"
             :disabled="isSubmitting"
-          >
-            {{ groupForm.id ? "Update Group" : "Create Group" }}
-          </UButton>
+            :label="groupForm.id ? 'Update Group' : 'Create Group'"
+          />
         </div>
       </UForm>
     </template>
@@ -904,14 +904,13 @@ const onProcessDepositFormSubmit = async (val) => {
           color="neutral"
           variant="solid"
           class="mt-4"
+          label="Cancel"
           @click="
             () => {
               deleteModal = false;
             }
           "
-        >
-          Cancel
-        </UButton>
+        />
         <UButton
           color="error"
           variant="solid"
@@ -919,9 +918,8 @@ const onProcessDepositFormSubmit = async (val) => {
           :loading="isSubmitting"
           :disabled="isSubmitting"
           @click="confirmDeleteGroup()"
-        >
-          Delete
-        </UButton>
+          label="Delete"
+        />
       </div>
     </template>
   </UModal>
@@ -940,8 +938,7 @@ const onProcessDepositFormSubmit = async (val) => {
           class="rounded-full p-2"
           icon="i-lucide-x"
           @click="isProcessAllPayrollModalOpen = false"
-        >
-        </UButton>
+        />
       </div>
     </template>
     <template #body>
@@ -977,24 +974,22 @@ const onProcessDepositFormSubmit = async (val) => {
           color="neutral"
           variant="solid"
           class="mt-4"
+          label="Cancel"
           @click="
             () => {
               deleteAllProcessPayrollConfirmModal = false;
             }
           "
-        >
-          Cancel
-        </UButton>
+        />
         <UButton
           color="error"
           variant="solid"
           class="mt-4"
+          label="Delete"
           :loading="isDeletingProcessAllPayroll"
           :disabled="isDeletingProcessAllPayroll"
           @click="confirmDeleteProcessAllPayroll()"
-        >
-          Delete
-        </UButton>
+        />
       </div>
     </template>
   </UModal>

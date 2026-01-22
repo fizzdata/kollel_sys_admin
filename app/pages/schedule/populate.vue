@@ -40,7 +40,7 @@ const schema = object({
     .test(
       "valid-from-date",
       "Invalid from date",
-      (value) => value && typeof value === "object"
+      (value) => value && typeof value === "object",
     ),
 
   to_date: mixed()
@@ -48,7 +48,7 @@ const schema = object({
     .test(
       "valid-to-date",
       "Invalid to date",
-      (value) => value && typeof value === "object"
+      (value) => value && typeof value === "object",
     )
     .test(
       "after-from-date",
@@ -60,7 +60,7 @@ const schema = object({
 
         // DateValue supports compare()
         return toDate.compare(from_date) > 0;
-      }
+      },
     ),
 });
 
@@ -151,7 +151,7 @@ async function fetchDefaultSchedules() {
               : "-",
             seder2_end: schedule.b_ends ? secondsToAmPm(schedule.b_ends) : "-",
           };
-        }
+        },
       );
     }
   } catch (err) {
@@ -189,7 +189,7 @@ const columns = [
                 variant: "soft",
                 onClick: () => editSchedule(row.original),
               }),
-          }
+          },
         ),
 
         // Delete Student Button
@@ -206,7 +206,7 @@ const columns = [
                 disabled: !row.original.id,
                 onClick: () => handleRemoveSchedule(row.original),
               }),
-          }
+          },
         ),
       ]);
     },
@@ -230,7 +230,6 @@ const schduleResetForm = () => {
 };
 
 const editSchedule = (schedule) => {
-  console.log("🚀 ~ editSchedule ~ schedule:", schedule);
   selectedSchedule.value = schedule;
   defaultScheduleModal.value = true;
   schdeuleState.day_of_week = schedule.day_of_week;
@@ -309,7 +308,7 @@ const handleRemoveSchedule = async (schedule) => {
       `/api/schedules/default/destroy?id=${schedule.id}`,
       {
         method: "DELETE",
-      }
+      },
     );
 
     if (response?.success) {
@@ -349,9 +348,8 @@ onMounted(async () => {
     color="primary"
     to="/schedule"
     icon="i-lucide-arrow-left"
-  >
-    Back to Schedule
-  </UButton>
+    label="Back to Schedule"
+  />
 
   <div class="space-y-8 mt-4">
     <div>
@@ -364,10 +362,9 @@ onMounted(async () => {
           variant="solid"
           color="primary"
           icon="i-lucide-plus"
+          label="Create New Default Schedule"
           @click="defaultScheduleModal = true"
-        >
-          Create New Default Schedule
-        </UButton>
+        />
       </div>
       <div class="gap-4">
         <UForm
@@ -436,17 +433,16 @@ onMounted(async () => {
             <UButton
               color="neutral"
               variant="solid"
+              label="Cancel"
               @click="populateModalOpen = false"
-            >
-              Cancel
-            </UButton>
+            />
+
             <UButton
               type="submit"
+              label="Set Schedule"
               :loading="isSubmitting"
               :disabled="isSubmitting"
-            >
-              Set Schedule
-            </UButton>
+            />
           </div>
         </UForm>
       </div>
@@ -486,81 +482,78 @@ onMounted(async () => {
         </UButton>
       </div>
     </template>
-    <!-- :schema="schema" -->
+
     <template #body>
-      <div>
-        <UForm
-          :state="schdeuleState"
-          class="space-y-4"
-          @submit="onScheduleSubmit"
+      <UForm
+        :state="schdeuleState"
+        class="space-y-4"
+        @submit="onScheduleSubmit"
+      >
+        <div class="flex flex-col gap-4">
+          <UFormField label="Seder A Begin">
+            <input
+              v-model="schdeuleState.a_begin"
+              type="time"
+              name="in"
+              id="in"
+              step="1"
+              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+            />
+          </UFormField>
+          <UFormField label="Seder A Ends">
+            <input
+              v-model="schdeuleState.a_ends"
+              type="time"
+              name="in"
+              id="in"
+              step="1"
+              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+            />
+          </UFormField>
+          <UFormField label="Seder B Begin">
+            <input
+              v-model="schdeuleState.b_begin"
+              type="time"
+              name="in"
+              id="in"
+              step="1"
+              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+            />
+          </UFormField>
+          <UFormField label="Seder B Ends">
+            <input
+              v-model="schdeuleState.b_ends"
+              type="time"
+              name="in"
+              id="in"
+              step="1"
+              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+            />
+          </UFormField>
+        </div>
+        <div
+          class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
         >
-          <div class="flex flex-col gap-4">
-            <UFormField label="Seder A Begin">
-              <input
-                v-model="schdeuleState.a_begin"
-                type="time"
-                name="in"
-                id="in"
-                step="1"
-                class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-              />
-            </UFormField>
-            <UFormField label="Seder A Ends">
-              <input
-                v-model="schdeuleState.a_ends"
-                type="time"
-                name="in"
-                id="in"
-                step="1"
-                class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-              />
-            </UFormField>
-            <UFormField label="Seder B Begin">
-              <input
-                v-model="schdeuleState.b_begin"
-                type="time"
-                name="in"
-                id="in"
-                step="1"
-                class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-              />
-            </UFormField>
-            <UFormField label="Seder B Ends">
-              <input
-                v-model="schdeuleState.b_ends"
-                type="time"
-                name="in"
-                id="in"
-                step="1"
-                class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-              />
-            </UFormField>
-          </div>
-          <div
-            class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
-          >
-            <UButton
-              color="neutral"
-              variant="solid"
-              @click="
-                () => {
-                  defaultScheduleModal = false;
-                  schduleResetForm();
-                }
-              "
-            >
-              Cancel
-            </UButton>
-            <UButton
-              type="submit"
-              :loading="schdeuleFormSubmiting"
-              :disabled="schdeuleFormSubmiting"
-            >
-              Update Schedule
-            </UButton>
-          </div>
-        </UForm>
-      </div>
+          <UButton
+            color="neutral"
+            variant="solid"
+            label="Cancel"
+            @click="
+              () => {
+                defaultScheduleModal = false;
+                schduleResetForm();
+              }
+            "
+          />
+
+          <UButton
+            type="submit"
+            label="Update Schedule"
+            :loading="schdeuleFormSubmiting"
+            :disabled="schdeuleFormSubmiting"
+          />
+        </div>
+      </UForm>
     </template>
   </UModal>
 </template>

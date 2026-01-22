@@ -131,8 +131,7 @@ const resetModal = () => {
               resetModal();
             }
           "
-        >
-        </UButton>
+        />
       </div>
     </template>
 
@@ -215,23 +214,21 @@ const resetModal = () => {
           <UButton
             color="neutral"
             variant="solid"
+            label="Cancel"
             @click="
               () => {
                 isOpen = false;
                 resetModal();
               }
             "
-          >
-            Cancel
-          </UButton>
+          />
           <UButton
             type="submit"
             :loading="isSubmitting || isLoading"
             :disabled="isSubmitting || isLoading || !selectedFile"
             @click="handleSubmit"
-          >
-            Import Clockings
-          </UButton>
+            label="Import Clockings"
+          />
         </div>
       </div>
     </template>

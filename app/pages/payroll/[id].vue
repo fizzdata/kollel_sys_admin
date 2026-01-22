@@ -17,14 +17,6 @@ const calendarRange = ref({
   start: fromDate,
   end: todayDate,
 });
-const checkscalendarRange = ref({
-  start: fromDate,
-  end: todayDate,
-});
-const depositcalendarRange = ref({
-  start: fromDate,
-  end: todayDate,
-});
 
 const deductionItems = ref([
   {
@@ -258,13 +250,6 @@ const fetchProcessDeposit = async (data) => {
   } finally {
     processDepositLoading.value = false;
   }
-};
-const isDepositModalOpen = async () => {
-  processDepositModal.value = true;
-  await fetchProcessDeposit({
-    from_date: depositcalendarRange.value.start?.toString(),
-    till_date: depositcalendarRange.value.end?.toString(),
-  });
 };
 
 const editRules = (rules) => {
@@ -609,9 +594,8 @@ watch(activeTab, (newTab) => {
       color="primary"
       to="/payroll"
       icon="i-lucide-arrow-left"
-    >
-      Back to Payroll List
-    </UButton>
+      label="Back to Payroll List"
+    />
 
     <div v-if="loading" class="flex items-center justify-center pt-10 w-full">
       <BaseSpinner :show-loader="loading" size="md" />
@@ -632,13 +616,13 @@ watch(activeTab, (newTab) => {
               <p class="font-medium text-sm">
                 Group Amount:
                 <span class="font-normal">
-                  {{ fetchingGroupDetails?.amount }}
+                  ${{ fetchingGroupDetails?.amount }}
                 </span>
               </p>
               <p class="text-sm font-medium">
                 Min Amount:
                 <span class="font-normal">
-                  {{ fetchingGroupDetails?.min_amount }}
+                  ${{ fetchingGroupDetails?.min_amount }}
                 </span>
               </p>
             </div>
@@ -822,6 +806,7 @@ watch(activeTab, (newTab) => {
               :items="metricOptions"
               placeholder="Please Select"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Operator" name="operator">
@@ -830,6 +815,7 @@ watch(activeTab, (newTab) => {
               :items="operatorOptions"
               placeholder="Please Select"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Value" name="value">
@@ -838,6 +824,7 @@ watch(activeTab, (newTab) => {
               placeholder="Enter your value"
               class="w-full"
               type="number"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Second Operator" name="second_operator">
@@ -846,6 +833,7 @@ watch(activeTab, (newTab) => {
               :items="operatorOptions"
               placeholder="Please Select"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Second Value" name="second_value">
@@ -854,6 +842,7 @@ watch(activeTab, (newTab) => {
               placeholder="Enter second value"
               class="w-full"
               type="number"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Session Number" name="session">
@@ -862,6 +851,7 @@ watch(activeTab, (newTab) => {
               placeholder="Enter session number"
               class="w-full"
               type="number"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Is Deduction" name="is_deduction">
@@ -870,6 +860,7 @@ watch(activeTab, (newTab) => {
               :items="deductionItems"
               placeholder="Please Select"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Amount Type" name="amount_type">
@@ -878,6 +869,7 @@ watch(activeTab, (newTab) => {
               :items="amountTypeItems"
               placeholder="Please Select"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Amount" name="amount">
@@ -886,6 +878,7 @@ watch(activeTab, (newTab) => {
               placeholder="Enter your amount"
               class="w-full"
               type="number"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Apply Rules" name="apply_once">
@@ -899,6 +892,7 @@ watch(activeTab, (newTab) => {
               v-model="rulesState.description"
               placeholder="Please enter description"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Reference" name="reference_id">
@@ -907,6 +901,7 @@ watch(activeTab, (newTab) => {
               placeholder="Enter your reference id"
               class="w-full"
               type="number"
+              size="lg"
             />
           </UFormField>
         </div>
@@ -915,17 +910,16 @@ watch(activeTab, (newTab) => {
             @click="rulesModalOpen = false"
             color="neutral"
             class="justify-center"
-          >
-            Cancel
-          </UButton>
+            label="Cancel"
+          />
+
           <UButton
             type="submit"
             :loading="isSubmitting"
             :disabled="isSubmitting"
             class="justify-center"
-          >
-            {{ rulesform.id ? "Update" : "Submit" }}
-          </UButton>
+            :label="rulesform.id ? 'Update' : 'Submit'"
+          />
         </div>
       </UForm>
     </template>
@@ -956,14 +950,13 @@ watch(activeTab, (newTab) => {
           color="neutral"
           variant="solid"
           class="mt-4"
+          label="Cancel"
           @click="
             () => {
               deleteModal = false;
             }
           "
-        >
-          Cancel
-        </UButton>
+        />
         <UButton
           color="error"
           variant="solid"
@@ -971,9 +964,8 @@ watch(activeTab, (newTab) => {
           :loading="isSubmitting"
           :disabled="isSubmitting"
           @click="confirmDeleteRules()"
-        >
-          Delete
-        </UButton>
+          label="Delete"
+        />
       </div>
     </template>
   </UModal>
@@ -1037,6 +1029,7 @@ watch(activeTab, (newTab) => {
               :items="students"
               placeholder="Please Select"
               class="w-full"
+              size="lg"
               multiple
               required
             />
@@ -1047,17 +1040,15 @@ watch(activeTab, (newTab) => {
             @click="addStudentModal = false"
             color="neutral"
             class="justify-center"
-          >
-            Cancel
-          </UButton>
+            label="Cancel"
+          />
           <UButton
             type="submit"
             :loading="isStudentSubmiting"
             :disabled="isStudentSubmiting"
             class="justify-center"
-          >
-            Submit
-          </UButton>
+            label="Submit"
+          />
         </div>
       </UForm>
     </template>

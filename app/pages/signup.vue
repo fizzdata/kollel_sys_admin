@@ -162,6 +162,7 @@ async function onSubmit(event) {
               :type="show ? 'text' : 'password'"
               :ui="{ trailing: 'pe-1' }"
               class="w-full"
+              size="lg"
             >
               <template #trailing>
                 <UButton
@@ -187,6 +188,7 @@ async function onSubmit(event) {
               :type="confirmshow ? 'text' : 'password'"
               :ui="{ trailing: 'pe-1' }"
               class="w-full"
+              size="lg"
             >
               <template #trailing>
                 <UButton
@@ -209,9 +211,8 @@ async function onSubmit(event) {
           :disabled="isSubmitting"
           block
           size="lg"
-        >
-          Submit
-        </UButton>
+          label="Submit"
+        />
       </UForm>
 
       <!-- Footer -->

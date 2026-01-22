@@ -43,7 +43,7 @@ const columns = [
           to: `/students/${row.original.id}`, // dynamic route to student detail page
           class: "text-primary hover:underline cursor-pointer",
         },
-        () => row.original.first_name + " " + row.original.last_name
+        () => row.original.first_name + " " + row.original.last_name,
       ),
   },
   { accessorKey: "fingerprints", header: "Fingerprints" },
@@ -67,7 +67,7 @@ const columns = [
                 variant: "soft",
                 onClick: () => editStudent(row.original),
               }),
-          }
+          },
         ),
 
         // Toggle Active/Inactive Status Button
@@ -109,7 +109,9 @@ const toggleStudentStatus = async (student) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.msg ? response?.msg : "Student deactivated",
+        description:
+          response?.message ||
+          `Student ${newStatus ? "activated" : "deactivated"} successfully.`,
         color: "success",
         duration: 2000,
       });
@@ -118,7 +120,7 @@ const toggleStudentStatus = async (student) => {
     } else {
       toast.add({
         title: "Failed",
-        description: response?.msg ? response?.msg : "Unable to deactivate.",
+        description: response?.message || "Unable to switch state.",
         color: "error",
         duration: 2000,
       });
@@ -142,7 +144,7 @@ const fetchStudents = async () => {
   try {
     loading.value = true;
     const response = await api(fetch);
-    // console.log(fetch);
+
     if (response?.success) {
       students.value = response?.Students;
     }
@@ -156,7 +158,6 @@ const fetchStudents = async () => {
 // Add computed property to filter student based on search term
 const filteredStudents = computed(() => {
   if (!searchTerm.value) return students.value;
-  // console.log(students.value);
   const term = searchTerm.value.toLowerCase();
 
   return students.value.filter((student) => {
@@ -216,8 +217,6 @@ const handleFileSubmit = async () => {
 
   isSubmitting.value = true;
 
-  console.log(".fileeeee", file.value);
-
   const formData = new FormData();
   formData.append("file", file.value);
   try {
@@ -225,7 +224,6 @@ const handleFileSubmit = async () => {
       method: "POST",
       body: formData,
     });
-    console.log("response......", response);
 
     if (response?.success) {
       importStudentModal.value = false;
@@ -271,8 +269,6 @@ onMounted(async () => {
 
 const toggleSwitch = async () => {
   isActive.value = !isActive.value;
-  // console.log(isActive.value);
-
   await fetchStudents();
 };
 </script>
@@ -301,7 +297,7 @@ const toggleSwitch = async () => {
     <UInput
       v-model="searchTerm"
       icon="i-lucide-search"
-      size="md"
+      size="lg"
       variant="outline"
       placeholder="Search..."
       :ui="{ trailing: 'pe-1' }"
@@ -360,8 +356,7 @@ const toggleSwitch = async () => {
               importStudentModal = false;
             }
           "
-        >
-        </UButton>
+        />
       </div>
     </template>
     <template #body>
@@ -420,11 +415,10 @@ const toggleSwitch = async () => {
         type="submit"
         :loading="isSubmitting"
         :disabled="isSubmitting"
+        label="Import Student"
         class="w-full flex justify-center items-center mt-4"
         @click="handleFileSubmit"
-      >
-        Import Student
-      </UButton>
+      />
     </template>
   </UModal>
 </template>

@@ -96,7 +96,7 @@ watch(
       Object.assign(state, newVal);
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 );
 </script>
 <template>
@@ -165,9 +165,8 @@ watch(
           size="lg"
           block
           class="mt-6"
-        >
-          Submit
-        </UButton>
+          label="Submit"
+        />
       </UForm>
     </UCard>
   </div>

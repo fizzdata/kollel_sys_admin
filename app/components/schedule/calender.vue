@@ -84,7 +84,7 @@ function generateCalendar() {
   const firstHebrew = G2Hnumber(
     firstDay.getFullYear(),
     firstDay.getMonth() + 1,
-    firstDay.getDate()
+    firstDay.getDate(),
   ).split("/")[0];
 
   let currentDate = new Date(firstDay);
@@ -110,7 +110,7 @@ function generateCalendar() {
     const nextHebrew = G2Hnumber(
       currentDate.getFullYear(),
       currentDate.getMonth() + 1,
-      currentDate.getDate()
+      currentDate.getDate(),
     ).split("/")[0];
 
     if (nextHebrew !== firstHebrew) {
@@ -211,7 +211,7 @@ onMounted(generateCalendar);
 watch(
   () => props.schedules,
   () => generateCalendar(),
-  { deep: true }
+  { deep: true },
 );
 </script>
 
@@ -223,17 +223,16 @@ watch(
         icon="i-lucide-arrow-left"
         color="primary"
         variant="solid"
-        >Previous</UButton
-      >
+        label="Previous"
+      />
       <h2 class="text-3xl font-bold text-gray-900">{{ month_year() }}</h2>
       <UButton
         @click="nextMonth"
         trailing-icon="i-lucide-arrow-right"
         color="primary"
         variant="solid"
-      >
-        Next
-      </UButton>
+        label="Next"
+      />
     </div>
 
     <table class="w-full border-collapse table-auto">
@@ -267,7 +266,7 @@ watch(
             <div
               v-if="day?.data"
               v-for="s in day.data.schedule"
-              class="mt-2 text-sm bg-yellow-200 p-1 rounded"
+              class="mt-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
             >
               Seder <span v-text="s.session"></span>:
               <span v-html="sec_to_time(s.start)"></span> -

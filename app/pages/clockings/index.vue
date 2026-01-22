@@ -80,13 +80,13 @@ const schema = object({
   in: string()
     .matches(
       /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/,
-      "In Time must be HH:mm:ss"
+      "In Time must be HH:mm:ss",
     )
     .required("In Time is required"),
   out: string()
     .matches(
       /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/,
-      "Out Time must be HH:mm:ss"
+      "Out Time must be HH:mm:ss",
     )
     .required("Out Time is required"),
 });
@@ -127,7 +127,7 @@ const clockingsColumns = [
                 variant: "soft",
                 onClick: () => editClocking(row.original, "morning"),
               }),
-          }
+          },
         ),
       ]),
   },
@@ -153,7 +153,7 @@ const clockingsColumns = [
                 variant: "soft",
                 onClick: () => editClocking(row.original, "evening"),
               }),
-          }
+          },
         ),
       ]),
   },
@@ -182,7 +182,7 @@ const formatClockings = (clockings = []) => {
         row.morning_out = secondsToAmPm(session.out);
         row.total_morning = secondsToPercent(
           session.out - session.in,
-          session.schedule_total
+          session.schedule_total,
         );
         row.retzifus_morning = session.retzifus === 0 ? "NO" : "-";
       }
@@ -193,7 +193,7 @@ const formatClockings = (clockings = []) => {
         row.afternoon_out = secondsToAmPm(session.out);
         row.total_afternoon = secondsToPercent(
           session.out - session.in,
-          session.schedule_total
+          session.schedule_total,
         );
         row.retzifus_evening = session.retzifus === 0 ? "NO" : "-";
       }
@@ -260,8 +260,8 @@ const onSubmit = async (event) => {
         description: response?.message
           ? response?.message
           : state.id
-          ? "Clocking updated successfully"
-          : "Clocking created successfully",
+            ? "Clocking updated successfully"
+            : "Clocking created successfully",
         color: "success",
         duration: 2000,
       });
@@ -421,7 +421,7 @@ watch(
       date_to: val.end.toString(),
     });
   },
-  { deep: true }
+  { deep: true },
 );
 </script>
 <template>
@@ -531,105 +531,101 @@ watch(
               resetClockingForm();
             }
           "
-        >
-        </UButton>
+        />
       </div>
     </template>
     <!-- :schema="schema" -->
     <template #body>
-      <div>
-        <UForm
-          :schema="schema"
-          :state="state"
-          class="space-y-4"
-          @submit="onSubmit"
-        >
-          <div v-if="!state.id" class="flex flex-col gap-4">
-            <UFormField label="User" name="user">
-              <USelect
-                v-model.number="state.student_id"
-                :items="studentsData"
-                class="w-full"
+      <UForm
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
+        <div v-if="!state.id" class="flex flex-col gap-4">
+          <UFormField label="User" name="user">
+            <USelect
+              v-model.number="state.student_id"
+              :items="studentsData"
+              class="w-full"
+              size="lg"
+              placeholder="Select User"
+              required
+            />
+          </UFormField>
+          <UFormField label="Day" name="day">
+            <UPopover class="w-full" v-model:open="datePickerOpen">
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-calendar"
                 size="lg"
-                placeholder="Select User"
-                required
-              />
-            </UFormField>
-            <UFormField label="Day" name="day">
-              <UPopover class="w-full" v-model:open="datePickerOpen">
-                <UButton
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-calendar"
-                  size="lg"
-                >
-                  {{
-                    state?.day
-                      ? df.format(state?.day.toDate(getLocalTimeZone()))
-                      : "Select a date"
-                  }}
-                </UButton>
+              >
+                {{
+                  state?.day
+                    ? df.format(state?.day.toDate(getLocalTimeZone()))
+                    : "Select a date"
+                }}
+              </UButton>
 
-                <template #content>
-                  <UCalendar
-                    v-model="state.day"
-                    class="p-2"
-                    @update:model-value="datePickerOpen = false"
-                  />
-                </template>
-              </UPopover>
-            </UFormField>
-          </div>
-          <div class="grid grid-cols-2 my-6 place-items-center">
-            <UFormField label="In" class="flex gap-4 items-center">
-              <input
-                v-model="state.in"
-                type="time"
-                name="in"
-                id="in"
-                step="1"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-                required
-              />
-            </UFormField>
+              <template #content>
+                <UCalendar
+                  v-model="state.day"
+                  class="p-2"
+                  @update:model-value="datePickerOpen = false"
+                />
+              </template>
+            </UPopover>
+          </UFormField>
+        </div>
+        <div class="grid grid-cols-2 my-6 place-items-center">
+          <UFormField label="In" class="flex gap-4 items-center">
+            <input
+              v-model="state.in"
+              type="time"
+              name="in"
+              id="in"
+              step="1"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              required
+            />
+          </UFormField>
 
-            <UFormField label="Out" class="flex gap-4 items-center">
-              <input
-                v-model="state.out"
-                type="time"
-                name="out"
-                id="out"
-                step="1"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-                required
-              />
-            </UFormField>
-          </div>
-          <div
-            class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
-          >
-            <UButton
-              color="neutral"
-              variant="solid"
-              @click="
-                () => {
-                  CreateClockingModal = false;
-                  resetClockingForm();
-                }
-              "
-            >
-              Cancel
-            </UButton>
-            <UButton
-              type="submit"
-              :loading="isSubmitting"
-              :disabled="isSubmitting"
-            >
-              {{ state?.id ? "Edit" : "Create" }} Clockings
-            </UButton>
-          </div>
-        </UForm>
-      </div>
+          <UFormField label="Out" class="flex gap-4 items-center">
+            <input
+              v-model="state.out"
+              type="time"
+              name="out"
+              id="out"
+              step="1"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              required
+            />
+          </UFormField>
+        </div>
+        <div
+          class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
+        >
+          <UButton
+            color="neutral"
+            variant="solid"
+            label="Cancel"
+            @click="
+              () => {
+                CreateClockingModal = false;
+                resetClockingForm();
+              }
+            "
+          />
+
+          <UButton
+            type="submit"
+            :loading="isSubmitting"
+            :disabled="isSubmitting"
+            :label="state?.id ? 'Edit Clockings' : 'Create Clockings'"
+          />
+        </div>
+      </UForm>
     </template>
   </UModal>
 

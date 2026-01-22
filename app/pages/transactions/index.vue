@@ -1,14 +1,15 @@
 <script setup>
-definePageMeta({
-  layout: "sidebar",
-  middleware: ["auth"],
-});
 import {
   today,
   DateFormatter,
   getLocalTimeZone,
-  Time,
 } from "@internationalized/date";
+
+definePageMeta({
+  layout: "sidebar",
+  middleware: ["auth"],
+});
+
 const df = new DateFormatter("en-US", {
   dateStyle: "medium",
 });
@@ -33,15 +34,6 @@ const transactionsColumns = [
   {
     accessorKey: "name",
     header: "Name",
-    // cell: ({ row }) =>
-    //   h(
-    //     resolveComponent("NuxtLink"),
-    //     {
-    //       to: `/payroll/${row.original.id}`, // dynamic route to user detail page
-    //       class: "text-primary hover:underline",
-    //     },
-    //     row.original.name
-    //   ),
   },
   { accessorKey: "date", header: "Date" },
   { accessorKey: "description", header: "Description" },
@@ -63,7 +55,7 @@ const transactionsColumns = [
                 color: "success",
                 variant: "soft",
               }),
-          }
+          },
         ),
 
         h(
@@ -77,7 +69,7 @@ const transactionsColumns = [
                 color: "error",
                 variant: "soft",
               }),
-          }
+          },
         ),
       ]),
   },
@@ -132,7 +124,7 @@ watch(
       date_to: val.end.toString(),
     });
   },
-  { deep: true }
+  { deep: true },
 );
 </script>
 <template>
@@ -144,10 +136,9 @@ watch(
           @click="newTransactionModal = true"
           trailing-icon="i-lucide-arrow-right"
           label="New Transaction"
-        >
-        </UButton>
+        />
 
-        <UButton @click="" icon="i-lucide-file-text" label="Export"> </UButton>
+        <UButton icon="i-lucide-file-text" label="Export" />
       </div>
     </div>
   </UCard>
@@ -208,55 +199,52 @@ watch(
           class="rounded-full p-2"
           icon="i-lucide-x"
           @click="newTransactionModal = false"
-        >
-        </UButton>
+        />
       </div>
     </template>
 
     <template #body>
-      <div>
-        <UForm class="space-y-4">
-          <UFormField label="User" name="user">
-            <USelect
-              v-model="state.user"
-              :items="items"
-              class="w-full"
-              size="lg"
-              placeholder="Select User"
-            />
-          </UFormField>
-          <UFormField label="Amount" name="amount">
-            <UInput
-              v-model="state.amount"
-              class="w-full"
-              type="number"
-              size="lg"
-              placeholder="Enter amount"
-            />
-          </UFormField>
-          <UFormField label="Description" name="description">
-            <UInput
-              v-model="state.description"
-              class="w-full"
-              type="text"
-              size="lg"
-              placeholder="Enter description"
-            />
-          </UFormField>
-          <div
-            class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
-          >
-            <UButton
-              color="neutral"
-              variant="solid"
-              @click="newTransactionModal = false"
-            >
-              Cancel
-            </UButton>
-            <UButton type="submit"> Create </UButton>
-          </div>
-        </UForm>
-      </div>
+      <UForm class="space-y-4">
+        <UFormField label="User" name="user">
+          <USelect
+            v-model="state.user"
+            :items="items"
+            class="w-full"
+            size="lg"
+            placeholder="Select User"
+          />
+        </UFormField>
+        <UFormField label="Amount" name="amount">
+          <UInput
+            v-model="state.amount"
+            class="w-full"
+            type="number"
+            size="lg"
+            placeholder="Enter amount"
+          />
+        </UFormField>
+        <UFormField label="Description" name="description">
+          <UInput
+            v-model="state.description"
+            class="w-full"
+            type="text"
+            size="lg"
+            placeholder="Enter description"
+          />
+        </UFormField>
+        <div
+          class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
+        >
+          <UButton
+            color="neutral"
+            variant="solid"
+            label="Cancel"
+            @click="newTransactionModal = false"
+          />
+
+          <UButton type="submit" label="Create" />
+        </div>
+      </UForm>
     </template>
   </UModal>
 </template>

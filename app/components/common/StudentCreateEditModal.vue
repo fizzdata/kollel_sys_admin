@@ -52,7 +52,7 @@ watch(
       Object.assign(state, newVal);
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 );
 
 const resetForm = () => {
@@ -91,8 +91,8 @@ const handleSubmit = async (event) => {
         description: response?.message
           ? response?.message
           : state.id
-          ? "Student updated successfully"
-          : "Student created successfully",
+            ? "Student updated successfully"
+            : "Student created successfully",
         color: "success",
         duration: 2000,
       });
@@ -195,6 +195,7 @@ onMounted(async () => {
                 v-model="state.first_name"
                 placeholder="First Name"
                 class="w-full"
+                size="lg"
               />
             </UFormField>
             <UFormField label="Last Name" name="last_name">
@@ -202,6 +203,7 @@ onMounted(async () => {
                 v-model="state.last_name"
                 placeholder="Last Name"
                 class="w-full"
+                size="lg"
               />
             </UFormField>
           </div>
@@ -211,6 +213,7 @@ onMounted(async () => {
                 v-model="state.first_yiddish_name"
                 placeholder="First Name"
                 class="w-full"
+                size="lg"
               />
             </UFormField>
             <UFormField label="Yeddish Last Name" name="last_yiddish_name">
@@ -218,6 +221,7 @@ onMounted(async () => {
                 v-model="state.last_yiddish_name"
                 placeholder="Last Name"
                 class="w-full"
+                size="lg"
               />
             </UFormField>
           </div>
@@ -226,6 +230,7 @@ onMounted(async () => {
               v-model="state.phone"
               placeholder="Phone Number"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Address" name="address">
@@ -233,6 +238,7 @@ onMounted(async () => {
               v-model="state.address"
               placeholder="Address"
               class="w-full"
+              size="lg"
             />
           </UFormField>
           <UFormField label="Wage" name="wage">
@@ -241,6 +247,7 @@ onMounted(async () => {
               :items="wageItems"
               class="w-full"
               placeholder="Select Your Wage"
+              size="lg"
             />
           </UFormField>
 
@@ -250,22 +257,21 @@ onMounted(async () => {
             <UButton
               color="neutral"
               variant="solid"
+              label="Cancel"
               @click="
                 () => {
                   isOpen = false;
                   handleClose;
                 }
               "
-            >
-              Cancel
-            </UButton>
+            />
+
             <UButton
               type="submit"
               :loading="isSubmitting"
               :disabled="isSubmitting"
-            >
-              {{ state?.id ? "Update Student" : "Create Student" }}
-            </UButton>
+              :label="state?.id ? 'Update Student' : 'Create Student'"
+            />
           </div>
         </UForm>
       </div>

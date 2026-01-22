@@ -47,31 +47,35 @@ const showConfirm = ref(false);
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <UFormField label="Name">
-            <UInput model-value="Test Admin" class="w-full" />
+            <UInput model-value="Test Admin" class="w-full" size="lg" />
           </UFormField>
 
           <UFormField label="Email">
-            <UInput model-value="yahya.ibrahim1044@gmail.com" class="w-full" />
+            <UInput
+              model-value="yahya.ibrahim1044@gmail.com"
+              class="w-full"
+              size="lg"
+            />
           </UFormField>
 
           <UFormField label="Address">
-            <UInput class="w-full" />
+            <UInput class="w-full" size="lg" />
           </UFormField>
 
           <UFormField label="Contact No.">
-            <UInput model-value="0123456789" class="w-full" />
+            <UInput model-value="0123456789" class="w-full" size="lg" />
           </UFormField>
 
           <UFormField label="Kollel Name">
-            <UInput model-value="yoely@fizzdata.com" class="w-full" />
+            <UInput model-value="yoely@fizzdata.com" class="w-full" size="lg" />
           </UFormField>
 
           <UFormField label="Kollel Logo">
-            <UInput type="file" class="w-full" />
+            <UInput type="file" class="w-full" size="lg" />
           </UFormField>
 
           <UFormField label="Signature">
-            <UInput type="file" class="w-full" />
+            <UInput type="file" class="w-full" size="lg" />
           </UFormField>
 
           <UFormField label="Password">
@@ -80,6 +84,7 @@ const showConfirm = ref(false);
               :type="show ? 'text' : 'password'"
               :ui="{ trailing: 'pe-1' }"
               class="w-full"
+              size="lg"
             >
               <template #trailing>
                 <UButton
@@ -102,6 +107,7 @@ const showConfirm = ref(false);
               :type="showConfirm ? 'text' : 'password'"
               :ui="{ trailing: 'pe-1' }"
               class="w-full"
+              size="lg"
             >
               <template #trailing>
                 <UButton

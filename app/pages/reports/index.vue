@@ -131,12 +131,12 @@ watch(
       <div class="space-x-2">
         <UButton
           v-if="activeTab === '0'"
-          icon="i-lucide-file-x"
+          icon="i-lucide-file-text"
           label="Export"
         />
         <UButton
           v-if="activeTab === '2'"
-          icon="i-lucide-file-x"
+          icon="i-lucide-file-text"
           label="Export"
         />
         <UButton
@@ -146,7 +146,7 @@ watch(
         />
         <UButton
           v-if="activeTab === '1'"
-          icon="i-lucide-file-x"
+          icon="i-lucide-file-text"
           label="Export"
         />
         <UButton
@@ -212,6 +212,7 @@ watch(
           :items="selectedItems"
           class="w-full"
           placeholder=""
+          size="lg"
         />
       </UFormField>
     </div>

@@ -136,12 +136,15 @@ watch(
             color="neutral"
             variant="solid"
             @click="$emit('update:modelValue', false)"
-          >
-            Cancel
-          </UButton>
-          <UButton type="submit" :loading="loading" :disabled="loading">
-            {{ type === "check" ? "Process Check" : "Process Depost" }}
-          </UButton>
+            label="Cancel"
+          />
+
+          <UButton
+            type="submit"
+            :loading="loading"
+            :disabled="loading"
+            :label="type === 'check' ? 'Process Check' : 'Process Depost'"
+          />
         </div>
       </UForm>
     </template>

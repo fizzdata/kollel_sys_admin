@@ -46,9 +46,8 @@ const data = [
       color="primary"
       to="/clockings"
       icon="i-lucide-arrow-left"
-    >
-      Back to Clockings
-    </UButton>
+      label="Back to Clockings"
+    />
   </div>
   <UCard class="rounded-2xl shadow-sm">
     <div class="flex justify-between items-center gap-4">

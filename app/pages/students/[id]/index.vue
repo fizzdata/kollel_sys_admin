@@ -20,6 +20,7 @@ const clockingsData = ref([]);
 const transactionsData = ref([]);
 const responsesData = ref([]);
 const checksData = ref([]);
+
 const tabs = [
   { label: "Clockings", key: "clockings", icon: "i-lucide-clock" },
   { label: "Deposits", key: "transactions", icon: "i-lucide-credit-card" },
@@ -102,21 +103,16 @@ const handleCancel = () => {
   showModal.value = false;
 };
 
-const clockingsColumns = [
-  { accessorKey: "day", header: "Date" },
-  { accessorKey: "morning_in", header: "Morning In" },
-  { accessorKey: "morning_out", header: "Morning Out" },
-  { accessorKey: "retzifus_morning", header: "Retzifus" },
-  { accessorKey: "total_morning", header: "Total morning" },
-  { accessorKey: "afternoon_in", header: "Afternoon In" },
-  { accessorKey: "afternoon_out", header: "Afternoon out" },
-  { accessorKey: "retzifus_evening", header: "Retzifus" },
-  { accessorKey: "total_afternoon", header: "Total Afternoon" },
-];
 const transactionsColumns = [
   { accessorKey: "date", header: "Date" },
-  // { accessorKey: "type", header: "Type" },
-  { accessorKey: "amount", header: "Amount" },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    cell: ({ row }) => {
+      const val = row.original.amount;
+      return `$${val}`;
+    },
+  },
   { accessorKey: "description", header: "Description" },
 ];
 const checksColumns = [
@@ -131,7 +127,14 @@ const checksColumns = [
       );
     },
   },
-  { accessorKey: "amount", header: "Amount" },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    cell: ({ row }) => {
+      const val = row.original.amount;
+      return `$${val}`;
+    },
+  },
   { accessorKey: "check_date", header: "Check Date" },
   { accessorKey: "check_number", header: "Check Number" },
   {
@@ -172,7 +175,9 @@ const toggleStudentStatus = async (student) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.msg ? response?.msg : "Student deactivated",
+        description:
+          response?.message ||
+          `Student ${newStatus ? "activated" : "deactivated"} successfully.`,
         color: "success",
         duration: 2000,
       });
@@ -181,7 +186,7 @@ const toggleStudentStatus = async (student) => {
     } else {
       toast.add({
         title: "Failed",
-        description: response?.msg ? response?.msg : "Unable to deactivate.",
+        description: response?.message || "Unable to switch state.",
         color: "error",
         duration: 2000,
       });
@@ -252,9 +257,8 @@ onMounted(async () => {
           to="/students"
           icon="i-lucide-arrow-left"
           class="w-fit"
-        >
-          Back to Students
-        </UButton>
+          label="Back to Students"
+        />
       </div>
       <div class="flex items-center">
         <div class="flex items-center divide-x divide-gray-300">
@@ -265,13 +269,12 @@ onMounted(async () => {
               color="neutral"
               :to="`/students/${student?.previous?.id}`"
               icon="i-lucide-arrow-left"
-            >
-              {{
+              :label="
                 student?.previous?.first_yiddish_name +
-                " " +
+                ' ' +
                 student?.previous?.last_yiddish_name
-              }}
-            </UButton>
+              "
+            />
           </div>
 
           <div class="px-1">
@@ -281,13 +284,12 @@ onMounted(async () => {
               color="neutral"
               :to="`/students/${student?.next?.id}`"
               trailing-icon="i-lucide-arrow-right"
-            >
-              {{
+              :label="
                 student?.next?.first_yiddish_name +
-                " " +
+                ' ' +
                 student?.next?.last_yiddish_name
-              }}
-            </UButton>
+              "
+            />
           </div>
         </div>
       </div>
@@ -349,28 +351,52 @@ onMounted(async () => {
               </p>
             </div>
             <div class="flex gap-1 mt-2 items-center">
-              <button
-                @click="handleEditClick(student?.Student)"
-                class="cursor-pointer"
-              >
-                <UIcon name="i-lucide-square-pen" class="size-5" />
-              </button>
-              <button>
-                <UIcon name="i-lucide-fingerprint-pattern" class="size-5" />
-              </button>
-              <button
-                @click="toggleStudentStatus(student?.Student)"
-                class="cursor-pointer"
-              >
-                <UIcon
-                  name="i-lucide-toggle-left"
-                  class="size-5"
-                  :class="{ 'rotate-180': student?.Student?.active === 1 }"
-                />
-              </button>
-              <button @click="handleResetPasswordClick(student?.Student)">
-                <UIcon name="i-lucide-lock-keyhole-open" class="size-5" />
-              </button>
+              <div class="flex gap-2 items-center">
+                <!-- Edit Student -->
+                <UTooltip text="Edit student">
+                  <button
+                    @click="handleEditClick(student?.Student)"
+                    class="cursor-pointer"
+                  >
+                    <UIcon name="i-lucide-square-pen" class="size-5" />
+                  </button>
+                </UTooltip>
+
+                <!-- Register Fingerprint -->
+                <UTooltip text="Register fingerprint">
+                  <ULink :to="`/students/${student?.Student?.id}/fingerprint`">
+                    <UIcon name="i-lucide-fingerprint-pattern" class="size-5" />
+                  </ULink>
+                </UTooltip>
+
+                <!-- Activate / Deactivate -->
+                <UTooltip
+                  :text="
+                    student?.Student?.active === 1
+                      ? 'Deactivate student'
+                      : 'Activate student'
+                  "
+                >
+                  <button
+                    @click="toggleStudentStatus(student?.Student)"
+                    class="cursor-pointer"
+                  >
+                    <UIcon
+                      name="i-lucide-toggle-left"
+                      class="size-5 transition-transform"
+                      :class="{ 'rotate-180': student?.Student?.active === 1 }"
+                    />
+                  </button>
+                </UTooltip>
+
+                <!-- Reset Password -->
+                <UTooltip text="Reset password">
+                  <!-- @click="handleResetPasswordClick(student?.Student)" -->
+                  <button>
+                    <UIcon name="i-lucide-lock-keyhole-open" class="size-5" />
+                  </button>
+                </UTooltip>
+              </div>
             </div>
           </div>
         </div>
@@ -454,13 +480,6 @@ onMounted(async () => {
 
       <UCard v-if="activeTab === '0'">
         <StudentCalender :items="clockingsData" />
-        <!-- <UTable
-          :columns="clockingsColumns"
-          :loading="loading"
-          :data="clockingsData"
-          class="flex-1 mt-6 max-h-112"
-          sticky
-        /> -->
       </UCard>
 
       <UCard v-if="activeTab === '1'">

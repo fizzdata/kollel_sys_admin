@@ -26,7 +26,7 @@ async function fetchSchedules() {
 
   try {
     const response = await api(
-      `/api/schedules?date_from=${date_from.value}&date_to=${date_to.value}`
+      `/api/schedules?date_from=${date_from.value}&date_to=${date_to.value}`,
     );
 
     if (response?.success) {
@@ -71,11 +71,9 @@ const resetEditSchedule = () => {
 
 const onSubmit = async (event) => {
   isSubmitting.value = true;
-  const endpoint = `/api/schedules/update/${state.id}`;
-  const method = "PUT";
   try {
-    const response = await api(endpoint, {
-      method: method,
+    const response = await api(`/api/schedules/update/${state.id}`, {
+      method: "PUT",
       body: {
         start: event.data.start,
         end: event.data.end,
@@ -88,8 +86,8 @@ const onSubmit = async (event) => {
         description: response?.message
           ? response?.message
           : state.id
-          ? "Schedule updated successfully"
-          : "Schedule created successfully",
+            ? "Schedule updated successfully"
+            : "Schedule created successfully",
         color: "success",
         duration: 2000,
       });
@@ -171,64 +169,59 @@ onMounted(async () => {
               resetEditSchedule();
             }
           "
-        >
-        </UButton>
+        />
       </div>
     </template>
 
     <template #body>
-      <div>
-        <UForm :state="state" class="space-y-4" @submit="onSubmit">
-          <div class="grid grid-cols-2 my-6 place-items-center">
-            <UFormField label="Starts" class="flex gap-4 items-center">
-              <input
-                v-model="state.start"
-                type="time"
-                name="start"
-                id="start"
-                step="1"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-                required
-              />
-            </UFormField>
+      <UForm :state="state" class="space-y-4" @submit="onSubmit">
+        <div class="grid grid-cols-2 my-6 place-items-center">
+          <UFormField label="Starts" class="flex gap-4 items-center">
+            <input
+              v-model="state.start"
+              type="time"
+              name="start"
+              id="start"
+              step="1"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              required
+            />
+          </UFormField>
 
-            <UFormField label="Ends" class="flex gap-4 items-center">
-              <input
-                v-model="state.end"
-                type="time"
-                name="end"
-                id="end"
-                step="1"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-                required
-              />
-            </UFormField>
-          </div>
-          <div
-            class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
-          >
-            <UButton
-              color="neutral"
-              variant="solid"
-              @click="
-                () => {
-                  editScheduleModal = false;
-                  resetEditSchedule();
-                }
-              "
-            >
-              Cancel
-            </UButton>
-            <UButton
-              type="submit"
-              :loading="isSubmitting"
-              :disabled="isSubmitting"
-            >
-              Update Schedule
-            </UButton>
-          </div>
-        </UForm>
-      </div>
+          <UFormField label="Ends" class="flex gap-4 items-center">
+            <input
+              v-model="state.end"
+              type="time"
+              name="end"
+              id="end"
+              step="1"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              required
+            />
+          </UFormField>
+        </div>
+        <div
+          class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
+        >
+          <UButton
+            color="neutral"
+            variant="solid"
+            label="Cancel"
+            @click="
+              () => {
+                editScheduleModal = false;
+                resetEditSchedule();
+              }
+            "
+          />
+          <UButton
+            type="submit"
+            :loading="isSubmitting"
+            :disabled="isSubmitting"
+            label="Update Schedule"
+          />
+        </div>
+      </UForm>
     </template>
   </UModal>
 </template>

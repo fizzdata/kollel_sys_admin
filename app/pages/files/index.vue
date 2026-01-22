@@ -15,7 +15,7 @@ const formatFileSize = (bytes) => {
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 };
 
 const formatDate = (timestamp) => {
@@ -33,14 +33,10 @@ const columns = [
     accessorKey: "name",
     header: "File Name",
     cell: ({ row }) =>
-      h(
-        "div",
-        { class: "flex items-center gap-2" },
-        [
-          h("span", { class: "i-lucide-file text-gray-400" }),
-          h("span", { class: "text-primary font-medium" }, row.original.name),
-        ]
-      ),
+      h("div", { class: "flex items-center gap-2" }, [
+        h("span", { class: "i-lucide-file text-gray-400" }),
+        h("span", { class: "text-primary font-medium" }, row.original.name),
+      ]),
   },
   {
     accessorKey: "size",
@@ -68,7 +64,7 @@ const columns = [
                 variant: "soft",
                 onClick: () => downloadFile(row.original),
               }),
-          }
+          },
         ),
       ]),
   },
@@ -131,9 +127,7 @@ const fetchFiles = async () => {
 const filteredFiles = computed(() => {
   if (!searchTerm.value) return files.value;
   const term = searchTerm.value.toLowerCase();
-  return files.value.filter((file) =>
-    file.name.toLowerCase().includes(term)
-  );
+  return files.value.filter((file) => file.name.toLowerCase().includes(term));
 });
 
 onMounted(async () => {
@@ -158,10 +152,10 @@ onMounted(async () => {
     <UInput
       v-model="searchTerm"
       icon="i-lucide-search"
-      size="md"
       variant="outline"
       placeholder="Search files..."
       :ui="{ trailing: 'pe-1' }"
+      size="lg"
     >
       <template v-if="searchTerm?.length" #trailing>
         <UButton

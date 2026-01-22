@@ -64,11 +64,15 @@ const logout = async () => {
           </ULink>
         </div>
         <div v-if="token" class="flex text-center items-center gap-x-4">
-          <UButton size="xl" to="/users">Go to your account</UButton>
+          <UButton size="xl" to="/users" label="Go to your account" />
           <div>
-            <UButton type="submit" color="neutral" size="lg" @click="logout">
-              Logout
-            </UButton>
+            <UButton
+              type="submit"
+              color="neutral"
+              size="lg"
+              label="Logout"
+              @click="logout"
+            />
           </div>
         </div>
         <div v-else class="flex gap-x-4 lg:gap-x-8">
