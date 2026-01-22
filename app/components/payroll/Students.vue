@@ -155,7 +155,7 @@ const fetchDepositProcessRules = async (data) => {
 const handleRemoveStudent = async (student) => {
   try {
     isStudentDeleting.value = true;
-    const response = await api(`/api/payroll/students/${student.id}/group`, {
+    const response = await api(`/api/payroll/students/${student.id}/group/${route.params.id}`, {
       method: "DELETE",
     });
 
