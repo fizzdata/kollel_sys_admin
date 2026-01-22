@@ -712,11 +712,11 @@ const onProcessDepositFormSubmit = async (val) => {
           icon="la:user-plus"
           label="New Group"
         />
-        <UButton
+        <!-- <UButton
           @click="processAllPayrollBtnClick"
           icon="i-lucide-settings"
           label="Process All Payroll"
-        />
+        /> -->
         <UButton
           @click="isModalOpen"
           icon="i-lucide-settings"
