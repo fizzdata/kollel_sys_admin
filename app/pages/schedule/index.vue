@@ -1,5 +1,4 @@
 <script setup>
-import { id } from "@nuxt/ui/runtime/locale/index.js";
 import { convertTo24Hour } from "~/common/common";
 
 definePageMeta({

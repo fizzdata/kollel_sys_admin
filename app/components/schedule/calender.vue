@@ -31,8 +31,10 @@ const hebrewToday = hebrew_date_array(today);
 
 const hYear = ref(hebrewToday.year);
 const hMonth = ref(hebrewToday.month);
-const isDisabled = ref(false);
+const isDeletingSchedule = ref(false);
 const weeks = ref([]);
+const scheduleDeleteConfirmModal = ref(false);
+const selectedScheduleId = ref(null);
 
 const hebrewMonthNames = [
   "תשרי",
@@ -168,12 +170,19 @@ function edit(current) {
 }
 
 async function deleteSchedule(id) {
-  isDisabled.value = true;
+  selectedScheduleId.value = id;
+  scheduleDeleteConfirmModal.value = true;
+}
 
+const onSubmitScheduleDelete = async () => {
   try {
-    const response = await api(`/api/schedules/destroy/${id}`, {
-      method: "DELETE",
-    });
+    isDeletingSchedule.value = true;
+    const response = await api(
+      `/api/schedules/destroy/${selectedScheduleId.value}`,
+      {
+        method: "DELETE",
+      },
+    );
 
     if (response?.success) {
       toast.add({
@@ -198,9 +207,10 @@ async function deleteSchedule(id) {
   } catch (error) {
     console.error("Error deleting Rules:", error);
   } finally {
-    isDisabled.value = false;
+    isDeletingSchedule.value = false;
+    scheduleDeleteConfirmModal.value = false;
   }
-}
+};
 
 function hParsha(date) {
   return getHebrewParasha(date);
@@ -285,7 +295,7 @@ watch(
                 variant="soft"
                 icon="i-lucide-trash-2"
                 class="mt-4"
-                :disabled="isDisabled"
+                :disabled="isDeletingSchedule"
                 @click="deleteSchedule(s.id)"
               />
             </div>
@@ -294,4 +304,41 @@ watch(
       </tbody>
     </table>
   </div>
+
+  <!-- Delete schedule confirm modal -->
+  <UModal
+    v-model:open="scheduleDeleteConfirmModal"
+    title="Confirm Delete Schedule"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <div>
+        <p>Are you sure you want to this schedule?</p>
+      </div>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          class="mt-4"
+          label="Cancel"
+          @click="scheduleDeleteConfirmModal = false"
+        />
+        <UButton
+          color="error"
+          variant="solid"
+          class="mt-4"
+          label="Delete"
+          :loading="isDeletingSchedule"
+          :disabled="isDeletingSchedule"
+          @click="onSubmitScheduleDelete()"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>

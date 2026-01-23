@@ -1,9 +1,5 @@
 <script setup>
-import {
-  today,
-  DateFormatter,
-  getLocalTimeZone,
-} from "@internationalized/date";
+import { today, getLocalTimeZone } from "@internationalized/date";
 import { object, string, number } from "yup";
 
 definePageMeta({
@@ -39,10 +35,6 @@ const processDepositModal = ref(false);
 const errorProcessMessages = ref(null);
 const operaterLabels = ref({});
 const metricLabels = ref({});
-const isProcessAllPayrollModalOpen = ref(false);
-const processAllPayroll = ref([]);
-const errorProcessAllPayrollMessage = ref(null);
-const fetchingAllProcessPayroll = ref(false);
 const isDeletingProcessAllPayroll = ref(false);
 const deleteAllProcessPayrollConfirmModal = ref(false);
 const selectedPayroll = ref(null);
@@ -65,70 +57,6 @@ const isGroupModalOpen = async () => {
   resetGroupForm();
 };
 
-const processAllPayrollBtnClick = () => {
-  isProcessAllPayrollModalOpen.value = true;
-  fetchAllProcessPayroll();
-};
-
-const processAllPayrollColumns = [
-  { accessorKey: "description", header: "Description" },
-  { accessorKey: "date", header: "Date" },
-  { accessorKey: "period", header: "Period" },
-
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.original.status;
-
-      const statusMap = {
-        pending: { color: "warning", label: "Pending" },
-        completed: { color: "success", label: "Completed" },
-        failed: { color: "error", label: "Failed" },
-      };
-
-      const badge = statusMap[status] || {
-        color: "neutral",
-        label: status,
-      };
-
-      return h(
-        resolveComponent("UBadge"),
-        {
-          color: badge.color,
-          variant: "solid",
-          size: "md",
-        },
-        () => badge.label,
-      );
-    },
-  },
-
-  { accessorKey: "total", header: "Total" },
-  { accessorKey: "type", header: "Type" },
-
-  {
-    header: "Quick Actions",
-    cell: ({ row }) =>
-      h("div", { class: "flex gap-2 items-center" }, [
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Delete Payroll" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-trash-2",
-                size: "md",
-                color: "error",
-                variant: "soft",
-                disabled: isDeletingProcessAllPayroll.value,
-                onClick: () => onConfirmDeleteProcess(row.original),
-              }),
-          },
-        ),
-      ]),
-  },
-];
 const onConfirmDeleteProcess = async (payroll) => {
   deleteAllProcessPayrollConfirmModal.value = true;
   selectedPayroll.value = payroll;
@@ -151,7 +79,7 @@ const confirmDeleteProcessAllPayroll = async () => {
         duration: 2000,
       });
 
-      await fetchAllProcessPayroll();
+      await fetchRecentPayroll();
     } else {
       toast.add({
         title: "Failed",
@@ -169,23 +97,6 @@ const confirmDeleteProcessAllPayroll = async () => {
     isDeletingProcessAllPayroll.value = false;
     deleteAllProcessPayrollConfirmModal.value = false;
     selectedPayroll.value = null;
-  }
-};
-
-const fetchAllProcessPayroll = async () => {
-  try {
-    fetchingAllProcessPayroll.value = true;
-    const response = await api(`/api/payroll`);
-
-    if (response?.success) {
-      processAllPayroll.value = response?.payrolls;
-    } else {
-      errorProcessAllPayrollMessage.value = response?.message;
-    }
-  } catch (err) {
-    console.log("🚀 ~ fetchProcessRules ~ err:", err);
-  } finally {
-    fetchingAllProcessPayroll.value = false;
   }
 };
 
@@ -282,27 +193,21 @@ const columns = [
       ]),
   },
 ];
+
 const recentPayrollColumns = [
+  {
+    accessorKey: "description",
+    header: "Description",
+  },
   {
     accessorKey: "date",
     header: "Date",
   },
   {
-    accessorKey: "type",
-    header: "Type",
-  },
-  {
     accessorKey: "period",
     header: "Period",
   },
-  {
-    accessorKey: "description",
-    header: "Description",
-  },
-  // {
-  //   accessorKey: "amount-paid",
-  //   header: "Amount Paid",
-  // },
+
   {
     accessorKey: "status",
     header: "Status",
@@ -313,6 +218,7 @@ const recentPayrollColumns = [
         pending: { color: "warning", label: "Pending" },
         completed: { color: "success", label: "Completed" },
         failed: { color: "error", label: "Failed" },
+        unknown: { color: "primary", label: "Unknown" },
       };
 
       const badge = statusMap[status] || {
@@ -331,10 +237,39 @@ const recentPayrollColumns = [
       );
     },
   },
-  // {
-  //   accessorKey: "undo-payroll",
-  //   header: "Undo Payroll",
-  // },
+  {
+    accessorKey: "total",
+    header: "Total",
+    cell: ({ row }) => {
+      const val = row.original.total;
+      return `$${val}`;
+    },
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+  },
+  {
+    header: "Quick Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center" }, [
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Delete Payroll" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-trash-2",
+                size: "md",
+                color: "error",
+                variant: "soft",
+                disabled: isDeletingProcessAllPayroll.value,
+                onClick: () => onConfirmDeleteProcess(row.original),
+              }),
+          },
+        ),
+      ]),
+  },
 ];
 
 const groupSchema = object({
@@ -402,7 +337,10 @@ const onSubmit = async (event) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.message || "Group created successfully",
+        description:
+          response?.message || groupForm.value.id
+            ? "Group updated successfully"
+            : "Group created successfully",
         color: "success",
         duration: 2000,
       });
@@ -712,11 +650,6 @@ const onProcessDepositFormSubmit = async (val) => {
           icon="la:user-plus"
           label="New Group"
         />
-        <!-- <UButton
-          @click="processAllPayrollBtnClick"
-          icon="i-lucide-settings"
-          label="Process All Payroll"
-        /> -->
         <UButton
           @click="isModalOpen"
           icon="i-lucide-settings"
@@ -735,7 +668,11 @@ const onProcessDepositFormSubmit = async (val) => {
       </div>
     </div>
   </UCard>
+
+  <!-- Tabs -->
   <UTabs v-model="activeTab" :items="tabs" variant="link" class="mt-6" />
+
+  <!-- Recent Payroll Tab 1 -->
   <UCard v-if="activeTab === '0'" class="my-6">
     <UTable
       :columns="recentPayrollColumns"
@@ -744,6 +681,8 @@ const onProcessDepositFormSubmit = async (val) => {
       class="flex-1 mt-6"
     />
   </UCard>
+
+  <!-- Fetch Group Tab 2 -->
   <UCard v-if="activeTab === '1'" class="my-6">
     <UTable
       :columns="columns"
@@ -752,6 +691,8 @@ const onProcessDepositFormSubmit = async (val) => {
       class="flex-1 mt-6"
     />
   </UCard>
+
+  <!-- Fetch Settings Tab 3 -->
   <PayrollSettings
     v-if="activeTab === '2'"
     :fetchingSettings="fetchingSettings"
@@ -899,7 +840,9 @@ const onProcessDepositFormSubmit = async (val) => {
           this group?
         </p>
       </div>
-      <div class="flex gap-2 justify-end items-center">
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
         <UButton
           color="neutral"
           variant="solid"
@@ -924,32 +867,6 @@ const onProcessDepositFormSubmit = async (val) => {
     </template>
   </UModal>
 
-  <!-- Process All Payroll Modal -->
-  <UModal v-model:open="isProcessAllPayrollModalOpen" fullscreen>
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Process All Payroll</h2>
-
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="isProcessAllPayrollModalOpen = false"
-        />
-      </div>
-    </template>
-    <template #body>
-      <UTable
-        :columns="processAllPayrollColumns"
-        :data="processAllPayroll"
-        :loading="fetchingAllProcessPayroll"
-        class="flex-1 mt-6"
-      />
-    </template>
-  </UModal>
   <!-- Modal for Delete Process All Payroll Confirmation -->
   <UModal
     v-model:open="deleteAllProcessPayrollConfirmModal"
@@ -969,17 +886,15 @@ const onProcessDepositFormSubmit = async (val) => {
           </span>
         </p>
       </div>
-      <div class="flex gap-2 justify-end items-center">
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
         <UButton
           color="neutral"
           variant="solid"
           class="mt-4"
           label="Cancel"
-          @click="
-            () => {
-              deleteAllProcessPayrollConfirmModal = false;
-            }
-          "
+          @click="deleteAllProcessPayrollConfirmModal = false"
         />
         <UButton
           color="error"

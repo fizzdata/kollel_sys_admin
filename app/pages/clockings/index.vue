@@ -97,7 +97,6 @@ const clockingsColumns = [
     accessorKey: "student_id",
     header: "Name",
     cell: ({ row }) => {
-      console.log("row", clockingsData.value);
       return (
         row.original.first_yiddish_name + " " + row.original.last_yiddish_name
       );
@@ -260,8 +259,8 @@ const onSubmit = async (event) => {
         description: response?.message
           ? response?.message
           : state.id
-            ? "Clocking updated successfully"
-            : "Clocking created successfully",
+            ? "Successfully Updated"
+            : "Successfully Created",
         color: "success",
         duration: 2000,
       });
@@ -318,7 +317,6 @@ const editClocking = (clock, type) => {
 };
 
 const importClockings = async (formData) => {
-  console.log("🚀 ~ importClockings ~ formData:", formData);
   try {
     isImporting.value = true;
     const response = await api(`/api/clockings/import`, {
@@ -329,7 +327,7 @@ const importClockings = async (formData) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.message || "Clockings imported successfully",
+        description: response?.message || "Data will be imported shortly",
         color: "success",
         duration: 2000,
       });
@@ -373,14 +371,9 @@ const exportToPDF = async () => {
         date_to: calendarRange.value.end?.toString(),
         error_only: isActive.value,
       },
-      // responseType: "blob",
     });
 
     if (response) {
-      // const url = window.URL.createObjectURL(
-      //   new Blob([response.job], { type: "application/pdf" })
-      // );
-      // window.open(url, "_blank");
       toast.add({
         title: "Success",
         description: response?.message || "PDF exported successfully",
@@ -391,12 +384,6 @@ const exportToPDF = async () => {
   } catch (error) {
     console.error("Export to PDF error:", error);
   }
-  // window.open(
-  //   `/api/clockings/pdf?date_from=${calendarRange.value.start?.toString()}&date_to=${calendarRange.value.end?.toString()}&error_only=${
-  //     isActive.value
-  //   }`,
-  //   "_blank"
-  // );
 };
 
 onMounted(async () => {
@@ -515,7 +502,7 @@ watch(
     <template #header>
       <div class="flex justify-between w-full">
         <h2 class="text-xl font-bold text-primary">
-          {{ state?.id ? "Edit" + " " + state.user : "Create New Clockings" }}
+          {{ state?.id ? "Edit: " + state.user : "Create New Clockings" }}
         </h2>
 
         <!-- Close Button -->

@@ -91,8 +91,8 @@ const handleSubmit = async (event) => {
         description: response?.message
           ? response?.message
           : state.id
-            ? "Student updated successfully"
-            : "Student created successfully",
+            ? "Updated Successfully"
+            : "Student added successfully",
         color: "success",
         duration: 2000,
       });

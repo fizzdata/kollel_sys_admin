@@ -33,6 +33,7 @@ const scheduleFetching = ref(false);
 const defaultScheduleModal = ref(false);
 const selectedSchedule = ref(null);
 const schdeuleFormSubmiting = ref(false);
+const scheduleDeleteConfirmModal = ref(false);
 
 const schema = object({
   from_date: mixed()
@@ -135,7 +136,6 @@ async function fetchDefaultSchedules() {
       defaultSchedules.value = Object.entries(response?.schedules).map(
         ([dayName, daySchedules]) => {
           const schedule = daySchedules[0] || {}; // take first schedule if exists, else empty
-          console.log("🚀 ~ fetchDefaultSchedules ~ schedule:", schedule);
           return {
             id: schedule?.id,
             day_of_week:
@@ -174,12 +174,11 @@ const columns = [
     accessorKey: "action",
     header: "Edit / Set",
     cell: ({ row }) => {
-      console.log("🚀 ~ row:", row.original);
       return h("div", { class: "flex gap-2 items-center" }, [
         // Edit User Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Edit User" },
+          { text: "Edit Schedule" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -267,7 +266,10 @@ const onScheduleSubmit = async (event) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.message || "Schedule created successfully",
+        description:
+          response?.message || isEdit
+            ? "Schedule has been set"
+            : "Schedule created successfully",
         color: "success",
         duration: 2000,
       });
@@ -301,11 +303,16 @@ const onScheduleSubmit = async (event) => {
 };
 
 const handleRemoveSchedule = async (schedule) => {
+  selectedSchedule.value = schedule;
+  scheduleDeleteConfirmModal.value = true;
+};
+
+const onSubmitScheduleDelete = async () => {
   try {
     isSubmitting.value = true;
 
     const response = await api(
-      `/api/schedules/default/destroy?id=${schedule.id}`,
+      `/api/schedules/default/destroy?id=${selectedSchedule.value.id}`,
       {
         method: "DELETE",
       },
@@ -335,6 +342,7 @@ const handleRemoveSchedule = async (schedule) => {
     console.error("Error deleting group:", error);
   } finally {
     isSubmitting.value = false;
+    scheduleDeleteConfirmModal.value = false;
   }
 };
 
@@ -554,6 +562,46 @@ onMounted(async () => {
           />
         </div>
       </UForm>
+    </template>
+  </UModal>
+
+  <!-- Delete schedule confirm modal -->
+  <UModal
+    v-model:open="scheduleDeleteConfirmModal"
+    title="Confirm Delete Schedule"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <div>
+        <p>
+          Are you sure you want to delete
+          <strong>{{ selectedSchedule?.day_of_week }}</strong> schdeule time?
+        </p>
+      </div>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          class="mt-4"
+          label="Cancel"
+          @click="scheduleDeleteConfirmModal = false"
+        />
+        <UButton
+          color="error"
+          variant="solid"
+          class="mt-4"
+          label="Delete"
+          :loading="isSubmitting"
+          :disabled="isSubmitting"
+          @click="onSubmitScheduleDelete()"
+        />
+      </div>
     </template>
   </UModal>
 </template>

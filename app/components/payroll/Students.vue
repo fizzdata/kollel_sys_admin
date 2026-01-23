@@ -1,9 +1,5 @@
 <script setup>
-import {
-  today,
-  DateFormatter,
-  getLocalTimeZone,
-} from "@internationalized/date";
+import { today, getLocalTimeZone } from "@internationalized/date";
 const props = defineProps({
   students: { type: Array, default: [] }, // or whatever type
   fetchingGroupStudents: { type: Boolean, default: false },
@@ -38,6 +34,8 @@ const depositProcessRulesLoading = ref(false);
 const processRules = ref([]);
 const checkProcessRules = ref(null);
 const depositProcessRules = ref(null);
+const isDeleteStudentModalOpen = ref(false);
+
 const fetchProcessRules = async (data) => {
   try {
     if (selectedStudent.value) {
@@ -153,11 +151,19 @@ const fetchDepositProcessRules = async (data) => {
 };
 
 const handleRemoveStudent = async (student) => {
+  selectedStudent.value = student;
+  isDeleteStudentModalOpen.value = true;
+};
+
+const confirmDeleteStudent = async () => {
   try {
     isStudentDeleting.value = true;
-    const response = await api(`/api/payroll/students/${student.id}/group/${route.params.id}`, {
-      method: "DELETE",
-    });
+    const response = await api(
+      `/api/payroll/students/${selectedStudent.value.id}/group/${route.params.id}`,
+      {
+        method: "DELETE",
+      },
+    );
 
     if (response?.success) {
       toast.add({
@@ -184,6 +190,7 @@ const handleRemoveStudent = async (student) => {
     console.error("Error deleting Rules:", error);
   } finally {
     isStudentDeleting.value = false;
+    isDeleteStudentModalOpen.value = false;
   }
 };
 
@@ -360,4 +367,52 @@ const onDepositFormSubmit = async (val) => {
     isStudent
     @submit="onDepositFormSubmit"
   />
+
+  <!-- Delete Student confirm modal -->
+  <UModal
+    v-model:open="isDeleteStudentModalOpen"
+    title="Confirm Delete Student"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <div>
+        <p>
+          Are you sure you want to delete this
+          <span v-if="selectedStudent" class="font-bold">
+            {{
+              selectedStudent?.first_yiddish_name +
+              " " +
+              selectedStudent?.last_yiddish_name
+            }}
+          </span>
+          student from this group?
+        </p>
+      </div>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          class="mt-4"
+          label="Cancel"
+          @click="isDeleteStudentModalOpen = false"
+        />
+
+        <UButton
+          color="error"
+          variant="solid"
+          class="mt-4"
+          label="Delete"
+          :loading="isStudentDeleting"
+          :disabled="isStudentDeleting"
+          @click="confirmDeleteStudent()"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>

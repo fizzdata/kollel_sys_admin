@@ -71,7 +71,7 @@ const fetchingRules = ref(false);
 // Student states
 const groupStudents = ref([]);
 const addStudentModal = ref(false);
-const isStudentSubmiting = ref(false);
+const isStudentFormSubmiting = ref(false);
 const students = ref([]);
 const studentFetching = ref(false);
 
@@ -87,13 +87,11 @@ const items = computed(() => [
 ]);
 
 const isProcessModalOpen = async () => {
-  processRulesLoading.value = true;
   showModal.value = true;
   await fetchProcessRules({
     from_date: calendarRange.value.start?.toString(),
     till_date: calendarRange.value.end?.toString(),
   });
-  processRulesLoading.value = false;
 };
 
 // Form State and Schema
@@ -162,8 +160,6 @@ const fetchProcessRules = async (date) => {
       processRules.value = Array.isArray(response?.data)
         ? response.data
         : Object.values(response?.data || {});
-
-      // processRules.value = Object.values(response?.data || {});
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
@@ -171,6 +167,7 @@ const fetchProcessRules = async (date) => {
     processRulesLoading.value = false;
   }
 };
+
 const fetchProcessChecks = async (data) => {
   try {
     processChecksLoading.value = true;
@@ -288,7 +285,7 @@ const confirmDeleteRules = async () => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.message || "Rules deleted successfully",
+        description: response?.message || "Pay rule deleted successfully",
         color: "success",
         duration: 2000,
       });
@@ -338,7 +335,10 @@ const onSubmit = async (event) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.message || "New Rules created successfully",
+        description:
+          response?.message || rulesform.value.id
+            ? "Pay rule updated successfully"
+            : "Pay rule created successfully",
         color: "success",
         duration: 2000,
       });
@@ -488,13 +488,12 @@ const studentState = reactive({
 });
 
 const onAddStudentSubmit = async (event) => {
-  isStudentSubmiting.value = true;
+  isStudentFormSubmiting.value = true;
   try {
     const payload = {
       student_ids: event.data.student_ids.map((item) => item.value),
     };
 
-    // return;
     const response = await api(`/api/payroll/students/group/${groupId}`, {
       method: "POST",
       body: payload,
@@ -526,7 +525,7 @@ const onAddStudentSubmit = async (event) => {
   } catch (error) {
     console.error("Error creating Rules:", error);
   } finally {
-    isStudentSubmiting.value = false;
+    isStudentFormSubmiting.value = false;
     addStudentModal.value = false; // Close the modal
   }
 };
@@ -759,12 +758,13 @@ watch(activeTab, (newTab) => {
     />
   </template>
 
+  <!-- Rules Create/Edit Modal -->
   <UModal v-model:open="rulesModalOpen">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
         <h2 class="text-xl font-bold text-primary">
-          {{ rulesform.id ? "Edit Rules" : " Create New Rules" }}
+          {{ rulesform.id ? "Edit Rule" : " Create New Rule" }}
         </h2>
 
         <!-- Close Button -->
@@ -937,15 +937,11 @@ watch(activeTab, (newTab) => {
   >
     <template #body>
       <div>
-        <p>
-          Are you sure you want to delete
-          <!-- <span v-if="rulesform?.name" class="font-bold">
-            {{ rulesform?.name }}
-          </span> -->
-          these Rules?
-        </p>
+        <p>Are you sure you want to delete this rule?</p>
       </div>
-      <div class="flex gap-2 justify-end items-center">
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
         <UButton
           color="neutral"
           variant="solid"
@@ -1044,8 +1040,8 @@ watch(activeTab, (newTab) => {
           />
           <UButton
             type="submit"
-            :loading="isStudentSubmiting"
-            :disabled="isStudentSubmiting"
+            :loading="isStudentFormSubmiting"
+            :disabled="isStudentFormSubmiting"
             class="justify-center"
             label="Submit"
           />
