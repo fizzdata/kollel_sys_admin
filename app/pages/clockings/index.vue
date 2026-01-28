@@ -23,6 +23,12 @@ const studentsData = ref([]);
 const isActive = ref(false);
 const CreateClockingModal = ref(false);
 const toast = useToast();
+const pagination = ref({
+  currentPage: 1,
+  lastPage: 1,
+  perPage: 100,
+  total: 0,
+});
 const df = new DateFormatter("en-US", {
   dateStyle: "medium",
 });
@@ -202,6 +208,23 @@ const formatClockings = (clockings = []) => {
   });
 };
 
+const fetchStudents = async () => {
+  try {
+    const response = await api(`/api/students`, {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      studentsData.value = response?.students.map((item) => ({
+        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
+        value: item?.id,
+      }));
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchStudents ~ err:", err);
+  }
+};
+
 const fetchClockings = async (date) => {
   try {
     loading.value = true;
@@ -215,12 +238,19 @@ const fetchClockings = async (date) => {
     });
 
     if (response?.success) {
-      studentsData.value = response?.students.map((item) => ({
-        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
-        value: item?.id,
-      }));
-
-      clockingsData.value = formatClockings(response?.clockings);
+      // Handle paginated response structure
+      const clockingsArray = response?.clockings?.data || response?.clockings || [];
+      clockingsData.value = formatClockings(clockingsArray);
+      
+      // Update pagination info
+      if (response?.clockings?.current_page) {
+        pagination.value = {
+          currentPage: response.clockings.current_page,
+          lastPage: response.clockings.last_page,
+          perPage: response.clockings.per_page,
+          total: response.clockings.total,
+        };
+      }
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
@@ -387,6 +417,7 @@ const exportToPDF = async () => {
 };
 
 onMounted(async () => {
+  await fetchStudents();
   await fetchClockings({
     date_from: calendarRange.value.start?.toString(),
     date_to: calendarRange.value.end?.toString(),
@@ -495,6 +526,31 @@ watch(
       :data="clockingsData"
       class="flex-1 mt-6"
     />
+    <!-- Pagination Info -->
+    <div class="flex justify-between items-center mt-4 text-sm text-gray-600">
+      <div>
+        Showing {{ (pagination.currentPage - 1) * pagination.perPage + 1 }} to
+        {{ Math.min(pagination.currentPage * pagination.perPage, pagination.total) }}
+        of {{ pagination.total }} results
+      </div>
+      <div class="flex gap-2">
+        <UButton
+          v-if="pagination.currentPage > 1"
+          variant="outline"
+          size="sm"
+          label="Previous"
+          icon="i-lucide-chevron-left"
+        />
+        <span class="px-3 py-2">{{ pagination.currentPage }} / {{ pagination.lastPage }}</span>
+        <UButton
+          v-if="pagination.currentPage < pagination.lastPage"
+          variant="outline"
+          size="sm"
+          label="Next"
+          icon="i-lucide-chevron-right"
+        />
+      </div>
+    </div>
   </UCard>
   <!-- Modal for Create New User -->
   <UModal v-model:open="CreateClockingModal">
@@ -530,13 +586,13 @@ watch(
         @submit="onSubmit"
       >
         <div v-if="!state.id" class="flex flex-col gap-4">
-          <UFormField label="User" name="user">
+          <UFormField label="Student" name="student_id">
             <USelect
               v-model.number="state.student_id"
               :items="studentsData"
               class="w-full"
               size="lg"
-              placeholder="Select User"
+              placeholder="Select Student"
               required
             />
           </UFormField>
