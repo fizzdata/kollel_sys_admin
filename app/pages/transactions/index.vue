@@ -30,6 +30,7 @@ const isSubmitting = ref(false);
 const isDeleteTransactionModalOpen = ref(false);
 const isTransactionDeleting = ref(false);
 const selectedTransaction = ref(null);
+const maxLength = 255;
 
 const schema = object({
   student_id: number()
@@ -39,7 +40,12 @@ const schema = object({
     .typeError("Amount must be a number")
     .required("Amount is required")
     .min(0, "Amount cannot be negative"),
-  description: string().required("Description is required"),
+  description: string()
+    .required("Description is required")
+    .max(
+      maxLength,
+      `Description cannot be longer than ${maxLength} characters`,
+    ),
 });
 
 const state = reactive({
@@ -72,23 +78,34 @@ const transactionsColumns = [
     },
   },
   { accessorKey: "date", header: "Date" },
-  { accessorKey: "description", header: "Description" },
+  {
+    accessorKey: "description",
+    header: "Description",
+    meta: {
+      class: {
+        th: "max-w-md",
+        td: "max-w-md breakwords whitespace-normal",
+      },
+    },
+  },
   {
     accessorKey: "deposit",
     header: "Deposit",
     cell: ({ row }) => {
       const val = row.original.amount;
-      if (val < 0) return "-";
-      return h("span", { class: "font-medium text-green-600" }, `$${val}`);
+      return val >= 0
+        ? h("span", { class: "font-medium text-green-600" }, `$${val}`)
+        : "-";
     },
   },
   {
-    accessorKey: "",
+    accessorKey: "check",
     header: "Check",
     cell: ({ row }) => {
       const val = row.original.amount;
-      if (val > -1) return "-";
-      return h("span", { class: "font-medium text-red-600" }, `$${val}`);
+      return val < 0
+        ? h("span", { class: "font-medium text-red-600" }, `$${Math.abs(val)}`)
+        : "-";
     },
   },
   {
@@ -506,13 +523,25 @@ watch(
           />
         </UFormField>
         <UFormField label="Description" name="description">
-          <UInput
+          <UTextarea
             v-model="state.description"
             class="w-full"
             type="text"
             size="lg"
+            aria-describedby="character-count"
             placeholder="Enter description"
-          />
+          >
+            <template #trailing>
+              <div
+                id="character-count"
+                class="text-xs text-muted tabular-nums"
+                aria-live="polite"
+                role="status"
+              >
+                {{ state.description?.length || 0 }}/{{ maxLength }}
+              </div>
+            </template>
+          </UTextarea>
         </UFormField>
         <div
           class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
