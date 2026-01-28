@@ -8,7 +8,12 @@ definePageMeta({
 });
 
 // Tabs
-const activeTab = ref(0);
+const activeTab = ref("0");
+
+const tabs = [
+  { label: "Schedule Calendar", key: "schedule-calendar" },
+  { label: "Schedule Questions", key: "schedule-questions" },
+];
 
 // Schedule Management
 const editScheduleModal = ref(false);
@@ -34,6 +39,8 @@ const assignQuestionModal = ref(false);
 const selectedQuestion = ref(null);
 const isSubmittingQuestion = ref(false);
 const isSubmittingAssignment = ref(false);
+const isDeletingScheduleQuestion = ref(false);
+const deleteSchdeduleQuestionModal = ref(false);
 
 const questionState = reactive({
   question: "",
@@ -105,11 +112,12 @@ const resetEditSchedule = () => {
 async function fetchScheduleQuestions() {
   questionsLoading.value = true;
   try {
-    const response = await api("/api/schedules/questions");
-    console.log("Questions API Response:", response);
+    const response = await api("/api/schedules/questions", {
+      method: "GET",
+    });
+
     if (response?.success) {
       scheduleQuestions.value = response?.questions || [];
-      console.log("Questions loaded:", scheduleQuestions.value);
     }
   } catch (err) {
     console.log("Error fetching questions:", err);
@@ -141,7 +149,7 @@ function openCreateQuestionModal() {
   createQuestionModal.value = true;
 }
 
-async function submitQuestion() {
+async function handleQuestionSubmit(event) {
   if (!questionState.question.trim()) {
     toast.add({
       title: "Validation Error",
@@ -151,37 +159,17 @@ async function submitQuestion() {
     return;
   }
 
-  if (!questionState.ask_on_in && !questionState.ask_on_out) {
-    toast.add({
-      title: "Validation Error",
-      description: "Question must be asked on checkin or checkout",
-      color: "error",
-    });
-    return;
-  }
-
   isSubmittingQuestion.value = true;
   try {
     const response = await api("/api/schedules/questions", {
       method: "POST",
-      body: {
-        question: questionState.question,
-        ask_on_in: questionState.ask_on_in,
-        ask_on_out: questionState.ask_on_out,
-        is_active: questionState.is_active,
-        ask_every_time: questionState.ask_every_time,
-        require_yes_to_proceed: questionState.require_yes_to_proceed,
-        button_text_1: questionState.button_text_1 || null,
-        button_text_2: questionState.button_text_2 || null,
-        button_text_3: questionState.button_text_3 || null,
-        ask_only: questionState.ask_only || null,
-      },
+      body: event.data,
     });
 
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: "Question created successfully",
+        description: response?.message || "Question created successfully",
         color: "success",
         duration: 2000,
       });
@@ -191,7 +179,10 @@ async function submitQuestion() {
     } else {
       toast.add({
         title: "Failed",
-        description: response?._data?.message || "Failed to create question",
+        description:
+          response?.message ||
+          response?._data?.message ||
+          "Failed to create question",
         color: "error",
       });
     }
@@ -247,7 +238,9 @@ async function submitAssignment() {
       toast.add({
         title: "Failed",
         description:
-          response?._data?.message || "Failed to assign question",
+          response?.message ||
+          response?._data?.message ||
+          "Failed to assign question",
         color: "error",
       });
     }
@@ -263,10 +256,52 @@ async function submitAssignment() {
   }
 }
 
-function deleteQuestion(questionId) {
-  // TODO: Implement delete functionality
-  console.log("Delete question:", questionId);
+function deleteQuestion(question) {
+  selectedQuestion.value = question;
+  deleteSchdeduleQuestionModal.value = true;
 }
+
+const confirmDeleteScheduleQuestion = async () => {
+  try {
+    isDeletingScheduleQuestion.value = true;
+
+    const response = await api(
+      `/api/schedules/questions/${selectedQuestion.value.id}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Question Deleted",
+        color: "success",
+        duration: 2000,
+      });
+
+      await fetchScheduleQuestions(true);
+
+      selectedQuestion.value = null;
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to delete Question",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting Rules:", error);
+  } finally {
+    isDeletingScheduleQuestion.value = false;
+    deleteSchdeduleQuestionModal.value = false; // Close the modal
+  }
+};
 
 const onSubmit = async (event) => {
   isSubmitting.value = true;
@@ -320,9 +355,61 @@ const onSubmit = async (event) => {
   }
 };
 
+const scheduleColumns = [
+  {
+    accessorKey: "question",
+    header: "Question",
+  },
+
+  {
+    header: "Quick Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center" }, [
+        // Edit User Button
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Assign" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-link",
+                size: "md",
+                color: "primary",
+                variant: "soft",
+                onClick: () => openAssignQuestionModal(row.original),
+              }),
+          },
+        ),
+
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Delete User" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-trash-2",
+                size: "md",
+                color: "error",
+                variant: "soft",
+                onClick: () => deleteQuestion(row.original),
+              }),
+          },
+        ),
+      ]),
+  },
+];
+
+// watch for tab changes
+watch(activeTab, (newTab) => {
+  if (newTab === "0") {
+    fetchSchedules();
+  } else if (newTab === "1") {
+    fetchScheduleQuestions();
+  }
+});
+
 onMounted(async () => {
   await fetchSchedules();
-  await fetchScheduleQuestions();
 });
 </script>
 
@@ -336,43 +423,28 @@ onMounted(async () => {
         <h2 class="text-xl font-bold">Schedules</h2>
         <div class="flex justify-end gap-2">
           <UButton
+            v-if="activeTab === '0'"
             to="/schedule/populate"
             trailingIcon="i-lucide-arrow-right"
             label=" Populate default schedule"
+          />
+
+          <UButton
+            v-if="activeTab === '1'"
+            @click="openCreateQuestionModal"
+            icon="i-lucide-plus"
+            label="Create Question"
+            color="primary"
           />
         </div>
       </div>
     </UCard>
 
-    <!-- Tabs -->
     <div class="mb-4">
-      <div class="flex gap-2 border-b border-gray-200 mb-4">
-        <button
-          @click="activeTab = 0"
-          :class="[
-            'px-4 py-2 font-medium transition-colors',
-            activeTab === 0
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-gray-600 hover:text-gray-900'
-          ]"
-        >
-          <i class="i-lucide-calendar mr-2"></i>Schedule Calendar
-        </button>
-        <button
-          @click="activeTab = 1"
-          :class="[
-            'px-4 py-2 font-medium transition-colors',
-            activeTab === 1
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-gray-600 hover:text-gray-900'
-          ]"
-        >
-          <i class="i-lucide-help-circle mr-2"></i>Schedule Questions
-        </button>
-      </div>
-
+      <!-- Tabs -->
+      <UTabs v-model="activeTab" :items="tabs" variant="link" class="my-4" />
       <!-- Tab 1: Schedule Calendar -->
-      <div v-show="activeTab === 0">
+      <div v-if="activeTab === '0'">
         <ScheduleCalender
           :schedules="schedules"
           @edit_clicked="displayModel"
@@ -382,71 +454,26 @@ onMounted(async () => {
       </div>
 
       <!-- Tab 2: Schedule Questions -->
-      <div v-show="activeTab === 1" class="space-y-4">
-        <!-- Debug Info -->
-        <div class="bg-gray-100 p-2 text-xs">
-          <div>Loading: {{ questionsLoading }}</div>
-          <div>Questions Count: {{ scheduleQuestions.length }}</div>
-          <div>Questions: {{ JSON.stringify(scheduleQuestions) }}</div>
-        </div>
-
-        <!-- Add Question Button -->
-        <div class="flex justify-end">
-          <UButton
-            @click="openCreateQuestionModal"
-            icon="i-lucide-plus"
-            label="Create Question"
-            color="primary"
-          />
-        </div>
-
+      <div v-if="activeTab === '1'" class="space-y-4">
         <!-- Questions Table -->
-        <div v-if="!questionsLoading && scheduleQuestions.length > 0">
-          <UTable
-            :rows="scheduleQuestions"
-            :columns="[
-              { id: 'question', key: 'question', label: 'Question' },
-              { id: 'actions', key: 'actions', label: 'Actions' }
-            ]"
-            class="w-full"
-          >
-            <template #question-data="{ row }">
-              <span class="truncate max-w-sm">{{ row.question }}</span>
-            </template>
-            <template #actions-data="{ row }">
-              <div class="flex gap-2">
-                <UButton
-                  @click="openAssignQuestionModal(row)"
-                  size="sm"
-                  color="primary"
-                  variant="soft"
-                  icon="i-lucide-link"
-                  label="Assign"
-                />
-                <UButton
-                  @click="deleteQuestion(row.id)"
-                  size="sm"
-                  color="red"
-                  variant="soft"
-                  icon="i-lucide-trash"
-                />
-              </div>
-            </template>
-          </UTable>
-        </div>
-
-        <!-- Loading State -->
-        <div v-else class="flex justify-center py-8">
-          <Spinner />
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-if="!questionsLoading && scheduleQuestions.length === 0"
-          class="text-center py-8 text-gray-500"
+        <UTable
+          :data="scheduleQuestions"
+          :columns="scheduleColumns"
+          :loading="questionsLoading"
+          class="w-full"
         >
-          <p>No questions created yet. Click "Create Question" to add one.</p>
-        </div>
+          <template #empty>
+            <div class="text-center text-sm text-gray-500 py-6">
+              <div v-if="questionsLoading">Fetching Schedule Questions</div>
+              <div v-else>
+                No questions created yet.
+                <br />
+                Click <strong class="text-primary">Create Question</strong> to
+                add one.
+              </div>
+            </div>
+          </template>
+        </UTable>
       </div>
     </div>
   </div>
@@ -543,13 +570,18 @@ onMounted(async () => {
     </template>
 
     <template #body>
-      <div class="space-y-4">
+      <UForm
+        :state="questionState"
+        @submit="handleQuestionSubmit"
+        class="space-y-4"
+      >
         <!-- Question Text -->
         <UFormField label="Question Text" required>
           <UInput
             v-model="questionState.question"
             placeholder="Enter your question"
             type="text"
+            class="w-full"
           />
         </UFormField>
 
@@ -557,71 +589,50 @@ onMounted(async () => {
         <div class="space-y-2">
           <label class="block text-sm font-medium">When to Ask</label>
           <div class="flex gap-4">
-            <label class="flex items-center gap-2">
-              <input
-                v-model="questionState.ask_on_in"
-                type="checkbox"
-                class="rounded"
-              />
-              <span class="text-sm">Ask on Check-In</span>
-            </label>
-            <label class="flex items-center gap-2">
-              <input
-                v-model="questionState.ask_on_out"
-                type="checkbox"
-                class="rounded"
-              />
-              <span class="text-sm">Ask on Check-Out</span>
-            </label>
+            <UCheckbox
+              v-model="questionState.ask_on_in"
+              label="Ask on Check-In"
+            />
+            <UCheckbox
+              v-model="questionState.ask_on_out"
+              label="Ask on Check-Out"
+            />
           </div>
         </div>
 
         <!-- Additional Options -->
         <div class="space-y-2">
-          <label class="flex items-center gap-2">
-            <input
-              v-model="questionState.is_active"
-              type="checkbox"
-              class="rounded"
-            />
-            <span class="text-sm">Active</span>
-          </label>
-          <label class="flex items-center gap-2">
-            <input
-              v-model="questionState.ask_every_time"
-              type="checkbox"
-              class="rounded"
-            />
-            <span class="text-sm">Ask Every Time</span>
-          </label>
-          <label class="flex items-center gap-2">
-            <input
-              v-model="questionState.require_yes_to_proceed"
-              type="checkbox"
-              class="rounded"
-            />
-            <span class="text-sm">Require Yes to Proceed</span>
-          </label>
+          <UCheckbox v-model="questionState.is_active" label="Active" />
+          <UCheckbox
+            v-model="questionState.ask_every_time"
+            label="Ask Every Time"
+          />
+          <UCheckbox
+            v-model="questionState.require_yes_to_proceed"
+            label="Require Yes to Proceed"
+          />
         </div>
 
         <!-- Button Texts -->
         <div class="space-y-2">
           <label class="block text-sm font-medium">Button Labels</label>
-          <UInput
-            v-model="questionState.button_text_1"
-            placeholder="Button 1 text (optional)"
-            type="text"
-          />
-          <UInput
-            v-model="questionState.button_text_2"
-            placeholder="Button 2 text (optional)"
-            type="text"
-          />
-          <UInput
-            v-model="questionState.button_text_3"
-            placeholder="Button 3 text (optional)"
-            type="text"
-          />
+          <div class="grid md:grid-cols-2 gap-4">
+            <UInput
+              v-model="questionState.button_text_1"
+              placeholder="Button 1 text (optional)"
+              type="text"
+            />
+            <UInput
+              v-model="questionState.button_text_2"
+              placeholder="Button 2 text (optional)"
+              type="text"
+            />
+            <UInput
+              v-model="questionState.button_text_3"
+              placeholder="Button 3 text (optional)"
+              type="text"
+            />
+          </div>
         </div>
 
         <!-- Ask Only -->
@@ -646,10 +657,9 @@ onMounted(async () => {
             :loading="isSubmittingQuestion"
             :disabled="isSubmittingQuestion"
             label="Create Question"
-            @click="submitQuestion"
           />
         </div>
-      </div>
+      </UForm>
     </template>
   </UModal>
 
@@ -657,7 +667,9 @@ onMounted(async () => {
   <UModal v-model:open="assignQuestionModal">
     <template #header>
       <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">Assign Question to Schedule</h2>
+        <h2 class="text-xl font-bold text-primary">
+          Assign Question to Schedule
+        </h2>
         <UButton
           size="sm"
           variant="outline"
@@ -674,17 +686,18 @@ onMounted(async () => {
         <!-- Selected Question Display -->
         <div class="bg-gray-50 p-4 rounded-lg">
           <p class="text-sm text-gray-600">Selected Question:</p>
-          <p class="font-semibold">{{ selectedQuestion?.text }}</p>
+          <p class="font-semibold">{{ selectedQuestion?.question }}</p>
         </div>
 
         <!-- Schedule Selection -->
         <UFormField label="Select Schedule" required>
+          <!-- schedules?.map((schedule) => ({
+            label: `${schedule.start} - ${schedule.end}`,
+            value: schedule.id,
+          })) -->
           <USelect
             v-model="assignmentState.scheduleId"
-            :options="schedules.map((schedule) => ({
-              label: `${schedule.start} - ${schedule.end}`,
-              value: schedule.id
-            }))"
+            :items="[]"
             placeholder="Choose a schedule"
           />
         </UFormField>
@@ -705,6 +718,54 @@ onMounted(async () => {
             @click="submitAssignment"
           />
         </div>
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Modal for schedule question  -->
+  <UModal
+    v-model:open="deleteSchdeduleQuestionModal"
+    title="Confirm Delete Schedule Question"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <div>
+        <p>
+          Are you sure you want to delete this
+          <strong v-if="selectedQuestion">{{
+            selectedQuestion?.question
+          }}</strong>
+          schedule question?
+        </p>
+      </div>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          class="mt-4"
+          label="Cancel"
+          @click="
+            () => {
+              deleteSchdeduleQuestionModal = false;
+            }
+          "
+        />
+
+        <UButton
+          color="error"
+          variant="solid"
+          class="mt-4"
+          :loading="isDeletingScheduleQuestion"
+          :disabled="isDeletingScheduleQuestion"
+          @click="confirmDeleteScheduleQuestion()"
+          label="Delete"
+        />
       </div>
     </template>
   </UModal>
