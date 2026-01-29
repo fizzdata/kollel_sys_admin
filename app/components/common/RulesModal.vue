@@ -113,7 +113,7 @@ watch(
 
       <!-- Cards -->
       <div
-        v-else-if="rules?.length && type === 'process'"
+        v-else-if="rules?.length > 0 && type === 'process'"
         class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
       >
         <UCard
@@ -161,6 +161,18 @@ watch(
             </div>
           </div>
         </UCard>
+      </div>
+
+      <div v-else-if="message && type === 'process'">
+        <div v-if="message" class="text-center text-gray-500 mt-10">
+          {{ message?.message }}
+        </div>
+        <div
+          v-else
+          class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6"
+        >
+          Please select date range to process.
+        </div>
       </div>
 
       <div

@@ -19,9 +19,11 @@ const calendarRange = ref({
 });
 
 const api = useApi();
+const route = useRoute();
+const router = useRouter();
 const loading = ref(false);
 const showModal = ref(false);
-const processRules = ref([]);
+const processRulesResponse = ref(null);
 const processChecksLoading = ref(false);
 const processDepositLoading = ref(false);
 const newGroup = ref(false);
@@ -38,7 +40,7 @@ const metricLabels = ref({});
 const isDeletingProcessAllPayroll = ref(false);
 const deleteAllProcessPayrollConfirmModal = ref(false);
 const selectedPayroll = ref(null);
-const activeTab = ref("0");
+const activeTab = ref(route?.query?.tab || "0");
 
 const fetchingPayroll = ref(false);
 const fetchingSettings = ref(false);
@@ -114,7 +116,7 @@ const isModalOpen = async () => {
 const fetchProcessRules = async (date) => {
   try {
     loading.value = true;
-    const response = await api(`/api/payroll/process`, {
+    const response = await api(`/api/payroll/preview`, {
       method: "GET",
       params: {
         from_date: date?.from_date,
@@ -123,7 +125,11 @@ const fetchProcessRules = async (date) => {
     });
 
     if (response?.success) {
-      processRules.value = Object.values(response?.data || {});
+      processRulesResponse.value = response;
+      console.log(
+        "🚀 ~ fetchProcessRules ~ processRulesResponse.value:",
+        processRulesResponse.value,
+      );
     } else {
       errorProcessMessages.value = response?.message;
     }
@@ -142,7 +148,7 @@ const columns = [
       h(
         resolveComponent("NuxtLink"),
         {
-          to: `/payroll/${row.original.id}`, // dynamic route to user detail page
+          to: `/payroll/${row.original.id}?tab=${route.query.tab}`, // dynamic route to user detail page
           class: "text-primary hover:underline",
         },
         row.original.name,
@@ -498,22 +504,6 @@ const fetchSettings = async () => {
   }
 };
 
-// watch for tab changes
-watch(activeTab, (newTab) => {
-  if (newTab === "0") {
-    fetchRecentPayroll();
-  } else if (newTab === "1") {
-    fetchGroups();
-  } else if (newTab === "2") {
-    fetchSettings();
-  }
-});
-
-onMounted(async () => {
-  // Initial fetch when component is mounted
-  await fetchRecentPayroll();
-});
-
 const editGroup = (group) => {
   // Open modal instantly
   newGroup.value = true;
@@ -629,6 +619,30 @@ const onProcessDepositFormSubmit = async (val) => {
     ...val,
   });
 };
+
+const handleTabUpdate = (newValue) => {
+  console.log("🚀 ~ handleTabUpdate ~ newValue:", newValue);
+  router.replace({
+    query: {
+      ...route.query,
+      tab: newValue,
+    },
+  });
+};
+
+watch(
+  activeTab,
+  (newTab) => {
+    if (newTab === "0") {
+      fetchRecentPayroll();
+    } else if (newTab === "1") {
+      fetchGroups();
+    } else if (newTab === "2") {
+      fetchSettings();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -670,7 +684,13 @@ const onProcessDepositFormSubmit = async (val) => {
   </UCard>
 
   <!-- Tabs -->
-  <UTabs v-model="activeTab" :items="tabs" variant="link" class="mt-6" />
+  <UTabs
+    v-model="activeTab"
+    :items="tabs"
+    variant="link"
+    class="mt-6"
+    @update:model-value="handleTabUpdate"
+  />
 
   <!-- Recent Payroll Tab 1 -->
   <UCard v-if="activeTab === '0'" class="my-6">
@@ -794,7 +814,8 @@ const onProcessDepositFormSubmit = async (val) => {
   <CommonRulesModal
     v-model="showModal"
     title="Processing Rules"
-    :rules="processRules"
+    :rules="[]"
+    :message="processRulesResponse"
     :loading="loading"
     :metric-labels="metricLabels"
     :operater-labels="operaterLabels"

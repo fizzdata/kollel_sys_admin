@@ -343,6 +343,8 @@ const onSubmit = async (event) => {
         duration: 2000,
       });
 
+      rulesModalOpen.value = false; // Close the modal
+
       await fetchRules(true);
       // Reset form state after submission
       resetRulesForm();
@@ -361,7 +363,6 @@ const onSubmit = async (event) => {
     console.error("Error creating Rules:", error);
   } finally {
     isSubmitting.value = false;
-    rulesModalOpen.value = false; // Close the modal
   }
 };
 
@@ -591,7 +592,7 @@ watch(activeTab, (newTab) => {
     <UButton
       variant="outline"
       color="primary"
-      to="/payroll"
+      :to="`/payroll?tab=${route?.query?.tab}`"
       icon="i-lucide-arrow-left"
       label="Back to Payroll List"
     />
@@ -610,18 +611,18 @@ watch(activeTab, (newTab) => {
             <!-- Group Info -->
             <div class="space-y-1">
               <h2 class="text-xl font-semibold">
-                {{ fetchingGroupDetails?.name }}
+                {{ fetchingGroupDetails?.name || "N/a" }}
               </h2>
               <p class="font-medium text-sm">
                 Group Amount:
                 <span class="font-normal">
-                  ${{ fetchingGroupDetails?.amount }}
+                  ${{ fetchingGroupDetails?.amount || "N/a" }}
                 </span>
               </p>
               <p class="text-sm font-medium">
                 Min Amount:
                 <span class="font-normal">
-                  ${{ fetchingGroupDetails?.min_amount }}
+                  ${{ fetchingGroupDetails?.min_amount || "N/a" }}
                 </span>
               </p>
             </div>
@@ -742,7 +743,8 @@ watch(activeTab, (newTab) => {
           </div>
         </div>
         <div v-else class="text-center text-gray-500 mt-10">
-          No Rules found. Please add some rules.
+          No Rules found. Click <strong>Create Rule</strong> button to add rules
+          in this group.
         </div>
       </div>
     </div>
