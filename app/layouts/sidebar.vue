@@ -21,6 +21,7 @@ const token = useCookie("kollel_sys_token");
 
 const toast = useToast();
 const navigation = [
+  { name: "Dashboard", href: "/dashboard", key: "dashboard" },
   { name: "Users", href: "/users", key: "users" },
   { name: "Students", href: "/students", key: "students" },
   { name: "Schedule", href: "/schedule", key: "schedule" },
@@ -34,7 +35,9 @@ const navigation = [
 ];
 
 const filteredNavigation = computed(() =>
-  navigation.filter((item) => hasAccess.value.includes(item.key)),
+  navigation.filter(
+    (item) => item.key === "dashboard" || hasAccess.value.includes(item.key),
+  ),
 );
 
 const isActive = (href) => route.path.startsWith(href);

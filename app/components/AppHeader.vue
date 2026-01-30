@@ -64,7 +64,7 @@ const logout = async () => {
           </ULink>
         </div>
         <div v-if="token" class="flex text-center items-center gap-x-4">
-          <UButton size="xl" to="/users" label="Go to your account" />
+          <UButton size="xl" to="/dashboard" label="Go to dashboard" />
           <div>
             <UButton
               type="submit"

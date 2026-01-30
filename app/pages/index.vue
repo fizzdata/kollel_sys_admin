@@ -28,7 +28,7 @@ const items = ref([
 ]);
 
 const token = useCookie("kollel_sys_token");
-const redirectTo = computed(() => (token.value ? "/users" : "/login"));
+const redirectTo = computed(() => (token.value ? "/dashboard" : "/login"));
 </script>
 
 <template>
