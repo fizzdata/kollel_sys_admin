@@ -546,7 +546,7 @@ const fetchSingleStudentPreview = async (data) => {
     if (selectedStudent.value) {
       fetchingSingleStudentPreview.value = true;
       const response = await api(
-        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/preview`,
+        `/api/payroll/student/${selectedStudent.value.id}/preview`,
         {
           method: "GET",
           params: {
