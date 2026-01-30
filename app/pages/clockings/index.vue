@@ -239,9 +239,10 @@ const fetchClockings = async (date) => {
 
     if (response?.success) {
       // Handle paginated response structure
-      const clockingsArray = response?.clockings?.data || response?.clockings || [];
+      const clockingsArray =
+        response?.clockings?.data || response?.clockings || [];
       clockingsData.value = formatClockings(clockingsArray);
-      
+
       // Update pagination info
       if (response?.clockings?.current_page) {
         pagination.value = {
@@ -295,6 +296,7 @@ const onSubmit = async (event) => {
         duration: 2000,
       });
       state.id = null;
+      CreateClockingModal.value = false;
       await fetchClockings({
         date_from: calendarRange.value.start?.toString(),
         date_to: calendarRange.value.end?.toString(),
@@ -321,7 +323,6 @@ const onSubmit = async (event) => {
       color: "error",
     });
   } finally {
-    CreateClockingModal.value = false;
     isSubmitting.value = false;
     resetClockingForm();
   }
@@ -530,7 +531,12 @@ watch(
     <div class="flex justify-between items-center mt-4 text-sm text-gray-600">
       <div>
         Showing {{ (pagination.currentPage - 1) * pagination.perPage + 1 }} to
-        {{ Math.min(pagination.currentPage * pagination.perPage, pagination.total) }}
+        {{
+          Math.min(
+            pagination.currentPage * pagination.perPage,
+            pagination.total,
+          )
+        }}
         of {{ pagination.total }} results
       </div>
       <div class="flex gap-2">
@@ -541,7 +547,9 @@ watch(
           label="Previous"
           icon="i-lucide-chevron-left"
         />
-        <span class="px-3 py-2">{{ pagination.currentPage }} / {{ pagination.lastPage }}</span>
+        <span class="px-3 py-2"
+          >{{ pagination.currentPage }} / {{ pagination.lastPage }}</span
+        >
         <UButton
           v-if="pagination.currentPage < pagination.lastPage"
           variant="outline"

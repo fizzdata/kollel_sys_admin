@@ -122,7 +122,6 @@ const handleSubmit = async (event) => {
     });
   } finally {
     resetForm();
-    showModal.value = false;
     isSubmitting.value = false;
   }
 };

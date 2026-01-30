@@ -279,7 +279,7 @@ const confirmDeleteScheduleQuestion = async () => {
         color: "success",
         duration: 2000,
       });
-
+      deleteSchdeduleQuestionModal.value = false; // Close the modal
       await fetchScheduleQuestions(true);
 
       selectedQuestion.value = null;
@@ -299,7 +299,6 @@ const confirmDeleteScheduleQuestion = async () => {
     console.error("Error deleting Rules:", error);
   } finally {
     isDeletingScheduleQuestion.value = false;
-    deleteSchdeduleQuestionModal.value = false; // Close the modal
   }
 };
 
@@ -326,6 +325,7 @@ const onSubmit = async (event) => {
         duration: 2000,
       });
       state.id = null;
+      editScheduleModal.value = false;
       await fetchSchedules();
     } else if (response?._data?.message) {
       toast.add({
@@ -349,7 +349,6 @@ const onSubmit = async (event) => {
       color: "error",
     });
   } finally {
-    editScheduleModal.value = false;
     isSubmitting.value = false;
     resetEditSchedule();
   }

@@ -191,7 +191,7 @@ const onSubmitScheduleDelete = async () => {
         color: "success",
         duration: 2000,
       });
-
+      scheduleDeleteConfirmModal.value = false;
       emit("reload");
     } else {
       toast.add({
@@ -208,7 +208,6 @@ const onSubmitScheduleDelete = async () => {
     console.error("Error deleting Rules:", error);
   } finally {
     isDeletingSchedule.value = false;
-    scheduleDeleteConfirmModal.value = false;
   }
 };
 
@@ -276,7 +275,7 @@ watch(
             <div
               v-if="day?.data"
               v-for="s in day.data.schedule"
-              class="mt-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
+              class="my-2 flex items-center px-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
             >
               Seder <span v-text="s.session"></span>:
               <span v-html="sec_to_time(s.start)"></span> -
@@ -285,7 +284,7 @@ watch(
               <UButton
                 color="success"
                 variant="soft"
-                class="mt-4"
+                class=""
                 icon="i-lucide-square-pen"
                 @click="edit(s)"
               />
@@ -294,7 +293,7 @@ watch(
                 color="error"
                 variant="soft"
                 icon="i-lucide-trash-2"
-                class="mt-4"
+                class=""
                 :disabled="isDeletingSchedule"
                 @click="deleteSchedule(s.id)"
               />

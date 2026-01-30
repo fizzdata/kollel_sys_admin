@@ -68,7 +68,13 @@ const confirmDeleteProcessAllPayroll = async () => {
   try {
     isDeletingProcessAllPayroll.value = true;
 
-    if (!selectedPayroll.value) return;
+    if (!selectedPayroll.value) {
+      toast.add({
+        title: "Error",
+        description: "No payroll selected for deletion",
+        color: "error",
+      });
+    }
     const response = await api(`/api/payroll/${selectedPayroll.value.id}`, {
       method: "DELETE",
     });
@@ -80,7 +86,8 @@ const confirmDeleteProcessAllPayroll = async () => {
         color: "success",
         duration: 2000,
       });
-
+      deleteAllProcessPayrollConfirmModal.value = false;
+      selectedPayroll.value = null;
       await fetchRecentPayroll();
     } else {
       toast.add({
@@ -97,8 +104,6 @@ const confirmDeleteProcessAllPayroll = async () => {
     console.error("Error deleting group:", error);
   } finally {
     isDeletingProcessAllPayroll.value = false;
-    deleteAllProcessPayrollConfirmModal.value = false;
-    selectedPayroll.value = null;
   }
 };
 
@@ -353,7 +358,7 @@ const onSubmit = async (event) => {
 
       // Reset form state after submission
       resetGroupForm();
-
+      newGroup.value = false; // Close the modal
       await fetchGroups();
     } else {
       toast.add({
@@ -370,7 +375,6 @@ const onSubmit = async (event) => {
     console.error("Error creating group:", error);
   } finally {
     isSubmitting.value = false;
-    newGroup.value = false; // Close the modal
   }
 };
 
@@ -538,6 +542,7 @@ const confirmDeleteGroup = async () => {
         duration: 2000,
       });
 
+      deleteModal.value = false; // Close the modal
       await fetchGroups();
       // Reset form state after deletion
       resetGroupForm();
@@ -556,7 +561,6 @@ const confirmDeleteGroup = async () => {
     console.error("Error deleting group:", error);
   } finally {
     isSubmitting.value = false;
-    deleteModal.value = false; // Close the modal
   }
 };
 
@@ -621,7 +625,6 @@ const onProcessDepositFormSubmit = async (val) => {
 };
 
 const handleTabUpdate = (newValue) => {
-  console.log("🚀 ~ handleTabUpdate ~ newValue:", newValue);
   router.replace({
     query: {
       ...route.query,
@@ -653,8 +656,10 @@ watch(
           activeTab === "0"
             ? "Recent Payroll"
             : activeTab === "1"
-              ? "Payroll Groups"
-              : "Payroll Settings"
+              ? "All Students"
+              : activeTab === "2"
+                ? "Payroll Groups"
+                : "Payroll Settings"
         }}
       </h2>
 

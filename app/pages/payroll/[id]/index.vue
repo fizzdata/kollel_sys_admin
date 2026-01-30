@@ -7,6 +7,8 @@ definePageMeta({
   middleware: ["auth"],
 });
 
+const { $printJS } = useNuxtApp();
+
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -75,15 +77,27 @@ const isStudentFormSubmiting = ref(false);
 const students = ref([]);
 const studentFetching = ref(false);
 
+const fetchingSingleStudentPreview = ref(false);
+const allStudents = ref([]);
+
+const processGroupStudentModal = ref(false);
+const processGroupRules = ref([]);
+const singleStudentCheckModal = ref(false);
+const processCheckSingleStudentLoading = ref(false);
+const singleStudentDepositModal = ref(false);
+const processDepositSingleStudentLoading = ref(false);
+const selectedStudent = ref(null);
+
 const items = computed(() => [
   {
     label: "Rules",
     key: "rules",
   },
   {
-    label: "Students",
+    label: "Group Students",
     key: "students",
   },
+  { label: "All Students", key: "all-students" },
 ]);
 
 const isProcessModalOpen = async () => {
@@ -289,7 +303,7 @@ const confirmDeleteRules = async () => {
         color: "success",
         duration: 2000,
       });
-
+      deleteModal.value = false; // Close the modal
       await fetchRules(true);
       // Reset form state after deletion
       resetRulesForm();
@@ -308,7 +322,6 @@ const confirmDeleteRules = async () => {
     console.error("Error deleting Rules:", error);
   } finally {
     isSubmitting.value = false;
-    deleteModal.value = false; // Close the modal
   }
 };
 
@@ -469,13 +482,16 @@ const handleAddStudent = () => {
 const fetchStudents = async () => {
   try {
     studentFetching.value = true;
-    const response = await api(`/api/students?active_only=true`);
+    const response = await api(`/api/students`);
 
     if (response?.success) {
-      students.value = response?.Students.map((item) => ({
-        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
-        value: item?.id,
-      }));
+      allStudents.value = response?.students;
+      students.value = response?.students
+        ?.filter((item) => item?.active === 1)
+        .map((item) => ({
+          label: `${item?.first_yiddish_name} ${item?.last_yiddish_name}`,
+          value: item?.id,
+        }));
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
@@ -508,7 +524,7 @@ const onAddStudentSubmit = async (event) => {
         color: "success",
         duration: 2000,
       });
-
+      addStudentModal.value = false; // Close the modal
       await fetchGroupStudents();
       // Reset form state after submission
       studentState.student_ids = [];
@@ -527,8 +543,241 @@ const onAddStudentSubmit = async (event) => {
     console.error("Error creating Rules:", error);
   } finally {
     isStudentFormSubmiting.value = false;
-    addStudentModal.value = false; // Close the modal
   }
+};
+
+const handlePreviewSingleStudentClick = async (student) => {
+  selectedStudent.value = student;
+  processGroupStudentModal.value = true;
+  await fetchSingleStudentPreview({
+    from_date: calendarRange.value.start?.toString(),
+    till_date: calendarRange.value.end?.toString(),
+  });
+};
+
+const handleSingleStudentCheckClick = async (student) => {
+  selectedStudent.value = student;
+  singleStudentCheckModal.value = true;
+};
+
+const handleSingleStudentDepositClick = async (student) => {
+  selectedStudent.value = student;
+  singleStudentDepositModal.value = true;
+};
+
+const allStudentscolumns = [
+  {
+    accessorKey: "first_name",
+    header: "Full Name",
+    cell: ({ row }) => row.original.first_name + " " + row.original.last_name,
+  },
+  { accessorKey: "fingerprints", header: "Fingerprints" },
+  { accessorKey: "first_yiddish_name", header: "First Yiddish Name" },
+  { accessorKey: "last_yiddish_name", header: "Last Yiddish Name" },
+  { accessorKey: "phone", header: "Phone" },
+  {
+    header: "Quick Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center" }, [
+        // Preview Student Button
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Preview Student" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-user-check",
+                size: "md",
+                color: "success",
+                variant: "soft",
+                onClick: () => handlePreviewSingleStudentClick(row.original),
+              }),
+          },
+        ),
+
+        // Process Check Button
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Process Check" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-check-square",
+                size: "md",
+                color: "info",
+                variant: "soft",
+                onClick: () => handleSingleStudentCheckClick(row.original),
+              }),
+          },
+        ),
+
+        // Process Depost Button
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Process Depost" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-wallet",
+                size: "md",
+                color: "warning",
+                variant: "soft",
+                onClick: () => handleSingleStudentDepositClick(row.original),
+              }),
+          },
+        ),
+      ]),
+  },
+];
+
+const fetchSingleStudentPreview = async (data) => {
+  try {
+    if (selectedStudent.value) {
+      fetchingSingleStudentPreview.value = true;
+      const response = await api(
+        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/preview`,
+        {
+          method: "GET",
+          params: {
+            from_date: data?.from_date,
+            till_date: data?.till_date,
+          },
+        },
+      );
+
+      processGroupStudentModal.value = false;
+      toast.add({
+        title: "Faild",
+        description: "Api is not ready yet",
+        color: "error",
+        duration: 2000,
+      });
+
+      // if (response?.success) {
+      //   previewStudentRulesAllGroups.value = Array.isArray(response.data)
+      //     ? response.data
+      //     : Object.values(response.data || {}).flatMap((item) =>
+      //         Object.values(item || {}),
+      //       );
+      //   console.log(
+      //     "🚀 ~ fetchStudentPreviewRulesAllGroups ~ previewStudentRulesAllGroups.value:",
+      //     previewStudentRulesAllGroups.value,
+      //   );
+      // }
+    }
+  } catch (error) {
+    console.error("Error deleting Rules:", error);
+  } finally {
+    fetchingSingleStudentPreview.value = false;
+  }
+};
+
+// single student check
+const fetchSingleStudentCheck = async (data) => {
+  try {
+    if (selectedStudent.value) {
+      processCheckSingleStudentLoading.value = true;
+      const response = await api(
+        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/process/checks`,
+        {
+          method: "POST",
+          params: {
+            from_date: data?.from_date,
+            till_date: data?.till_date,
+          },
+        },
+      );
+
+      if (response?.success) {
+        const fileURL = response.data["1"];
+
+        $printJS({
+          printable: fileURL,
+          type: "pdf",
+          base64: true,
+        });
+
+        singleStudentCheckModal.value = false;
+      }
+    }
+  } catch (error) {
+    console.error("Error deleting Rules:", error);
+  } finally {
+    processCheckSingleStudentLoading.value = false;
+  }
+};
+
+const fetchSingleStudentDeposit = async (data) => {
+  try {
+    if (selectedStudent.value) {
+      processDepositSingleStudentLoading.value = true;
+      const response = await api(
+        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/process/deposit`,
+        {
+          method: "POST",
+          params: {
+            from_date: data?.from_date,
+            till_date: data?.till_date,
+          },
+        },
+      );
+
+      if (response?.success) {
+        toast.add({
+          title: "Success",
+          description: response?.message || "Direct deposit processing started",
+          color: "success",
+          duration: 2000,
+        });
+        singleStudentDepositModal.value = false;
+      } else {
+        toast.add({
+          title: "Failed",
+          description:
+            response?.message ||
+            response?._data.errors ||
+            response?._data.message ||
+            "Failed to delete group",
+          color: "error",
+          duration: 2000,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error deleting Rules:", error);
+  } finally {
+    processDepositSingleStudentLoading.value = false;
+  }
+};
+
+// single student check date change
+const onSingleGroupCheckDateChange = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
+
+  await fetchSingleStudentCheck({
+    ...val,
+  });
+};
+
+// single student deposit date change
+const onSingleGroupDepositDateChange = async (val) => {
+  if (!val?.from_date || !val?.till_date) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+  }
+
+  await fetchSingleStudentDeposit({
+    ...val,
+  });
 };
 
 onMounted(async () => {
@@ -544,6 +793,15 @@ const onDateChange = async (val) => {
   if (!val?.start || !val?.end) return;
 
   await fetchProcessRules({
+    from_date: val.start.toString(),
+    till_date: val.end.toString(),
+  });
+};
+
+const onSingleStudentPreviewDateChange = async (val) => {
+  if (!val?.start || !val?.end) return;
+
+  await fetchSingleStudentPreview({
     from_date: val.start.toString(),
     till_date: val.end.toString(),
   });
@@ -583,6 +841,8 @@ watch(activeTab, (newTab) => {
     fetchRules(true);
   } else if (newTab === "1") {
     fetchGroupStudents();
+  } else if (newTab === "2") {
+    fetchStudents();
   }
 });
 </script>
@@ -751,13 +1011,26 @@ watch(activeTab, (newTab) => {
   </template>
   <template v-if="activeTab === '1'">
     <!-- Students Tab -->
-    <PayrollStudents
-      :students="groupStudents"
-      :fetchingGroupStudents="fetchingGroupStudents"
-      :metric-labels="metricLabels"
-      :operater-labels="operaterLabels"
-      @refresh="fetchGroupStudents"
-    />
+    <UCard>
+      <PayrollStudents
+        :students="groupStudents"
+        :fetchingGroupStudents="fetchingGroupStudents"
+        :metric-labels="metricLabels"
+        :operater-labels="operaterLabels"
+        @refresh="fetchGroupStudents"
+      />
+    </UCard>
+  </template>
+
+  <template v-if="activeTab === '2'">
+    <UCard>
+      <UTable
+        :columns="allStudentscolumns"
+        :loading="studentFetching"
+        :data="allStudents"
+        class="flex-1 mt-6"
+      />
+    </UCard>
   </template>
 
   <!-- Rules Create/Edit Modal -->
@@ -1051,4 +1324,48 @@ watch(activeTab, (newTab) => {
       </UForm>
     </template>
   </UModal>
+
+  <!-- Single Student Processing Check Modal -->
+  <CommonChecksDepositModal
+    v-model="singleStudentCheckModal"
+    :title="
+      selectedStudent
+        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : Single Student Process Checks`
+        : 'Single Student Process Checks'
+    "
+    :loading="processCheckSingleStudentLoading"
+    type="check"
+    isStudent
+    @submit="onSingleGroupCheckDateChange"
+  />
+
+  <!-- Single Student Processing Deposit Modal -->
+  <CommonChecksDepositModal
+    v-model="singleStudentDepositModal"
+    :title="
+      selectedStudent
+        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : Single  Student Process Deposit`
+        : 'Single  Student Process Deposit'
+    "
+    :loading="processDepositSingleStudentLoading"
+    type="deposit"
+    isStudent
+    @submit="onSingleGroupDepositDateChange"
+  />
+
+  <!-- Single Student Processing Rules Modal -->
+  <CommonRulesModal
+    v-model="processGroupStudentModal"
+    :title="
+      selectedStudent
+        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : All Groups Student Processing Rules`
+        : 'All Groups Student Processing Rules'
+    "
+    :rules="previewStudentRulesAllGroups"
+    :loading="fetchingSingleStudentPreview"
+    :metric-labels="metricLabels"
+    :operater-labels="operaterLabels"
+    type="process"
+    @date-change="onSingleStudentPreviewDateChange"
+  />
 </template>
