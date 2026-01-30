@@ -325,7 +325,7 @@ const onSubmitScheduleDelete = async () => {
         color: "success",
         duration: 2000,
       });
-
+      scheduleDeleteConfirmModal.value = false;
       await fetchDefaultSchedules();
     } else {
       toast.add({
@@ -342,7 +342,6 @@ const onSubmitScheduleDelete = async () => {
     console.error("Error deleting group:", error);
   } finally {
     isSubmitting.value = false;
-    scheduleDeleteConfirmModal.value = false;
   }
 };
 

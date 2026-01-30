@@ -146,7 +146,7 @@ const fetchStudents = async () => {
     const response = await api(fetch);
 
     if (response?.success) {
-      students.value = response?.Students;
+      students.value = response?.students;
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
@@ -235,6 +235,8 @@ const handleFileSubmit = async () => {
         color: "success",
         duration: 2000,
       });
+      file.value = null;
+      importStudentModal.value = false;
       await fetchStudents();
     } else if (response?._data?.message) {
       toast.add({
@@ -258,8 +260,6 @@ const handleFileSubmit = async () => {
       color: "error",
     });
   } finally {
-    file.value = null;
-    importStudentModal.value = false;
     isSubmitting.value = false;
   }
 };

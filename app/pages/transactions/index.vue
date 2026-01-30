@@ -157,7 +157,7 @@ const fetchStudents = async () => {
     const response = await api(`/api/students?active_only=true`);
 
     if (response?.success) {
-      students.value = response?.Students.map((item) => ({
+      students.value = response?.students.map((item) => ({
         label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
         value: item?.id,
       }));
@@ -251,6 +251,7 @@ const onSubmit = async (event) => {
         duration: 2000,
       });
       state.id = null;
+      newTransactionModal.value = false;
       await fetchTransactions({
         date_from: calendarRange.value.start?.toString(),
         date_to: calendarRange.value.end?.toString(),
@@ -277,7 +278,6 @@ const onSubmit = async (event) => {
       color: "error",
     });
   } finally {
-    newTransactionModal.value = false;
     isSubmitting.value = false;
     resetForm();
   }
@@ -300,7 +300,7 @@ const confirmDeleteTransaction = async () => {
         color: "success",
         duration: 2000,
       });
-
+      isDeleteTransactionModalOpen.value = false;
       await fetchTransactions({
         date_from: calendarRange.value.start?.toString(),
         date_to: calendarRange.value.end?.toString(),
@@ -323,7 +323,6 @@ const confirmDeleteTransaction = async () => {
     console.error("Error deleting Rules:", error);
   } finally {
     isTransactionDeleting.value = false;
-    isDeleteTransactionModalOpen.value = false;
   }
 };
 
