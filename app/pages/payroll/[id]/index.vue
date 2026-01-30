@@ -74,11 +74,9 @@ const fetchingRules = ref(false);
 const groupStudents = ref([]);
 const addStudentModal = ref(false);
 const isStudentFormSubmiting = ref(false);
-const students = ref([]);
 const studentFetching = ref(false);
 
 const fetchingSingleStudentPreview = ref(false);
-const allStudents = ref([]);
 
 const processGroupStudentModal = ref(false);
 const processGroupRules = ref([]);
@@ -97,7 +95,6 @@ const items = computed(() => [
     label: "Group Students",
     key: "students",
   },
-  { label: "All Students", key: "all-students" },
 ]);
 
 const isProcessModalOpen = async () => {
@@ -476,28 +473,7 @@ const fetchGroupStudents = async () => {
 
 const handleAddStudent = () => {
   addStudentModal.value = true;
-  fetchStudents();
-};
-
-const fetchStudents = async () => {
-  try {
-    studentFetching.value = true;
-    const response = await api(`/api/students`);
-
-    if (response?.success) {
-      allStudents.value = response?.students;
-      students.value = response?.students
-        ?.filter((item) => item?.active === 1)
-        .map((item) => ({
-          label: `${item?.first_yiddish_name} ${item?.last_yiddish_name}`,
-          value: item?.id,
-        }));
-    }
-  } catch (err) {
-    console.log("🚀 ~ fetchStudents ~ err:", err);
-  } finally {
-    studentFetching.value = false;
-  }
+  // Fetch from the new location if needed
 };
 
 const studentState = reactive({
@@ -565,71 +541,6 @@ const handleSingleStudentDepositClick = async (student) => {
   singleStudentDepositModal.value = true;
 };
 
-const allStudentscolumns = [
-  {
-    accessorKey: "first_name",
-    header: "Full Name",
-    cell: ({ row }) => row.original.first_name + " " + row.original.last_name,
-  },
-  { accessorKey: "fingerprints", header: "Fingerprints" },
-  { accessorKey: "first_yiddish_name", header: "First Yiddish Name" },
-  { accessorKey: "last_yiddish_name", header: "Last Yiddish Name" },
-  { accessorKey: "phone", header: "Phone" },
-  {
-    header: "Quick Actions",
-    cell: ({ row }) =>
-      h("div", { class: "flex gap-2 items-center" }, [
-        // Preview Student Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Preview Student" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-user-check",
-                size: "md",
-                color: "success",
-                variant: "soft",
-                onClick: () => handlePreviewSingleStudentClick(row.original),
-              }),
-          },
-        ),
-
-        // Process Check Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Check" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-check-square",
-                size: "md",
-                color: "info",
-                variant: "soft",
-                onClick: () => handleSingleStudentCheckClick(row.original),
-              }),
-          },
-        ),
-
-        // Process Depost Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Depost" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-wallet",
-                size: "md",
-                color: "warning",
-                variant: "soft",
-                onClick: () => handleSingleStudentDepositClick(row.original),
-              }),
-          },
-        ),
-      ]),
-  },
-];
-
 const fetchSingleStudentPreview = async (data) => {
   try {
     if (selectedStudent.value) {
@@ -645,28 +556,36 @@ const fetchSingleStudentPreview = async (data) => {
         },
       );
 
-      processGroupStudentModal.value = false;
-      toast.add({
-        title: "Faild",
-        description: "Api is not ready yet",
-        color: "error",
-        duration: 2000,
-      });
-
-      // if (response?.success) {
-      //   previewStudentRulesAllGroups.value = Array.isArray(response.data)
-      //     ? response.data
-      //     : Object.values(response.data || {}).flatMap((item) =>
-      //         Object.values(item || {}),
-      //       );
-      //   console.log(
-      //     "🚀 ~ fetchStudentPreviewRulesAllGroups ~ previewStudentRulesAllGroups.value:",
-      //     previewStudentRulesAllGroups.value,
-      //   );
-      // }
+      if (response?.success) {
+        // Handle the preview data - can be array or object
+        let previewArray = [];
+        if (typeof response.data === "object" && !Array.isArray(response.data)) {
+          previewArray = Object.values(response.data).flatMap((item) =>
+            Array.isArray(item) ? item : Object.values(item || {}),
+          );
+        } else if (Array.isArray(response.data)) {
+          previewArray = response.data;
+        }
+        
+        processGroupRules.value = previewArray;
+        processGroupStudentModal.value = true;
+      } else {
+        toast.add({
+          title: "Failed",
+          description: response?.message || "Failed to fetch student preview",
+          color: "error",
+          duration: 2000,
+        });
+      }
     }
   } catch (error) {
-    console.error("Error deleting Rules:", error);
+    console.error("Error fetching student preview:", error);
+    toast.add({
+      title: "Error",
+      description: "An error occurred while fetching preview",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     fetchingSingleStudentPreview.value = false;
   }
@@ -681,7 +600,7 @@ const fetchSingleStudentCheck = async (data) => {
         `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/process/checks`,
         {
           method: "POST",
-          params: {
+          body: {
             from_date: data?.from_date,
             till_date: data?.till_date,
           },
@@ -689,19 +608,45 @@ const fetchSingleStudentCheck = async (data) => {
       );
 
       if (response?.success) {
-        const fileURL = response.data["1"];
+        const fileURL = response.data?.["1"];
 
-        $printJS({
-          printable: fileURL,
-          type: "pdf",
-          base64: true,
+        if (fileURL) {
+          $printJS({
+            printable: fileURL,
+            type: "pdf",
+            base64: true,
+          });
+        }
+
+        toast.add({
+          title: "Success",
+          description: response?.message || "Check processed successfully",
+          color: "success",
+          duration: 2000,
         });
 
         singleStudentCheckModal.value = false;
+      } else {
+        toast.add({
+          title: "Failed",
+          description:
+            response?.message ||
+            response?._data?.errors ||
+            response?._data?.message ||
+            "Failed to process checks",
+          color: "error",
+          duration: 2000,
+        });
       }
     }
   } catch (error) {
-    console.error("Error deleting Rules:", error);
+    console.error("Error processing checks:", error);
+    toast.add({
+      title: "Error",
+      description: "An error occurred while processing checks",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     processCheckSingleStudentLoading.value = false;
   }
@@ -715,7 +660,7 @@ const fetchSingleStudentDeposit = async (data) => {
         `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/process/deposit`,
         {
           method: "POST",
-          params: {
+          body: {
             from_date: data?.from_date,
             till_date: data?.till_date,
           },
@@ -725,7 +670,7 @@ const fetchSingleStudentDeposit = async (data) => {
       if (response?.success) {
         toast.add({
           title: "Success",
-          description: response?.message || "Direct deposit processing started",
+          description: response?.message || "Deposit processed successfully",
           color: "success",
           duration: 2000,
         });
@@ -735,16 +680,22 @@ const fetchSingleStudentDeposit = async (data) => {
           title: "Failed",
           description:
             response?.message ||
-            response?._data.errors ||
-            response?._data.message ||
-            "Failed to delete group",
+            response?._data?.errors ||
+            response?._data?.message ||
+            "Failed to process deposit",
           color: "error",
           duration: 2000,
         });
       }
     }
   } catch (error) {
-    console.error("Error deleting Rules:", error);
+    console.error("Error processing deposit:", error);
+    toast.add({
+      title: "Error",
+      description: "An error occurred while processing deposit",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     processDepositSingleStudentLoading.value = false;
   }
@@ -841,8 +792,6 @@ watch(activeTab, (newTab) => {
     fetchRules(true);
   } else if (newTab === "1") {
     fetchGroupStudents();
-  } else if (newTab === "2") {
-    fetchStudents();
   }
 });
 </script>
@@ -1018,17 +967,9 @@ watch(activeTab, (newTab) => {
         :metric-labels="metricLabels"
         :operater-labels="operaterLabels"
         @refresh="fetchGroupStudents"
-      />
-    </UCard>
-  </template>
-
-  <template v-if="activeTab === '2'">
-    <UCard>
-      <UTable
-        :columns="allStudentscolumns"
-        :loading="studentFetching"
-        :data="allStudents"
-        class="flex-1 mt-6"
+        @preview="handlePreviewSingleStudentClick"
+        @check="handleSingleStudentCheckClick"
+        @deposit="handleSingleStudentDepositClick"
       />
     </UCard>
   </template>
@@ -1358,10 +1299,10 @@ watch(activeTab, (newTab) => {
     v-model="processGroupStudentModal"
     :title="
       selectedStudent
-        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : All Groups Student Processing Rules`
-        : 'All Groups Student Processing Rules'
+        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : Group Student Preview`
+        : 'Group Student Preview'
     "
-    :rules="previewStudentRulesAllGroups"
+    :rules="processGroupRules"
     :loading="fetchingSingleStudentPreview"
     :metric-labels="metricLabels"
     :operater-labels="operaterLabels"
