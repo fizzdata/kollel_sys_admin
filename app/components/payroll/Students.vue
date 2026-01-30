@@ -9,7 +9,7 @@ const props = defineProps({
 
 const { $printJS } = useNuxtApp();
 
-const emit = defineEmits(["refresh"]);
+const emit = defineEmits(["refresh", "preview", "check", "deposit"]);
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -266,7 +266,9 @@ const studentColumns = [
                 size: "md",
                 color: "success",
                 variant: "soft",
-                onClick: () => handlePreviewStudentRulesAllGroup(row.original),
+                onClick: () => emit("preview", row.original),
+
+                // handlePreviewStudentRulesAllGroup(row.original),
               }),
           },
         ),
@@ -282,8 +284,8 @@ const studentColumns = [
                 size: "md",
                 color: "info",
                 variant: "soft",
-                onClick: () =>
-                  handleStudentAllGroupProcessCheckClick(row.original),
+                onClick: () => emit("check", row.original),
+                // handleStudentAllGroupProcessCheckClick(row.original),
               }),
           },
         ),
@@ -299,8 +301,8 @@ const studentColumns = [
                 size: "md",
                 color: "warning",
                 variant: "soft",
-                onClick: () =>
-                  handleStudentAllGroupProcessDepositClick(row.original),
+                onClick: () => emit("deposit", row.original),
+                // handleStudentAllGroupProcessDepositClick(row.original),
               }),
           },
         ),
