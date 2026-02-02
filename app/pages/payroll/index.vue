@@ -300,35 +300,40 @@ const allStudentsColumns = [
   {
     accessorKey: "first_name",
     header: "Full Name",
-    cell: ({ row }) => `${row.original.first_yiddish_name} ${row.original.last_yiddish_name}`,
+    cell: ({ row }) =>
+      `${row.original.first_yiddish_name} ${row.original.last_yiddish_name}`,
   },
-  
+
   {
     accessorKey: "groups",
     header: "Groups",
     cell: ({ row }) => {
       const groups = row.original.groups;
-      
+
       // Handle if groups is an object with group names as values
       let groupList = [];
       if (typeof groups === "object" && groups !== null) {
         // If it's an array
         if (Array.isArray(groups)) {
-          groupList = groups.map(g => typeof g === "string" ? g : g.name || g);
+          groupList = groups.map((g) =>
+            typeof g === "string" ? g : g.name || g,
+          );
         } else {
           // If it's an object, get the values
-          groupList = Object.values(groups).map(g => typeof g === "string" ? g : g.name || g);
+          groupList = Object.values(groups).map((g) =>
+            typeof g === "string" ? g : g.name || g,
+          );
         }
       }
-      
+
       return h(
         "div",
         { class: "flex flex-wrap gap-1" },
-        groupList.map(group =>
+        groupList.map((group) =>
           h(
             resolveComponent("UBadge"),
             {
-              color: "blue",
+              color: "info",
               variant: "soft",
               size: "sm",
             },
@@ -742,7 +747,7 @@ const fetchAllStudents = async () => {
 
     if (response?.success) {
       const students = response?.students || [];
-      
+
       // If students is an object, convert it to an array
       let studentsArray = [];
       if (typeof students === "object" && !Array.isArray(students)) {
@@ -750,7 +755,7 @@ const fetchAllStudents = async () => {
       } else if (Array.isArray(students)) {
         studentsArray = students;
       }
-      
+
       allStudentsData.value = studentsArray;
     }
   } catch (err) {
@@ -790,7 +795,10 @@ const fetchMainPageStudentPreview = async (data) => {
       if (response?.success) {
         // Handle if response is an array or object
         let previewArray = [];
-        if (typeof response.data === "object" && !Array.isArray(response.data)) {
+        if (
+          typeof response.data === "object" &&
+          !Array.isArray(response.data)
+        ) {
           previewArray = Object.values(response.data).flatMap((item) =>
             Array.isArray(item) ? item : Object.values(item || {}),
           );
@@ -847,7 +855,7 @@ const fetchMainPageStudentCheck = async (data) => {
   try {
     if (selectedStudentForAction.value) {
       processCheckSingleStudentLoading.value = true;
-      
+
       // Process check for student across all their groups
       const response = await api(
         `/api/payroll/students/${selectedStudentForAction.value.id}/process/check`,
@@ -863,7 +871,8 @@ const fetchMainPageStudentCheck = async (data) => {
       if (response?.success) {
         toast.add({
           title: "Success",
-          description: response?.message || "Student checks processed successfully",
+          description:
+            response?.message || "Student checks processed successfully",
           color: "success",
           duration: 2000,
         });
@@ -899,7 +908,7 @@ const fetchMainPageStudentDeposit = async (data) => {
   try {
     if (selectedStudentForAction.value) {
       processDepositSingleStudentLoading.value = true;
-      
+
       // Process deposit for student across all their groups
       const response = await api(
         `/api/payroll/students/${selectedStudentForAction.value.id}/process/deposit`,
@@ -915,7 +924,8 @@ const fetchMainPageStudentDeposit = async (data) => {
       if (response?.success) {
         toast.add({
           title: "Success",
-          description: response?.message || "Student deposit processed successfully",
+          description:
+            response?.message || "Student deposit processed successfully",
           color: "success",
           duration: 2000,
         });

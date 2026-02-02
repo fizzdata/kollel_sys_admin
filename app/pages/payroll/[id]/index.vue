@@ -546,7 +546,7 @@ const fetchSingleStudentPreview = async (data) => {
     if (selectedStudent.value) {
       fetchingSingleStudentPreview.value = true;
       const response = await api(
-        `/api/payroll/student/${selectedStudent.value.id}/preview`,
+        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/preview`,
         {
           method: "GET",
           params: {
@@ -559,14 +559,17 @@ const fetchSingleStudentPreview = async (data) => {
       if (response?.success) {
         // Handle the preview data - can be array or object
         let previewArray = [];
-        if (typeof response.data === "object" && !Array.isArray(response.data)) {
+        if (
+          typeof response.data === "object" &&
+          !Array.isArray(response.data)
+        ) {
           previewArray = Object.values(response.data).flatMap((item) =>
             Array.isArray(item) ? item : Object.values(item || {}),
           );
         } else if (Array.isArray(response.data)) {
           previewArray = response.data;
         }
-        
+
         processGroupRules.value = previewArray;
         processGroupStudentModal.value = true;
       } else {
