@@ -496,7 +496,7 @@ const onSubmit = async (event) => {
 const fetchProcessChecks = async (data) => {
   try {
     processChecksLoading.value = true;
-    const response = await api(`/api/payroll/process/check`, {
+    const response = await api(`/api/payroll/process/checks`, {
       method: "POST",
       body: {
         from_date: data?.from_date,

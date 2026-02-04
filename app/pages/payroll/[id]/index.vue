@@ -72,6 +72,7 @@ const fetchingRules = ref(false);
 
 // Student states
 const groupStudents = ref([]);
+const allStudents = ref([]);
 const addStudentModal = ref(false);
 const isStudentFormSubmiting = ref(false);
 const studentFetching = ref(false);
@@ -473,7 +474,25 @@ const fetchGroupStudents = async () => {
 
 const handleAddStudent = () => {
   addStudentModal.value = true;
-  // Fetch from the new location if needed
+  fetchAllStudents();
+};
+
+const fetchAllStudents = async () => {
+  try {
+    studentFetching.value = true;
+    const response = await api(`/api/students`);
+
+    if (response?.success) {
+      allStudents.value = response?.students?.map((item) => ({
+        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
+        value: item?.id,
+      })) || [];
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchAllStudents ~ err:", err);
+  } finally {
+    studentFetching.value = false;
+  }
 };
 
 const studentState = reactive({
@@ -1241,7 +1260,7 @@ watch(activeTab, (newTab) => {
           >
             <USelectMenu
               v-model="studentState.student_ids"
-              :items="students"
+              :items="allStudents"
               placeholder="Please Select"
               class="w-full"
               size="lg"
