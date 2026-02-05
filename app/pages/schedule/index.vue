@@ -1,6 +1,6 @@
 <script setup>
 import { convertTo24Hour } from "~/common/common";
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, watch, computed } from "vue";
 
 definePageMeta({
   layout: "sidebar",
@@ -58,6 +58,7 @@ const questionState = reactive({
 const assignmentState = reactive({
   scheduleId: null,
   questionId: null,
+  assignTo: 'q_in', // 'q_in', 'q_out', or 'both'
 });
 
 async function fetchSchedules() {
@@ -202,8 +203,27 @@ function openAssignQuestionModal(question) {
   selectedQuestion.value = question;
   assignmentState.scheduleId = null;
   assignmentState.questionId = question.id;
+  assignmentState.assignTo = 'q_in';
+  
+  // Ensure schedules are available
+  if (!schedules.value || schedules.value.length === 0) {
+    fetchSchedules();
+  }
+  
   assignQuestionModal.value = true;
 }
+
+// Computed property for schedule options
+const scheduleOptions = computed(() => {
+  if (!schedules.value || !Array.isArray(schedules.value)) {
+    return [];
+  }
+  
+  return schedules.value.map((schedule) => ({
+    label: `${schedule.start} - ${schedule.end} ${schedule.title ? '(' + schedule.title + ')' : ''}`,
+    value: schedule.id,
+  }));
+});
 
 async function submitAssignment() {
   if (!assignmentState.scheduleId) {
@@ -217,23 +237,30 @@ async function submitAssignment() {
 
   isSubmittingAssignment.value = true;
   try {
+    const assignmentData = {
+      scheduleId: assignmentState.scheduleId,
+      questionId: assignmentState.questionId,
+      assignTo: assignmentState.assignTo,
+    };
+
     const response = await api("/api/schedule-question-assignments", {
       method: "POST",
-      body: {
-        scheduleId: assignmentState.scheduleId,
-        questionId: assignmentState.questionId,
-      },
+      body: assignmentData,
     });
 
     if (response?.success) {
+      const assignToText = 
+        assignmentState.assignTo === 'both' ? 'check-in and check-out' :
+        assignmentState.assignTo === 'q_in' ? 'check-in' : 'check-out';
+      
       toast.add({
         title: "Success",
-        description: "Question assigned to schedule successfully",
+        description: `Question assigned to schedule for ${assignToText} successfully`,
         color: "success",
         duration: 2000,
       });
       assignQuestionModal.value = false;
-      await fetchScheduleQuestions();
+      await fetchSchedules(); // Refresh schedules to see updates
     } else {
       toast.add({
         title: "Failed",
@@ -367,7 +394,7 @@ const scheduleColumns = [
         // Edit User Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Assign" },
+          { text: "Assign Question" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -502,28 +529,20 @@ onMounted(async () => {
 
     <template #body>
       <UForm :state="state" class="space-y-4" @submit="onSubmit">
-        <div class="grid grid-cols-2 my-6 place-items-center">
-          <UFormField label="Starts" class="flex gap-4 items-center">
-            <input
+        <div class="grid grid-cols-2 my-6 gap-4">
+          <UFormField label="Starts" name="start" required>
+            <UInput
               v-model="state.start"
               type="time"
-              name="start"
-              id="start"
-              step="1"
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-              required
+              placeholder="Start time"
             />
           </UFormField>
 
-          <UFormField label="Ends" class="flex gap-4 items-center">
-            <input
+          <UFormField label="Ends" name="end" required>
+            <UInput
               v-model="state.end"
               type="time"
-              name="end"
-              id="end"
-              step="1"
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
-              required
+              placeholder="End time"
             />
           </UFormField>
         </div>
@@ -690,14 +709,22 @@ onMounted(async () => {
 
         <!-- Schedule Selection -->
         <UFormField label="Select Schedule" required>
-          <!-- schedules?.map((schedule) => ({
-            label: `${schedule.start} - ${schedule.end}`,
-            value: schedule.id,
-          })) -->
           <USelect
             v-model="assignmentState.scheduleId"
-            :items="[]"
+            :options="scheduleOptions"
             placeholder="Choose a schedule"
+          />
+        </UFormField>
+
+        <!-- Assignment Type Selection -->
+        <UFormField label="Assign Question For" required>
+          <URadioGroup 
+            v-model="assignmentState.assignTo" 
+            :options="[
+              { value: 'q_in', label: 'Check-In Only' },
+              { value: 'q_out', label: 'Check-Out Only' },
+              { value: 'both', label: 'Both Check-In and Check-Out' }
+            ]"
           />
         </UFormField>
 
