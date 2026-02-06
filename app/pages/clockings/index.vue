@@ -52,10 +52,32 @@ const calendarRange = ref({
 });
 const toggleSwitch = async () => {
   isActive.value = !isActive.value;
+  pagination.value.currentPage = 1; // Reset to first page
   await fetchClockings({
     date_from: calendarRange.value.start?.toString(),
     date_to: calendarRange.value.end?.toString(),
-  });
+  }, 1);
+};
+
+// Add pagination functions
+const goToPreviousPage = async () => {
+  if (pagination.value.currentPage > 1) {
+    const newPage = pagination.value.currentPage - 1;
+    await fetchClockings({
+      date_from: calendarRange.value.start?.toString(),
+      date_to: calendarRange.value.end?.toString(),
+    }, newPage);
+  }
+};
+
+const goToNextPage = async () => {
+  if (pagination.value.currentPage < pagination.value.lastPage) {
+    const newPage = pagination.value.currentPage + 1;
+    await fetchClockings({
+      date_from: calendarRange.value.start?.toString(),
+      date_to: calendarRange.value.end?.toString(),
+    }, newPage);
+  }
 };
 
 const state = reactive({
@@ -225,7 +247,7 @@ const fetchStudents = async () => {
   }
 };
 
-const fetchClockings = async (date) => {
+const fetchClockings = async (date, page = 1) => {
   try {
     loading.value = true;
     const response = await api(`/api/clockings`, {
@@ -234,6 +256,7 @@ const fetchClockings = async (date) => {
         date_from: date?.date_from,
         date_to: date?.date_to,
         error_only: isActive.value,
+        page: page,
       },
     });
 
@@ -300,7 +323,7 @@ const onSubmit = async (event) => {
       await fetchClockings({
         date_from: calendarRange.value.start?.toString(),
         date_to: calendarRange.value.end?.toString(),
-      });
+      }, 1);
     } else if (response?._data?.message) {
       toast.add({
         title: "Failed",
@@ -365,7 +388,7 @@ const importClockings = async (formData) => {
       await fetchClockings({
         date_from: calendarRange.value.start?.toString(),
         date_to: calendarRange.value.end?.toString(),
-      });
+      }, 1);
       ImportClockingModal.value = false;
     } else if (response?._data?.message) {
       toast.add({
@@ -422,7 +445,7 @@ onMounted(async () => {
   await fetchClockings({
     date_from: calendarRange.value.start?.toString(),
     date_to: calendarRange.value.end?.toString(),
-  });
+  }, 1);
 });
 
 // watch for datepicker changes
@@ -434,11 +457,14 @@ watch(
     // close popover
     open.value = false;
 
+    // reset to first page when date changes
+    pagination.value.currentPage = 1;
+
     // call API
     await fetchClockings({
       date_from: val.start.toString(),
       date_to: val.end.toString(),
-    });
+    }, 1);
   },
   { deep: true },
 );
@@ -546,6 +572,8 @@ watch(
           size="sm"
           label="Previous"
           icon="i-lucide-chevron-left"
+          @click="goToPreviousPage"
+          :loading="loading"
         />
         <span class="px-3 py-2"
           >{{ pagination.currentPage }} / {{ pagination.lastPage }}</span
@@ -556,6 +584,8 @@ watch(
           size="sm"
           label="Next"
           icon="i-lucide-chevron-right"
+          @click="goToNextPage"
+          :loading="loading"
         />
       </div>
     </div>
