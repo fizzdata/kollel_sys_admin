@@ -119,7 +119,8 @@ const schema = object({
     .required("Amount is required")
     .min(0, "Amount cannot be negative"),
   apply_once: string().required("Apply Rules is required"),
-  description: string(),
+  description: string().required("Description is required"),
+  reference_id: string().nullable(),
 });
 
 const rulesform = ref({
@@ -175,6 +176,11 @@ const fetchProcessRules = async (date) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
+    toast.add({
+      description: "Error fetching payroll process. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     processRulesLoading.value = false;
   }
@@ -214,6 +220,13 @@ const fetchProcessChecks = async (data) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An error occurred while deposit checks. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     processChecksLoading.value = false;
   }
@@ -256,6 +269,13 @@ const fetchProcessDeposit = async (data) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An error occurred while deposit checks. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     processDepositLoading.value = false;
   }
@@ -318,6 +338,13 @@ const confirmDeleteRules = async () => {
     }
   } catch (error) {
     console.error("Error deleting Rules:", error);
+    toast.add({
+      title: "Error",
+      description:
+        "An error occurred while deleting group rules. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -372,6 +399,12 @@ const onSubmit = async (event) => {
     }
   } catch (error) {
     console.error("Error creating Rules:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -386,6 +419,13 @@ const fetchGroupDetail = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected while fetching payroll groups. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   }
 };
 
@@ -419,6 +459,13 @@ const rulesOptionsFetch = async () => {
     }
   } catch (error) {
     console.error("An error occurred:", error.message);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected while fetching payroll rules options. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     fetchingRulesOptions.value = false;
   }
@@ -437,6 +484,13 @@ const fetchRules = async (refresh = false) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected while fetching group rules. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     fetchingRules.value = false;
   }
@@ -467,6 +521,13 @@ const fetchGroupStudents = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected while fetching group students. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     fetchingGroupStudents.value = false;
   }
@@ -483,13 +544,20 @@ const fetchAllStudents = async () => {
     const response = await api(`/api/students`);
 
     if (response?.success) {
-      allStudents.value = response?.students?.map((item) => ({
-        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
-        value: item?.id,
-      })) || [];
+      allStudents.value =
+        response?.students?.map((item) => ({
+          label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
+          value: item?.id,
+        })) || [];
     }
   } catch (err) {
     console.log("🚀 ~ fetchAllStudents ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred during fetching students. Please try again later.",
+      color: "error",
+    });
   } finally {
     studentFetching.value = false;
   }
@@ -536,6 +604,12 @@ const onAddStudentSubmit = async (event) => {
     }
   } catch (error) {
     console.error("Error creating Rules:", error);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred during student add to group. Please try again later.",
+      color: "error",
+    });
   } finally {
     isStudentFormSubmiting.value = false;
   }
@@ -604,7 +678,8 @@ const fetchSingleStudentPreview = async (data) => {
     console.error("Error fetching student preview:", error);
     toast.add({
       title: "Error",
-      description: "An error occurred while fetching preview",
+      description:
+        "An error occurred while fetching preview. Please try again later.",
       color: "error",
       duration: 2000,
     });
@@ -665,7 +740,8 @@ const fetchSingleStudentCheck = async (data) => {
     console.error("Error processing checks:", error);
     toast.add({
       title: "Error",
-      description: "An error occurred while processing checks",
+      description:
+        "An error occurred while processing checks. Please try again later.",
       color: "error",
       duration: 2000,
     });
@@ -714,7 +790,8 @@ const fetchSingleStudentDeposit = async (data) => {
     console.error("Error processing deposit:", error);
     toast.add({
       title: "Error",
-      description: "An error occurred while processing deposit",
+      description:
+        "An error occurred while processing deposit. Please try again later.",
       color: "error",
       duration: 2000,
     });
@@ -731,6 +808,7 @@ const onSingleGroupCheckDateChange = async (val) => {
       description: "Please select a valid date range.",
       color: "error",
     });
+    return;
   }
 
   await fetchSingleStudentCheck({
@@ -746,6 +824,7 @@ const onSingleGroupDepositDateChange = async (val) => {
       description: "Please select a valid date range.",
       color: "error",
     });
+    return;
   }
 
   await fetchSingleStudentDeposit({
@@ -755,15 +834,20 @@ const onSingleGroupDepositDateChange = async (val) => {
 
 onMounted(async () => {
   loading.value = true;
-  // fetchingRules.value = true;
   await fetchGroupDetail();
   loading.value = false;
   await fetchRules(false);
-  // fetchingRules.value = false;
 });
 
 const onDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+  if (!val?.start || !val?.end) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+    return;
+  }
 
   await fetchProcessRules({
     from_date: val.start.toString(),
@@ -772,7 +856,14 @@ const onDateChange = async (val) => {
 };
 
 const onSingleStudentPreviewDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+  if (!val?.start || !val?.end) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+    return;
+  }
 
   await fetchSingleStudentPreview({
     from_date: val.start.toString(),
@@ -787,6 +878,7 @@ const onCheckFormSubmit = async (val) => {
       description: "Please select a valid date range.",
       color: "error",
     });
+    return;
   }
 
   await fetchProcessChecks({
@@ -801,6 +893,7 @@ const onDepositFormSubmit = async (val) => {
       description: "Please select a valid date range.",
       color: "error",
     });
+    return;
   }
 
   await fetchProcessDeposit({
@@ -982,7 +1075,13 @@ watch(activeTab, (newTab) => {
   </template>
   <template v-if="activeTab === '1'">
     <!-- Students Tab -->
-    <UCard>
+    <UCard class="rounded-2xl shadow-sm mt-6">
+      <div
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      >
+        <h2 class="text-lg font-bold">View and manage group students</h2>
+      </div>
+
       <PayrollStudents
         :students="groupStudents"
         :fetchingGroupStudents="fetchingGroupStudents"
@@ -1038,7 +1137,7 @@ watch(activeTab, (newTab) => {
         @submit="onSubmit"
       >
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Metric" name="metric">
+          <UFormField label="Metric" name="metric" required>
             <USelect
               v-model="rulesState.metric"
               :items="metricOptions"
@@ -1047,7 +1146,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Operator" name="operator">
+          <UFormField label="Operator" name="operator" required>
             <USelect
               v-model="rulesState.operator"
               :items="operatorOptions"
@@ -1056,7 +1155,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Value" name="value">
+          <UFormField label="Value" name="value" required>
             <UInput
               v-model="rulesState.value"
               placeholder="Enter your value"
@@ -1065,7 +1164,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Second Operator" name="second_operator">
+          <UFormField label="Second Operator" name="second_operator" required>
             <USelect
               v-model="rulesState.second_operator"
               :items="operatorOptions"
@@ -1074,7 +1173,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Second Value" name="second_value">
+          <UFormField label="Second Value" name="second_value" required>
             <UInput
               v-model="rulesState.second_value"
               placeholder="Enter second value"
@@ -1083,7 +1182,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Session Number" name="session">
+          <UFormField label="Session Number" name="session" required>
             <UInput
               v-model="rulesState.session"
               placeholder="Enter session number"
@@ -1092,7 +1191,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Is Deduction" name="is_deduction">
+          <UFormField label="Is Deduction" name="is_deduction" required>
             <USelect
               v-model="rulesState.is_deduction"
               :items="deductionItems"
@@ -1101,7 +1200,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Amount Type" name="amount_type">
+          <UFormField label="Amount Type" name="amount_type" required>
             <USelect
               v-model="rulesState.amount_type"
               :items="amountTypeItems"
@@ -1110,7 +1209,7 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Amount" name="amount">
+          <UFormField label="Amount" name="amount" required>
             <UInput
               v-model="rulesState.amount"
               placeholder="Enter your amount"
@@ -1119,13 +1218,13 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Apply Rules" name="apply_once">
+          <UFormField label="Apply Rules" name="apply_once" required>
             <URadioGroup
               v-model="rulesState.apply_once"
               :items="applyOnceItems"
             />
           </UFormField>
-          <UFormField label="Description" name="description">
+          <UFormField label="Description" name="description" required>
             <UInput
               v-model="rulesState.description"
               placeholder="Please enter description"

@@ -15,19 +15,19 @@ const currentPage = ref(1);
 const totalPages = ref(1);
 
 // Date filters for export
-const fromDate = ref('');
-const toDate = ref('');
+const fromDate = ref("");
+const toDate = ref("");
 
 // Filter options
-const payToFilter = ref('');
-const clearedFilter = ref('');
-const searchTerm = ref('');
+const payToFilter = ref("");
+const clearedFilter = ref("");
+const searchTerm = ref("");
 
 // Filter options
 const clearedOptions = [
-  { label: 'All', value: '' },
-  { label: 'Cleared', value: '1' },
-  { label: 'Pending', value: '0' }
+  { label: "All", value: null },
+  { label: "Cleared", value: "1" },
+  { label: "Pending", value: "0" },
 ];
 
 // Fetch checks data
@@ -35,21 +35,19 @@ const fetchChecks = async (page = 1) => {
   loading.value = true;
   try {
     let url = `/api/checks?page=${page}`;
-    
+
     // Add filters to URL
     if (payToFilter.value) {
       url += `&pay_to=${encodeURIComponent(payToFilter.value)}`;
     }
-    if (clearedFilter.value !== '') {
+    if (clearedFilter.value) {
       url += `&cleared=${clearedFilter.value}`;
     }
     if (searchTerm.value) {
       url += `&search=${encodeURIComponent(searchTerm.value)}`;
     }
-    
+
     const response = await api(url);
-    
-    console.log('API Response:', response);
 
     if (response.success) {
       checks.value = response.checks.data || response.checks;
@@ -57,16 +55,16 @@ const fetchChecks = async (page = 1) => {
       totalPages.value = response.checks.last_page || 1;
     } else {
       toast.add({
-        title: 'Error',
-        description: response.message || 'Failed to fetch checks',
-        color: 'red'
+        title: "Error",
+        description: response.message || "Failed to fetch checks",
+        color: "error",
       });
     }
   } catch (error) {
     toast.add({
-      title: 'Error',
-      description: 'Failed to fetch checks',
-      color: 'red'
+      title: "Error",
+      description: "Failed to fetch checks. Please try again later.",
+      color: "error",
     });
   } finally {
     loading.value = false;
@@ -77,30 +75,30 @@ const fetchChecks = async (page = 1) => {
 const markAsCleared = async (checkId) => {
   try {
     const response = await api(`/api/checks/${checkId}/cleared`, {
-      method: 'POST',
-      body: { id: checkId }
+      method: "POST",
+      body: { id: checkId },
     });
 
     if (response.success) {
       toast.add({
-        title: 'Success',
-        description: 'Check marked as cleared',
-        color: 'green'
+        title: "Success",
+        description: "Check marked as cleared",
+        color: "success",
       });
       // Refresh the list
       await fetchChecks(currentPage.value);
     } else {
       toast.add({
-        title: 'Error',
-        description: response.message || 'Failed to mark check as cleared',
-        color: 'red'
+        title: "Error",
+        description: response.message || "Failed to mark check as cleared",
+        color: "error",
       });
     }
   } catch (error) {
     toast.add({
-      title: 'Error',
-      description: 'Failed to mark check as cleared',
-      color: 'red'
+      title: "Error",
+      description: "Failed to mark check as cleared",
+      color: "error",
     });
   }
 };
@@ -109,23 +107,25 @@ const markAsCleared = async (checkId) => {
 const exportToExcel = async () => {
   if (!fromDate.value || !toDate.value) {
     toast.add({
-      title: 'Error',
-      description: 'Please select both from and to dates for export',
-      color: 'red'
+      title: "Error",
+      description: "Please select both from and to dates for export",
+      color: "error",
     });
     return;
   }
 
   exporting.value = true;
   try {
-    const response = await api(`/api/checks/export?from_date=${fromDate.value}&to_date=${toDate.value}`);
+    const response = await api(
+      `/api/checks/export?from_date=${fromDate.value}&to_date=${toDate.value}`,
+    );
 
     // Handle file download
     const blob = new Blob([response], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `checks_export_${fromDate.value}_to_${toDate.value}.xlsx`;
     document.body.appendChild(a);
@@ -134,15 +134,15 @@ const exportToExcel = async () => {
     window.URL.revokeObjectURL(url);
 
     toast.add({
-      title: 'Success',
-      description: 'Export completed successfully',
-      color: 'green'
+      title: "Success",
+      description: "Export completed successfully",
+      color: "success",
     });
   } catch (error) {
     toast.add({
-      title: 'Error',
-      description: 'Failed to export checks',
-      color: 'red'
+      title: "Error",
+      description: "Failed to export checks",
+      color: "error",
     });
   } finally {
     exporting.value = false;
@@ -151,15 +151,15 @@ const exportToExcel = async () => {
 
 // Format currency
 const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(amount);
 };
 
 // Format date
 const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('en-US');
+  return new Date(date).toLocaleDateString("en-US");
 };
 
 // Load initial data
@@ -183,53 +183,81 @@ const columns = [
   {
     accessorKey: "check_number",
     header: "Check #",
-    cell: ({ row }) => h("span", { class: "font-mono text-sm" }, row.original.check_number),
+    cell: ({ row }) =>
+      h("span", { class: "font-mono text-sm" }, row.original.check_number),
   },
   {
     accessorKey: "pay_to",
     header: "Pay To",
-    cell: ({ row }) => h("div", { class: "max-w-xs truncate text-sm" }, row.original.pay_to),
+    cell: ({ row }) =>
+      h("div", { class: "max-w-xs truncate text-sm" }, row.original.pay_to),
   },
   {
     accessorKey: "check_date",
     header: "Date",
-    cell: ({ row }) => h("span", { class: "text-sm" }, formatDate(row.original.check_date)),
+    cell: ({ row }) =>
+      h("span", { class: "text-sm" }, formatDate(row.original.check_date)),
   },
   {
     accessorKey: "amount",
     header: "Amount",
-    cell: ({ row }) => h("span", { class: "font-semibold text-green-600 text-sm" }, formatCurrency(row.original.amount)),
+    cell: ({ row }) =>
+      h(
+        "span",
+        { class: "font-semibold text-green-600 text-sm" },
+        formatCurrency(row.original.amount),
+      ),
   },
   {
     accessorKey: "memo",
     header: "Memo",
-    cell: ({ row }) => h("div", { class: "max-w-xs truncate text-sm text-gray-600" }, row.original.memo || '-'),
+    cell: ({ row }) =>
+      h(
+        "div",
+        { class: "max-w-xs truncate text-sm text-gray-600" },
+        row.original.memo || "-",
+      ),
   },
   {
     accessorKey: "cleared",
     header: "Status",
     cell: ({ row }) =>
-      h(resolveComponent("UBadge"), {
-        color: row.original.cleared ? 'green' : 'yellow',
-        variant: 'solid',
-        size: 'sm',
-      }, () => row.original.cleared ? 'Cleared' : 'Pending'),
+      h(
+        resolveComponent("UBadge"),
+        {
+          color: row.original.cleared ? "green" : "yellow",
+          variant: "solid",
+          size: "sm",
+        },
+        () => (row.original.cleared ? "Cleared" : "Pending"),
+      ),
   },
   {
     header: "Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
         !row.original.cleared
-          ? h(resolveComponent("UButton"), {
-              size: "sm",
-              color: "gray",
-              variant: "soft",
-              onClick: () => markAsCleared(row.original.id),
-            }, () => [
-              h(resolveComponent("UIcon"), { name: "i-heroicons-check-circle", class: "w-4 h-4 mr-1" }),
-              "Mark Cleared"
-            ])
-          : h("span", { class: "text-xs text-gray-500 px-2 py-1" }, "Already cleared"),
+          ? h(
+              resolveComponent("UButton"),
+              {
+                size: "sm",
+                color: "neutral",
+                variant: "soft",
+                onClick: () => markAsCleared(row.original.id),
+              },
+              () => [
+                h(resolveComponent("UIcon"), {
+                  name: "i-heroicons-check-circle",
+                  class: "w-4 h-4 mr-1",
+                }),
+                "Mark Cleared",
+              ],
+            )
+          : h(
+              "span",
+              { class: "text-xs text-gray-500 px-2 py-1" },
+              "Already cleared",
+            ),
       ]),
   },
 ];
@@ -237,9 +265,11 @@ const columns = [
 
 <template>
   <UCard class="rounded-2xl shadow-sm">
-    <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
       <h2 class="text-xl font-bold">Checks Management</h2>
-      
+
       <!-- Export Section -->
       <div class="flex items-center gap-2">
         <UInput
@@ -257,12 +287,9 @@ const columns = [
         <UButton
           @click="exportToExcel"
           :loading="exporting"
-          color="gray"
-          variant="solid"
           icon="i-heroicons-document-arrow-down"
-        >
-          Export to Excel
-        </UButton>
+          label="Export to Excel"
+        />
       </div>
     </div>
   </UCard>
@@ -313,7 +340,7 @@ const columns = [
 
     <USelect
       v-model="clearedFilter"
-      :options="clearedOptions"
+      :items="clearedOptions"
       size="lg"
       placeholder="Filter by Status"
       class="w-full md:w-48"
@@ -321,7 +348,12 @@ const columns = [
   </div>
 
   <!-- Checks Table -->
-  <UCard class="mt-6">
+  <UCard class="rounded-2xl shadow-sm mt-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">View and manage checks</h2>
+    </div>
     <UTable
       :columns="columns"
       :loading="loading"
@@ -330,7 +362,9 @@ const columns = [
     />
 
     <!-- Pagination -->
-    <div class="flex justify-between items-center mt-6 pt-4 border-t">
+    <div
+      class="flex justify-between items-center mt-6 pt-4 border-t border-default"
+    >
       <div class="text-sm text-gray-600">
         Page {{ currentPage }} of {{ totalPages }}
       </div>
@@ -342,19 +376,18 @@ const columns = [
           color="gray"
           variant="soft"
           icon="i-heroicons-chevron-left"
-        >
-          Previous
-        </UButton>
+          label="Previous"
+        />
+
         <UButton
           @click="goToPage(currentPage + 1)"
           :disabled="currentPage === totalPages"
           size="sm"
           color="gray"
           variant="soft"
-        >
-          Next
-          <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
-        </UButton>
+          icon="i-heroicons-chevron-right"
+          label="Next"
+        />
       </div>
     </div>
   </UCard>

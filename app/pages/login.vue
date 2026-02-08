@@ -58,6 +58,7 @@ const onSubmit = async (event) => {
       toast.add({
         title: "Failed",
         description:
+          response?.message ||
           response?._data.errors ||
           response?._data.message ||
           "Failed to Login",
@@ -67,6 +68,13 @@ const onSubmit = async (event) => {
     }
   } catch (error) {
     console.error("Error Login:", error);
+
+    toast.add({
+      title: "Error",
+      description: "An error occurred while login. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -109,7 +117,7 @@ const onSubmit = async (event) => {
         class="space-y-4"
         @submit="onSubmit"
       >
-        <UFormField label="Email" name="email">
+        <UFormField label="Email" name="email" required>
           <UInput
             v-model="state.email"
             placeholder="you@example.com"
@@ -118,7 +126,7 @@ const onSubmit = async (event) => {
           />
         </UFormField>
 
-        <UFormField label="Password" name="password">
+        <UFormField label="Password" name="password" required>
           <UInput
             v-model="state.password"
             placeholder="Password"

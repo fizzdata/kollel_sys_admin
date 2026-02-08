@@ -7,7 +7,7 @@ definePageMeta({
 const api = useApi();
 const dashboardData = ref(null);
 const loading = ref(true);
-
+const toast = useToast();
 // Fetch dashboard data
 const fetchDashboard = async () => {
   try {
@@ -15,12 +15,18 @@ const fetchDashboard = async () => {
     const response = await api("/api/dashboard", {
       method: "GET",
     });
-    
+
     if (response) {
       dashboardData.value = response;
     }
   } catch (error) {
     console.error("Error fetching dashboard:", error);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred while fetching dashboard stats. Please try again later.",
+      color: "error",
+    });
   } finally {
     loading.value = false;
   }
@@ -30,17 +36,18 @@ const fetchDashboard = async () => {
 const formatTime = (seconds) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
 
 // Helper to calculate session progress
 const getSessionProgress = (start, end) => {
   const now = new Date();
-  const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-  
+  const currentSeconds =
+    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
   if (currentSeconds < start) return 0;
   if (currentSeconds > end) return 100;
-  
+
   const elapsed = currentSeconds - start;
   const total = end - start;
   return Math.round((elapsed / total) * 100);
@@ -49,7 +56,7 @@ const getSessionProgress = (start, end) => {
 // Computed stats from API data
 const stats = computed(() => {
   if (!dashboardData.value) return [];
-  
+
   return [
     {
       label: "Active Students",
@@ -58,7 +65,7 @@ const stats = computed(() => {
     },
     {
       label: "Total Payouts",
-      value: '$' + `${dashboardData.value.money_out || "0"}`,
+      value: "$" + `${dashboardData.value.money_out || "0"}`,
       delta: `${dashboardData.value.pending_requests || 0} pending`,
     },
     {
@@ -77,12 +84,12 @@ const stats = computed(() => {
 // Computed sessions from API data
 const sessions = computed(() => {
   if (!dashboardData.value?.today_schedules) return [];
-  
+
   return dashboardData.value.today_schedules.map((schedule) => {
     const startTime = formatTime(schedule.start);
     const endTime = formatTime(schedule.end);
     const progress = getSessionProgress(schedule.start, schedule.end);
-    
+
     return {
       name: `Session ${schedule.session}`,
       time: `${startTime} - ${endTime}`,
@@ -94,7 +101,7 @@ const sessions = computed(() => {
 // Computed alerts from API data
 const alerts = computed(() => {
   if (!dashboardData.value?.alerts) return [];
-  
+
   return dashboardData.value.alerts.map((alert) => ({
     title: alert.title,
     message: alert.message,
@@ -109,18 +116,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
-    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+  <div>
+    <div
+      class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+    >
       <div>
-        <h1 class="text-3xl font-semibold text-primary">{{ dashboardData?.org_name }}</h1>
-        <p class="text-gray-600">
-          Dashboard Overview
-        </p>
+        <h1 class="text-3xl font-semibold text-primary">
+          {{ dashboardData?.org_name }}
+        </h1>
+        <p class="text-gray-600">Dashboard Overview</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <UButton 
-          label="Refresh" 
-          icon="i-heroicons-arrow-path" 
+        <UButton
+          label="Refresh"
+          icon="i-heroicons-arrow-path"
           :loading="loading"
           @click="fetchDashboard"
         />
@@ -133,7 +142,10 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="loading && !dashboardData" class="flex justify-center items-center py-20">
+    <div
+      v-if="loading && !dashboardData"
+      class="flex justify-center items-center py-20"
+    >
       <BaseSpinner />
     </div>
 
@@ -191,17 +203,29 @@ onMounted(() => {
               :key="index"
               class="rounded-xl border border-gray-100 p-4"
             >
-              <p class="text-sm font-semibold text-gray-900">{{ session.name }}</p>
+              <p class="text-sm font-semibold text-gray-900">
+                {{ session.name }}
+              </p>
               <p class="text-xs text-gray-500">{{ session.time }}</p>
               <div class="mt-3 h-2 w-full rounded-full bg-gray-100">
-                <div 
+                <div
                   class="h-2 rounded-full transition-all duration-500"
-                  :class="session.progress >= 100 ? 'bg-gray-400' : session.progress > 70 ? 'bg-amber-500' : 'bg-primary'"
+                  :class="
+                    session.progress >= 100
+                      ? 'bg-gray-400'
+                      : session.progress > 70
+                        ? 'bg-amber-500'
+                        : 'bg-primary'
+                  "
                   :style="{ width: `${Math.min(session.progress, 100)}%` }"
                 ></div>
               </div>
               <p class="mt-2 text-xs text-gray-500">
-                {{ session.progress >= 100 ? 'Completed' : `${session.progress}% elapsed` }}
+                {{
+                  session.progress >= 100
+                    ? "Completed"
+                    : `${session.progress}% elapsed`
+                }}
               </p>
             </div>
           </div>
@@ -216,31 +240,43 @@ onMounted(() => {
             <span class="text-xs text-gray-500">Summary</span>
           </div>
           <div class="space-y-4">
-            <div class="flex items-center justify-between p-3 rounded-lg bg-blue-50">
+            <div
+              class="flex items-center justify-between p-3 rounded-lg bg-blue-50"
+            >
               <div>
-                <p class="text-sm font-semibold text-blue-900">Active Students</p>
+                <p class="text-sm font-semibold text-blue-900">
+                  Active Students
+                </p>
                 <p class="text-xs text-blue-700">Total enrolled</p>
               </div>
               <p class="text-2xl font-bold text-blue-900">
                 {{ dashboardData?.students_active || 0 }}
               </p>
             </div>
-            <div class="flex items-center justify-between p-3 rounded-lg bg-green-50">
+            <div
+              class="flex items-center justify-between p-3 rounded-lg bg-green-50"
+            >
               <div>
-                <p class="text-sm font-semibold text-green-900">Currently Clocked In</p>
+                <p class="text-sm font-semibold text-green-900">
+                  Currently Clocked In
+                </p>
                 <p class="text-xs text-green-700">In session now</p>
               </div>
               <p class="text-2xl font-bold text-green-900">
                 {{ dashboardData?.students_in || 0 }}
               </p>
             </div>
-            <div class="flex items-center justify-between p-3 rounded-lg bg-purple-50">
+            <div
+              class="flex items-center justify-between p-3 rounded-lg bg-purple-50"
+            >
               <div>
-                <p class="text-sm font-semibold text-purple-900">Total Payouts</p>
+                <p class="text-sm font-semibold text-purple-900">
+                  Total Payouts
+                </p>
                 <p class="text-xs text-purple-700">All time</p>
               </div>
               <p class="text-xl font-bold text-purple-900">
-                $ {{ dashboardData?.money_out || '0' }}
+                $ {{ dashboardData?.money_out || "0" }}
               </p>
             </div>
           </div>

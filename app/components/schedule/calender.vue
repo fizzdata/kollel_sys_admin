@@ -206,6 +206,13 @@ const onSubmitScheduleDelete = async () => {
     }
   } catch (error) {
     console.error("Error deleting Rules:", error);
+    toast.add({
+      title: "Error",
+      description:
+        "An error occurred while deleting schedule. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     isDeletingSchedule.value = false;
   }

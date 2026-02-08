@@ -88,6 +88,11 @@ const fetchStudentDetail = async (refresh = false) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudentDetail ~ err:", err);
+    toast.add({
+      description: "Error fetching students. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     if (refresh) {
       loading.value = false;
@@ -140,10 +145,16 @@ const checksColumns = [
   {
     accessorKey: "cleared",
     header: "Cleared",
-    cell: ({ row }) => {
-      const cleared = row.original.cleared;
-      return cleared === 1 ? "Paid" : "Not Paid";
-    },
+    cell: ({ row }) =>
+      h(
+        resolveComponent("UBadge"),
+        {
+          color: row.original.cleared ? "success" : "warning",
+          variant: "solid",
+          size: "sm",
+        },
+        () => (row.original.cleared === 1 ? "Paid" : "Not Paid"),
+      ),
   },
   { accessorKey: "pay_to", header: "Pay To" },
 ];
@@ -197,7 +208,7 @@ const toggleStudentStatus = async (student) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   }
@@ -215,27 +226,26 @@ const handleResetPasswordClick = async (student) => {
     if (response?.success) {
       toast.add({
         title: "Success",
-        description: response?.msg ? response?.msg : "Student deactivated",
+        description: response?.message || "Password reset successfully.",
         color: "success",
         duration: 2000,
       });
-
-      await fetchStudentDetail(false);
     } else {
       toast.add({
         title: "Failed",
-        description: response?.msg ? response?.msg : "Unable to deactivate.",
+        description:
+          response?.message ||
+          response?._data.message ||
+          "Unable to reset password. Please try again later.",
         color: "error",
         duration: 2000,
       });
-
-      await fetchStudentDetail(false);
     }
   } catch (error) {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   }
@@ -391,8 +401,7 @@ onMounted(async () => {
 
                 <!-- Reset Password -->
                 <UTooltip text="Reset password">
-                  <!-- @click="handleResetPasswordClick(student?.Student)" -->
-                  <button>
+                  <button @click="handleResetPasswordClick(student?.Student)">
                     <UIcon name="i-lucide-lock-keyhole-open" class="size-5" />
                   </button>
                 </UTooltip>
@@ -478,11 +487,16 @@ onMounted(async () => {
 
       <UTabs v-model="activeTab" :items="tabs" class="mt-6" />
 
-      <UCard v-if="activeTab === '0'">
+      <UCard v-if="activeTab === '0'" class="rounded-2xl shadow-sm mt-6">
         <StudentCalender :items="clockingsData" />
       </UCard>
 
-      <UCard v-if="activeTab === '1'">
+      <UCard v-if="activeTab === '1'" class="rounded-2xl shadow-sm mt-6">
+        <div
+          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        >
+          <h2 class="text-lg font-bold">Manage Deposits</h2>
+        </div>
         <UTable
           :columns="transactionsColumns"
           :loading="loading"
@@ -491,7 +505,12 @@ onMounted(async () => {
           sticky
         />
       </UCard>
-      <UCard v-if="activeTab === '2'">
+      <UCard v-if="activeTab === '2'" class="rounded-2xl shadow-sm mt-6">
+        <div
+          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        >
+          <h2 class="text-lg font-bold">Manage Checks</h2>
+        </div>
         <UTable
           :columns="checksColumns"
           :loading="loading"
@@ -500,7 +519,12 @@ onMounted(async () => {
           sticky
         />
       </UCard>
-      <UCard v-if="activeTab === '3'">
+      <UCard v-if="activeTab === '3'" class="rounded-2xl shadow-sm mt-6">
+        <div
+          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        >
+          <h2 class="text-lg font-bold">Manage Student Responses</h2>
+        </div>
         <UTable
           :columns="responsesColumns"
           :loading="loading"

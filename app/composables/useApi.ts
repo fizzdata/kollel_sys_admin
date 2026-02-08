@@ -36,7 +36,7 @@ export const useApi = () => {
       // ✅ Return a structured error object instead of throwing
       return {
         success: false,
-        message: error?.data?.message || "An unexpected error occurred.",
+        message: error?.data?.message || "An unexpected error occurred. Please try again later.",
         status: error?.status || 500,
       };
     }

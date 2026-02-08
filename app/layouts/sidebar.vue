@@ -64,22 +64,25 @@ const logout = async () => {
       useCookie("kollel_sys_org").value = null;
       useCookie("kollel_sys_user").value = null;
       useCookie("kollel_sys_has_access").value = null;
-    }
-
-    if (!response?._data?.success && !response?.success) {
+    } else {
       toast.add({
         title: "Error",
         description:
           response?.message ||
           response?._data?.message ||
           `Something went wrong. Please try again later.`,
-        color: "red",
+        color: "error",
         timeout: 2000,
       });
     }
-    // Redirect or show a success message
   } catch (error) {
     console.error("Error during sign-up:", error);
+    toast.add({
+      title: "Error",
+      description: "An error occurred while logout. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   }
 };
 

@@ -96,6 +96,13 @@ const handleSubmit = async () => {
     }
   } catch (error) {
     console.error("Upload error:", error);
+    toast.add({
+      title: "Error",
+      description:
+        "An error occurred while import clickings. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     isSubmitting.value = false;
   }

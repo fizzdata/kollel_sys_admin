@@ -97,17 +97,13 @@ const handlePopulateScheduleSubmit = async ({ data }) => {
         duration: 2000,
       });
       navigateTo("/schedule");
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again later.",
         color: "error",
       });
     }
@@ -115,7 +111,7 @@ const handlePopulateScheduleSubmit = async ({ data }) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   } finally {
@@ -156,6 +152,11 @@ async function fetchDefaultSchedules() {
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
+    toast.add({
+      description: "Error fetching default schedules. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     scheduleFetching.value = false;
   }
@@ -175,7 +176,7 @@ const columns = [
     header: "Edit / Set",
     cell: ({ row }) => {
       return h("div", { class: "flex gap-2 items-center" }, [
-        // Edit User Button
+        // Edit Schedule Button
         h(
           resolveComponent("UTooltip"),
           { text: "Edit Schedule" },
@@ -191,7 +192,7 @@ const columns = [
           },
         ),
 
-        // Delete Student Button
+        // Delete Schedule Button
         h(
           resolveComponent("UTooltip"),
           { text: "Remove Schedule" },
@@ -245,17 +246,17 @@ const onScheduleSubmit = async (event) => {
     day_of_week: dayMap[schdeuleState.day_of_week],
   };
 
-  const isEdit =
+  const isCreateNewSchedule =
     selectedSchedule.value.seder1_begin === "-" &&
     selectedSchedule.value.seder1_end === "-" &&
     selectedSchedule.value.seder2_begin === "-" &&
     selectedSchedule.value.seder2_end === "-";
 
-  const endpoint = isEdit
+  const endpoint = isCreateNewSchedule
     ? `/api/schedules/default/store`
     : `/api/schedules/default/update`;
 
-  let method = isEdit ? "POST" : "PUT";
+  let method = isCreateNewSchedule ? "POST" : "PUT";
 
   try {
     const response = await api(endpoint, {
@@ -267,7 +268,7 @@ const onScheduleSubmit = async (event) => {
       toast.add({
         title: "Success",
         description:
-          response?.message || isEdit
+          response?.message || isCreateNewSchedule
             ? "Schedule has been set"
             : "Schedule created successfully",
         color: "success",
@@ -275,17 +276,13 @@ const onScheduleSubmit = async (event) => {
       });
       defaultScheduleModal.value = false;
       await fetchDefaultSchedules();
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
@@ -293,7 +290,7 @@ const onScheduleSubmit = async (event) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   } finally {
@@ -340,6 +337,11 @@ const onSubmitScheduleDelete = async () => {
     }
   } catch (error) {
     console.error("Error deleting group:", error);
+    toast.add({
+      description: "Error deleting schedule. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -360,19 +362,9 @@ onMounted(async () => {
 
   <div class="space-y-8 mt-4">
     <div>
-      <div class="flex justify-between mb-2">
-        <h2 class="text-2xl font-bold text-gray-800">
-          Populate Schedule based on default
-        </h2>
-
-        <UButton
-          variant="solid"
-          color="primary"
-          icon="i-lucide-plus"
-          label="Create New Default Schedule"
-          @click="defaultScheduleModal = true"
-        />
-      </div>
+      <h2 class="text-2xl font-bold text-gray-800 mb-2">
+        Populate Schedule based on default
+      </h2>
       <div class="gap-4">
         <UForm
           :schema="schema"
@@ -381,7 +373,7 @@ onMounted(async () => {
           @submit="handlePopulateScheduleSubmit"
         >
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormField label="From Date" name="from_date">
+            <UFormField label="From Date" name="from_date" required>
               <UPopover class="w-full" v-model:open="fromDatePickerOpen">
                 <UButton
                   color="neutral"
@@ -407,7 +399,7 @@ onMounted(async () => {
               </UPopover>
             </UFormField>
 
-            <UFormField label="To Date" name="to_date">
+            <UFormField label="To Date" name="to_date" required>
               <UPopover class="w-full" v-model:open="toDatePickerOpen">
                 <UButton
                   color="neutral"
@@ -455,7 +447,12 @@ onMounted(async () => {
       </div>
     </div>
   </div>
-  <UCard class="my-8">
+  <UCard class="rounded-2xl shadow-sm my-8">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">Manage Default Schdedules</h2>
+    </div>
     <UTable
       :columns="columns"
       :data="defaultSchedules"
@@ -498,43 +495,39 @@ onMounted(async () => {
       >
         <div class="flex flex-col gap-4">
           <UFormField label="Seder A Begin">
-            <input
+            <UInput
               v-model="schdeuleState.a_begin"
               type="time"
-              name="in"
-              id="in"
               step="1"
-              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              size="lg"
+              class="w-full"
             />
           </UFormField>
           <UFormField label="Seder A Ends">
-            <input
+            <UInput
               v-model="schdeuleState.a_ends"
               type="time"
-              name="in"
-              id="in"
               step="1"
-              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              size="lg"
+              class="w-full"
             />
           </UFormField>
           <UFormField label="Seder B Begin">
-            <input
+            <UInput
               v-model="schdeuleState.b_begin"
               type="time"
-              name="in"
-              id="in"
               step="1"
-              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              size="lg"
+              class="w-full"
             />
           </UFormField>
           <UFormField label="Seder B Ends">
-            <input
+            <UInput
               v-model="schdeuleState.b_ends"
               type="time"
-              name="in"
-              id="in"
               step="1"
-              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              size="lg"
+              class="w-full"
             />
           </UFormField>
         </div>

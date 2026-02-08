@@ -99,17 +99,13 @@ const handleSubmit = async (event) => {
       state.id = null;
       isOpen.value = false;
       emit("submit");
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response._data.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
@@ -117,7 +113,7 @@ const handleSubmit = async (event) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   } finally {
@@ -138,6 +134,13 @@ const fetchwages = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchwages ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An error occurred while fetching payroll groups. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     fetchingWages.value = false;
   }
@@ -189,7 +192,7 @@ onMounted(async () => {
           @submit="handleSubmit"
         >
           <div class="grid grid-cols-2 gap-4">
-            <UFormField label="First Name" name="first_name">
+            <UFormField label="First Name" name="first_name" required>
               <UInput
                 v-model="state.first_name"
                 placeholder="First Name"
@@ -197,7 +200,7 @@ onMounted(async () => {
                 size="lg"
               />
             </UFormField>
-            <UFormField label="Last Name" name="last_name">
+            <UFormField label="Last Name" name="last_name" required>
               <UInput
                 v-model="state.last_name"
                 placeholder="Last Name"
@@ -207,7 +210,11 @@ onMounted(async () => {
             </UFormField>
           </div>
           <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Yiddish First Name" name="first_yiddish_name">
+            <UFormField
+              label="Yiddish First Name"
+              name="first_yiddish_name"
+              required
+            >
               <UInput
                 v-model="state.first_yiddish_name"
                 placeholder="First Name"
@@ -215,7 +222,11 @@ onMounted(async () => {
                 size="lg"
               />
             </UFormField>
-            <UFormField label="Yeddish Last Name" name="last_yiddish_name">
+            <UFormField
+              label="Yeddish Last Name"
+              name="last_yiddish_name"
+              required
+            >
               <UInput
                 v-model="state.last_yiddish_name"
                 placeholder="Last Name"
@@ -224,7 +235,7 @@ onMounted(async () => {
               />
             </UFormField>
           </div>
-          <UFormField label="Phone" name="phone">
+          <UFormField label="Phone" name="phone" required>
             <UInput
               v-model="state.phone"
               placeholder="Phone Number"
@@ -232,7 +243,7 @@ onMounted(async () => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Address" name="address">
+          <UFormField label="Address" name="address" required>
             <UInput
               v-model="state.address"
               placeholder="Address"
@@ -240,7 +251,7 @@ onMounted(async () => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Wage" name="wage">
+          <UFormField label="Wage" name="wage" required>
             <USelect
               v-model="state.wage"
               :items="wageItems"

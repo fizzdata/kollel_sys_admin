@@ -79,6 +79,12 @@ async function onSubmit(event) {
     }
   } catch (error) {
     console.error("Error Login:", error);
+    toast.add({
+      title: "Error",
+      description: "An error occurred while singup. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -122,7 +128,7 @@ async function onSubmit(event) {
         @submit="onSubmit"
       >
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <UFormField label="Name" name="name">
+          <UFormField label="Name" name="name" required>
             <UInput
               v-model="state.name"
               placeholder="Enter your name"
@@ -130,7 +136,7 @@ async function onSubmit(event) {
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Email" name="email">
+          <UFormField label="Email" name="email" required>
             <UInput
               v-model="state.email"
               placeholder="Enter your email"
@@ -138,7 +144,7 @@ async function onSubmit(event) {
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Phone" name="phone">
+          <UFormField label="Phone" name="phone" required>
             <UInput
               v-model="state.phone"
               placeholder="Enter your phone"
@@ -146,7 +152,7 @@ async function onSubmit(event) {
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Org Pin" name="org_pin">
+          <UFormField label="Org Pin" name="org_pin" required>
             <UInput
               v-model="state.org_pin"
               placeholder="Enter your org pin"
@@ -155,7 +161,7 @@ async function onSubmit(event) {
               type="number"
             />
           </UFormField>
-          <UFormField label="Password" name="password">
+          <UFormField label="Password" name="password" required>
             <UInput
               v-model="state.password"
               placeholder="Password"
@@ -181,6 +187,7 @@ async function onSubmit(event) {
           <UFormField
             label="Password Confirmation"
             name="password_confirmation"
+            required
           >
             <UInput
               v-model="state.password_confirmation"

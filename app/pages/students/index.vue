@@ -131,7 +131,7 @@ const toggleStudentStatus = async (student) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   }
@@ -150,6 +150,11 @@ const fetchStudents = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
+    toast.add({
+      description: "Error fetching students. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     loading.value = false;
   }
@@ -238,17 +243,13 @@ const handleFileSubmit = async () => {
       file.value = null;
       importStudentModal.value = false;
       await fetchStudents();
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
@@ -256,7 +257,7 @@ const handleFileSubmit = async () => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   } finally {
@@ -321,7 +322,12 @@ const toggleSwitch = async () => {
     />
   </div>
   <!-- Students Table -->
-  <UCard>
+  <UCard class="rounded-2xl shadow-sm mt-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">Manage students and their access</h2>
+    </div>
     <UTable
       :columns="columns"
       :loading="loading"

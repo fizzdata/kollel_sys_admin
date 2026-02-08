@@ -216,7 +216,13 @@ watch(
         />
       </UFormField>
     </div>
-    <UCard>
+
+    <UCard class="rounded-2xl shadow-sm mt-6">
+      <div
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      >
+        <h2 class="text-lg font-bold">View and manage half hour reports</h2>
+      </div>
       <UTable
         :columns="halfHourColumns"
         :loading="loading"
@@ -283,7 +289,12 @@ watch(
         <UInput v-model="percentState.afternoon" type="text" size="lg" />
       </UFormField>
     </div>
-    <UCard>
+    <UCard class="rounded-2xl shadow-sm mt-6">
+      <div
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      >
+        <h2 class="text-lg font-bold">View and manage percent reports</h2>
+      </div>
       <UTable
         :columns="percentColumns"
         :loading="loading"
@@ -351,7 +362,12 @@ watch(
         </UPopover>
       </div>
     </div>
-    <UCard>
+    <UCard class="rounded-2xl shadow-sm mt-6">
+      <div
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      >
+        <h2 class="text-lg font-bold">View and manage question reports</h2>
+      </div>
       <UTable
         :columns="questionColumns"
         :loading="loading"

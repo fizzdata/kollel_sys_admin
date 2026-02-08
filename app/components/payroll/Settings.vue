@@ -63,24 +63,21 @@ const onSubmit = async (event) => {
       });
 
       emit("refresh");
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
   } catch (error) {
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description:
+        "An unexpected error occurred while payroll setting. updates. Please try again later.",
       color: "error",
     });
   } finally {
@@ -107,7 +104,7 @@ watch(
     <BaseSpinner :show-loader="fetchingSettings" size="md" />
   </div>
   <div v-else class="mt-6 flex items-center justify-center px-4">
-    <UCard class="w-full max-w-xl rounded-2xl py-6 sm:py-8">
+    <UCard class="w-full max-w-2xl rounded-2xl py-6 sm:py-8">
       <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">
         Bank Details
       </h2>
@@ -118,7 +115,7 @@ watch(
         class="space-y-5"
         @submit="onSubmit"
       >
-        <UFormField label="Check Number" name="check_number">
+        <UFormField label="Check Number" name="check_number" required>
           <UInput
             v-model="state.check_number"
             placeholder="Enter check number"
@@ -128,7 +125,7 @@ watch(
           />
         </UFormField>
 
-        <UFormField label="Account Number" name="account_number">
+        <UFormField label="Account Number" name="account_number" required>
           <UInput
             v-model="state.account_number"
             placeholder="Enter account number"
@@ -138,7 +135,7 @@ watch(
           />
         </UFormField>
 
-        <UFormField label="Routing Number" name="routing_number">
+        <UFormField label="Routing Number" name="routing_number" required>
           <UInput
             v-model="state.routing_number"
             placeholder="Enter routing number"
@@ -148,7 +145,7 @@ watch(
           />
         </UFormField>
 
-        <UFormField label="Bank Name" name="bank_name">
+        <UFormField label="Bank Name" name="bank_name" required>
           <UInput
             v-model="state.bank_name"
             placeholder="Enter bank name"

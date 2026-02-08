@@ -112,10 +112,10 @@ const transactionsColumns = [
     header: "Quick Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Edit User Button
+        // Edit Transaction Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Edit User" },
+          { text: "Edit Transaction" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -127,10 +127,10 @@ const transactionsColumns = [
               }),
           },
         ),
-
+        // Delete Transaction Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Delete User" },
+          { text: "Delete Transaction" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -164,6 +164,11 @@ const fetchStudents = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
+    toast.add({
+      description: "Error fetching students. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     studentFetching.value = false;
   }
@@ -187,6 +192,11 @@ const fetchTransactions = async (data) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchTransactions ~ err:", err);
+    toast.add({
+      description: "Error fetching transactions. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     loading.value = false;
   }
@@ -256,17 +266,13 @@ const onSubmit = async (event) => {
         date_from: calendarRange.value.start?.toString(),
         date_to: calendarRange.value.end?.toString(),
       });
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
@@ -274,7 +280,7 @@ const onSubmit = async (event) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   } finally {
@@ -321,6 +327,11 @@ const confirmDeleteTransaction = async () => {
     }
   } catch (error) {
     console.error("Error deleting Rules:", error);
+    toast.add({
+      description: "Error deleting transaction. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     isTransactionDeleting.value = false;
   }
@@ -347,7 +358,14 @@ async function goToPage(page) {
 watch(
   () => calendarRange.value,
   async (val) => {
-    if (!val?.start || !val?.end) return;
+    if (!val?.start || !val?.end) {
+      toast.add({
+        title: "Error",
+        description: "Please select a valid date range.",
+        color: "error",
+      });
+      return;
+    }
 
     // close popover
     open.value = false;
@@ -411,7 +429,13 @@ watch(
   </div>
 
   <!-- Clockings Table -->
-  <UCard>
+  <UCard class="rounded-2xl shadow-sm mt-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">View and manage all transactions.</h2>
+    </div>
+
     <UTable
       :columns="transactionsColumns"
       :loading="loading"
@@ -503,7 +527,12 @@ watch(
         class="space-y-4"
         @submit="onSubmit"
       >
-        <UFormField v-if="!state?.id" label="Select Student" name="student_id">
+        <UFormField
+          v-if="!state?.id"
+          label="Select Student"
+          name="student_id"
+          required
+        >
           <USelect
             v-model="state.student_id"
             :items="students"
@@ -512,7 +541,7 @@ watch(
             size="lg"
           />
         </UFormField>
-        <UFormField label="Amount" name="amount">
+        <UFormField label="Amount" name="amount" required>
           <UInput
             v-model="state.amount"
             class="w-full"
@@ -521,7 +550,7 @@ watch(
             placeholder="Enter amount"
           />
         </UFormField>
-        <UFormField label="Description" name="description">
+        <UFormField label="Description" name="description" required>
           <UTextarea
             v-model="state.description"
             class="w-full"

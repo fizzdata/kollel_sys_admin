@@ -53,30 +53,39 @@ const calendarRange = ref({
 const toggleSwitch = async () => {
   isActive.value = !isActive.value;
   pagination.value.currentPage = 1; // Reset to first page
-  await fetchClockings({
-    date_from: calendarRange.value.start?.toString(),
-    date_to: calendarRange.value.end?.toString(),
-  }, 1);
+  await fetchClockings(
+    {
+      date_from: calendarRange.value.start?.toString(),
+      date_to: calendarRange.value.end?.toString(),
+    },
+    1,
+  );
 };
 
 // Add pagination functions
 const goToPreviousPage = async () => {
   if (pagination.value.currentPage > 1) {
     const newPage = pagination.value.currentPage - 1;
-    await fetchClockings({
-      date_from: calendarRange.value.start?.toString(),
-      date_to: calendarRange.value.end?.toString(),
-    }, newPage);
+    await fetchClockings(
+      {
+        date_from: calendarRange.value.start?.toString(),
+        date_to: calendarRange.value.end?.toString(),
+      },
+      newPage,
+    );
   }
 };
 
 const goToNextPage = async () => {
   if (pagination.value.currentPage < pagination.value.lastPage) {
     const newPage = pagination.value.currentPage + 1;
-    await fetchClockings({
-      date_from: calendarRange.value.start?.toString(),
-      date_to: calendarRange.value.end?.toString(),
-    }, newPage);
+    await fetchClockings(
+      {
+        date_from: calendarRange.value.start?.toString(),
+        date_to: calendarRange.value.end?.toString(),
+      },
+      newPage,
+    );
   }
 };
 
@@ -141,10 +150,10 @@ const clockingsColumns = [
     header: "",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Edit User Button
+        // Edit Clocking Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Edit User" },
+          { text: "Edit Clocking" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -167,10 +176,10 @@ const clockingsColumns = [
     header: "",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Edit User Button
+        // Edit User Clocking
         h(
           resolveComponent("UTooltip"),
-          { text: "Edit User" },
+          { text: "Edit Clocking" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -237,13 +246,19 @@ const fetchStudents = async () => {
     });
 
     if (response?.success) {
-      studentsData.value = response?.students.map((item) => ({
+      studentsData.value = response?.students?.map((item) => ({
         label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
         value: item?.id,
       }));
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred while fetching students. Please try again later.",
+      color: "error",
+    });
   }
 };
 
@@ -278,6 +293,12 @@ const fetchClockings = async (date, page = 1) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudents ~ err:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred while fetching clockings. Please try again later.",
+      color: "error",
+    });
   } finally {
     loading.value = false;
   }
@@ -318,23 +339,23 @@ const onSubmit = async (event) => {
         color: "success",
         duration: 2000,
       });
-      state.id = null;
+      state.id = undefined;
       CreateClockingModal.value = false;
-      await fetchClockings({
-        date_from: calendarRange.value.start?.toString(),
-        date_to: calendarRange.value.end?.toString(),
-      }, 1);
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
+      await fetchClockings(
+        {
+          date_from: calendarRange.value.start?.toString(),
+          date_to: calendarRange.value.end?.toString(),
+        },
+        1,
+      );
+      resetClockingForm();
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
@@ -342,12 +363,11 @@ const onSubmit = async (event) => {
     console.error("Submission error:", error);
     toast.add({
       title: "Error",
-      description: "An unexpected error occurred.",
+      description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
   } finally {
     isSubmitting.value = false;
-    resetClockingForm();
   }
 };
 
@@ -385,22 +405,21 @@ const importClockings = async (formData) => {
         color: "success",
         duration: 2000,
       });
-      await fetchClockings({
-        date_from: calendarRange.value.start?.toString(),
-        date_to: calendarRange.value.end?.toString(),
-      }, 1);
+      await fetchClockings(
+        {
+          date_from: calendarRange.value.start?.toString(),
+          date_to: calendarRange.value.end?.toString(),
+        },
+        1,
+      );
       ImportClockingModal.value = false;
-    } else if (response?._data?.message) {
-      toast.add({
-        title: "Failed",
-        description: response._data.message,
-        color: "error",
-      });
     } else {
       toast.add({
         title: "Failed",
         description:
-          response?.message || "Something went wrong. Please try again.",
+          response?.message ||
+          response?._data?.message ||
+          "Something went wrong. Please try again.",
         color: "error",
       });
     }
@@ -437,22 +456,38 @@ const exportToPDF = async () => {
     }
   } catch (error) {
     console.error("Export to PDF error:", error);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred while clocking export to pdf. Please try again later.",
+      color: "error",
+    });
   }
 };
 
 onMounted(async () => {
   await fetchStudents();
-  await fetchClockings({
-    date_from: calendarRange.value.start?.toString(),
-    date_to: calendarRange.value.end?.toString(),
-  }, 1);
+  await fetchClockings(
+    {
+      date_from: calendarRange.value.start?.toString(),
+      date_to: calendarRange.value.end?.toString(),
+    },
+    1,
+  );
 });
 
 // watch for datepicker changes
 watch(
   () => calendarRange.value,
   async (val) => {
-    if (!val?.start || !val?.end) return;
+    if (!val?.start || !val?.end) {
+      toast.add({
+        title: "Error",
+        description: "Please select a valid date range.",
+        color: "error",
+      });
+      return;
+    }
 
     // close popover
     open.value = false;
@@ -461,10 +496,13 @@ watch(
     pagination.value.currentPage = 1;
 
     // call API
-    await fetchClockings({
-      date_from: val.start.toString(),
-      date_to: val.end.toString(),
-    }, 1);
+    await fetchClockings(
+      {
+        date_from: val.start.toString(),
+        date_to: val.end.toString(),
+      },
+      1,
+    );
   },
   { deep: true },
 );
@@ -476,8 +514,10 @@ watch(
       <div class="flex justify-end gap-2">
         <UButton
           @click="
-            CreateClockingModal = true;
-            state.id = undefined;
+            () => {
+              CreateClockingModal = true;
+              state.id = undefined;
+            }
           "
           icon="i-lucide-plus"
           label="Create New Clockings"
@@ -546,7 +586,12 @@ watch(
     />
   </div>
   <!-- Clockings Table -->
-  <UCard>
+  <UCard class="rounded-2xl shadow-sm mt-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">View and manage Clockings</h2>
+    </div>
     <UTable
       :columns="clockingsColumns"
       :loading="loading"
@@ -574,10 +619,11 @@ watch(
           icon="i-lucide-chevron-left"
           @click="goToPreviousPage"
           :loading="loading"
+          :disabled="loading"
         />
         <span class="px-3 py-2"
-          >{{ pagination.currentPage }} / {{ pagination.lastPage }}</span
-        >
+          >{{ pagination.currentPage }} / {{ pagination.lastPage }}
+        </span>
         <UButton
           v-if="pagination.currentPage < pagination.lastPage"
           variant="outline"
@@ -586,6 +632,7 @@ watch(
           icon="i-lucide-chevron-right"
           @click="goToNextPage"
           :loading="loading"
+          :disabled="loading"
         />
       </div>
     </div>
@@ -624,7 +671,7 @@ watch(
         @submit="onSubmit"
       >
         <div v-if="!state.id" class="flex flex-col gap-4">
-          <UFormField label="Student" name="student_id">
+          <UFormField label="Student" name="student_id" required>
             <USelect
               v-model.number="state.student_id"
               :items="studentsData"
@@ -635,7 +682,7 @@ watch(
             />
           </UFormField>
           <UFormField label="Day" name="day">
-            <UPopover class="w-full" v-model:open="datePickerOpen">
+            <UPopover class="w-full" v-model:open="datePickerOpen" required>
               <UButton
                 color="neutral"
                 variant="outline"
@@ -659,27 +706,25 @@ watch(
             </UPopover>
           </UFormField>
         </div>
-        <div class="grid grid-cols-2 my-6 place-items-center">
-          <UFormField label="In" class="flex gap-4 items-center">
-            <input
+        <div class="grid grid-cols-2 mb-6 place-items-center">
+          <UFormField label="In" class="flex gap-4 items-center" required>
+            <UInput
               v-model="state.in"
               type="time"
-              name="in"
-              id="in"
               step="1"
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              class="w-full"
+              size="lg"
               required
             />
           </UFormField>
 
-          <UFormField label="Out" class="flex gap-4 items-center">
-            <input
+          <UFormField label="Out" class="flex gap-4 items-center" required>
+            <UInput
               v-model="state.out"
               type="time"
-              name="out"
-              id="out"
               step="1"
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5"
+              class="w-full"
+              size="lg"
               required
             />
           </UFormField>

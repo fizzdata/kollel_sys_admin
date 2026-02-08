@@ -115,6 +115,11 @@ const confirmDeleteProcessAllPayroll = async () => {
     }
   } catch (error) {
     console.error("Error deleting group:", error);
+    toast.add({
+      description: "Error deleting payroll. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     isDeletingProcessAllPayroll.value = false;
   }
@@ -153,6 +158,11 @@ const fetchProcessRules = async (date) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
+    toast.add({
+      description: "Error fetching payroll preview. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     loading.value = false;
   }
@@ -187,7 +197,7 @@ const columns = [
         // Edit User Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Edit User" },
+          { text: "Edit Group" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -202,7 +212,7 @@ const columns = [
 
         h(
           resolveComponent("UTooltip"),
-          { text: "Delete User" },
+          { text: "Delete Group" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -488,6 +498,11 @@ const onSubmit = async (event) => {
     }
   } catch (error) {
     console.error("Error creating group:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred during student add to group.",
+      color: "error",
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -528,6 +543,11 @@ const fetchProcessChecks = async (data) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessChecks ~ err:", err);
+    toast.add({
+      description: "An unexpected error occurred. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     processChecksLoading.value = false;
   }
@@ -568,6 +588,11 @@ const fetchProcessDeposit = async (data) => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
+    toast.add({
+      description: "An unexpected error occurred. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     processDepositLoading.value = false;
   }
@@ -588,6 +613,11 @@ const fetchGroups = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
+    toast.add({
+      description: "Error fetching payroll groups. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     fetchingGroups.value = false;
   }
@@ -603,6 +633,11 @@ const fetchRecentPayroll = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
+    toast.add({
+      description: "Error fetching payroll. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     fetchingPayroll.value = false;
   }
@@ -618,6 +653,11 @@ const fetchSettings = async () => {
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
+    toast.add({
+      description: "Error fetching payroll settings. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     fetchingSettings.value = false;
   }
@@ -674,6 +714,11 @@ const confirmDeleteGroup = async () => {
     }
   } catch (error) {
     console.error("Error deleting group:", error);
+    toast.add({
+      description: "Error deleting payroll groups. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   } finally {
     isSubmitting.value = false;
   }
@@ -696,12 +741,25 @@ const rulesOptionsFetch = async () => {
     }
   } catch (error) {
     console.error("An error occurred:", error.message);
+    toast.add({
+      description:
+        "Error fetching payroll rules options. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
   }
 };
 
 // watch for datepicker changes
 const onDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+  if (!val?.start || !val?.end) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+    return;
+  }
 
   await fetchProcessRules({
     from_date: val.start.toString(),
@@ -712,11 +770,12 @@ const onDateChange = async (val) => {
 // watch for Create Check Datepicker changes
 const onProcessCheckFormSubmit = async (val) => {
   if (!val?.from_date || !val?.till_date) {
-    toast.add({
+    return toast.add({
       title: "Error",
       description: "Please select a valid date range.",
       color: "error",
     });
+    return;
   }
 
   await fetchProcessChecks({
@@ -732,6 +791,7 @@ const onProcessDepositFormSubmit = async (val) => {
       description: "Please select a valid date range.",
       color: "error",
     });
+    return;
   }
 
   await fetchProcessDeposit({
@@ -760,6 +820,11 @@ const fetchAllStudents = async () => {
     }
   } catch (err) {
     console.error("🚀 ~ fetchAllStudents ~ err:", err);
+    toast.add({
+      description: "Error fetching group students. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
     allStudentsData.value = [];
   } finally {
     fetchingAllStudents.value = false;
@@ -830,7 +895,14 @@ const fetchMainPageStudentPreview = async (data) => {
 
 // Date change handler for student preview
 const onMainPageStudentPreviewDateChange = async (val) => {
-  if (!val?.start || !val?.end) return;
+  if (!val?.start || !val?.end) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range.",
+      color: "error",
+    });
+    return;
+  }
 
   await fetchMainPageStudentPreview({
     from_date: val.start.toString(),
@@ -894,7 +966,8 @@ const fetchMainPageStudentCheck = async (data) => {
     console.error("Error processing checks:", error);
     toast.add({
       title: "Error",
-      description: "An error occurred while processing checks",
+      description:
+        "An error occurred while processing checks. Please try again later.",
       color: "error",
       duration: 2000,
     });
@@ -1065,7 +1138,12 @@ watch(
   />
 
   <!-- Recent Payroll Tab 1 -->
-  <UCard v-if="activeTab === '0'" class="my-6">
+  <UCard v-if="activeTab === '0'" class="rounded-2xl shadow-sm my-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">View and manage recent payrolls</h2>
+    </div>
     <UTable
       :columns="recentPayrollColumns"
       :loading="fetchingPayroll"
@@ -1075,7 +1153,12 @@ watch(
   </UCard>
 
   <!-- Fetch Group Tab 2 -->
-  <UCard v-if="activeTab === '1'" class="my-6">
+  <UCard v-if="activeTab === '1'" class="rounded-2xl shadow-sm my-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">View and manage payroll groups</h2>
+    </div>
     <UTable
       :columns="columns"
       :loading="fetchingGroups"
@@ -1085,7 +1168,12 @@ watch(
   </UCard>
 
   <!-- All Students Tab 3 -->
-  <UCard v-if="activeTab === '2'" class="my-6">
+  <UCard v-if="activeTab === '2'" class="rounded-2xl shadow-sm my-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+    >
+      <h2 class="text-lg font-bold">View and manage all students</h2>
+    </div>
     <UTable
       :columns="allStudentsColumns"
       :loading="fetchingAllStudents"
@@ -1135,7 +1223,7 @@ watch(
         class="space-y-4"
         @submit="onSubmit"
       >
-        <UFormField label="Name" name="name">
+        <UFormField label="Name" name="name" required>
           <UInput
             v-model="groupState.name"
             placeholder="Enter group name"
@@ -1144,7 +1232,7 @@ watch(
           />
         </UFormField>
 
-        <UFormField label="Base Amount" name="base_amount">
+        <UFormField label="Base Amount" name="base_amount" required>
           <UInput
             v-model.number="groupState.base_amount"
             type="number"
