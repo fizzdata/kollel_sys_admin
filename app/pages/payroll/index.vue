@@ -1,6 +1,7 @@
 <script setup>
 import { today, getLocalTimeZone } from "@internationalized/date";
 import { object, string, number } from "yup";
+import { base64ToPdfUrl } from "~/common/common";
 
 definePageMeta({
   layout: "sidebar",
@@ -61,6 +62,9 @@ const processDepositSingleStudentLoading = ref(false);
 const studentPreviewModal = ref(false);
 const fetchingStudentPreview = ref(false);
 const studentPreviewData = ref([]);
+
+const pdfCheckModal = ref(false);
+const pdfChecks = ref([]);
 
 const tabs = [
   { label: "Recent Payroll", key: "recent-payroll" },
@@ -943,16 +947,13 @@ const fetchMainPageStudentCheck = async (data) => {
       );
 
       if (response?.success) {
-        const firstKey = Object.keys(response.data || {})[0];
-        const fileURL = firstKey ? response.data[firstKey] : null;
+        // Map API response
+        pdfChecks.value = Object.entries(response.data).map(([id, base64]) => ({
+          id,
+          url: base64ToPdfUrl(base64),
+        }));
 
-        if (fileURL) {
-          $printJS({
-            printable: fileURL,
-            type: "pdf",
-            base64: true,
-          });
-        }
+        pdfCheckModal.value = true;
 
         toast.add({
           title: "Success",
@@ -1456,4 +1457,7 @@ watch(
     type="process"
     @date-change="onMainPageStudentPreviewDateChange"
   />
+
+  <!-- Check pdf preview modal -->
+  <CommonPdfPreviewModal v-model="pdfCheckModal" :data="pdfChecks" />
 </template>

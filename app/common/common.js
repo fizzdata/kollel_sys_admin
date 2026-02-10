@@ -157,3 +157,9 @@ export const getFileIcon = (mimeType) => {
   // Default icon
   return "i-heroicons-document";
 };
+
+export function base64ToPdfUrl(base64) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  return URL.createObjectURL(blob);
+}
