@@ -595,6 +595,7 @@ const onAddStudentSubmit = async (event) => {
       toast.add({
         title: "Failed",
         description:
+          response?.message ||
           response?._data.errors ||
           response?._data.message ||
           "Failed to create New Rules",
@@ -705,7 +706,8 @@ const fetchSingleStudentCheck = async (data) => {
       );
 
       if (response?.success) {
-        const fileURL = response.data?.["1"];
+        const firstKey = Object.keys(response.data || {})[0];
+        const fileURL = firstKey ? response.data[firstKey] : null;
 
         if (fileURL) {
           $printJS({

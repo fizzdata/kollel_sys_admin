@@ -7,6 +7,8 @@ definePageMeta({
   middleware: ["auth"],
 });
 
+const { $printJS } = useNuxtApp();
+
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -343,7 +345,7 @@ const allStudentsColumns = [
           h(
             resolveComponent("UBadge"),
             {
-              color: "info",
+              color: "primary",
               variant: "soft",
               size: "sm",
             },
@@ -941,6 +943,17 @@ const fetchMainPageStudentCheck = async (data) => {
       );
 
       if (response?.success) {
+        const firstKey = Object.keys(response.data || {})[0];
+        const fileURL = firstKey ? response.data[firstKey] : null;
+
+        if (fileURL) {
+          $printJS({
+            printable: fileURL,
+            type: "pdf",
+            base64: true,
+          });
+        }
+
         toast.add({
           title: "Success",
           description:

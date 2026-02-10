@@ -121,117 +121,153 @@ onMounted(() => {
       class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
     >
       <div>
-        <h1 class="text-3xl font-semibold text-primary">
+        <USkeleton v-if="loading" class="h-8 w-64 mb-2 bg-gray-200" />
+        <h1 v-else class="text-3xl font-semibold text-primary">
           {{ dashboardData?.org_name }}
         </h1>
-        <p class="text-gray-600">Dashboard Overview</p>
+
+        <USkeleton v-if="loading" class="h-4 w-40 bg-gray-200" />
+        <p v-else class="text-gray-600">Dashboard Overview</p>
       </div>
+
       <div class="flex flex-wrap gap-2">
-        <UButton
-          label="Refresh"
-          icon="i-heroicons-arrow-path"
-          :loading="loading"
-          @click="fetchDashboard"
-        />
-        <UButton
-          color="primary"
-          label="Open Session"
-          icon="i-heroicons-clock"
-          to="/schedule"
-        />
+        <USkeleton v-if="loading" class="h-10 w-24 rounded-lg bg-gray-200" />
+        <USkeleton v-if="loading" class="h-10 w-32 rounded-lg bg-gray-200" />
+
+        <template v-else>
+          <UButton
+            label="Refresh"
+            icon="i-heroicons-arrow-path"
+            :loading="loading"
+            @click="fetchDashboard"
+          />
+          <UButton
+            color="primary"
+            label="Open Session"
+            icon="i-heroicons-clock"
+            to="/schedule"
+          />
+        </template>
       </div>
     </div>
 
-    <div
-      v-if="loading && !dashboardData"
-      class="flex justify-center items-center py-20"
-    >
-      <BaseSpinner />
-    </div>
-
-    <div v-else>
-      <div class="grid grid-cols-1 gap-4 mt-6 md:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <div class="grid grid-cols-1 gap-5 mt-6 md:grid-cols-2 lg:grid-cols-4">
         <UCard
-          v-for="stat in stats"
-          :key="stat.label"
+          v-for="(stat, i) in loading ? 4 : stats"
+          :key="loading ? i : stat.label"
           class="rounded-2xl border border-gray-100"
         >
           <div class="space-y-2">
             <p class="text-sm text-gray-500">{{ stat.label }}</p>
-            <p class="text-3xl font-semibold text-gray-900">{{ stat.value }}</p>
-            <p class="text-xs text-emerald-600 font-medium">{{ stat.delta }}</p>
+
+            <template v-if="loading">
+              <USkeleton class="h-8 w-20 bg-gray-200" />
+              <USkeleton class="h-3 w-16 bg-gray-200" />
+            </template>
+
+            <template v-else>
+              <p class="text-3xl font-semibold text-gray-900">
+                {{ stat.value }}
+              </p>
+              <p class="text-xs text-emerald-600 font-medium">
+                {{ stat.delta }}
+              </p>
+            </template>
           </div>
         </UCard>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 mt-8">
-        <UCard class="rounded-2xl">
+      <div class="grid grid-cols-1 gap-6">
+        <UCard class="rounded-2xl mt-5">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-900">Alerts</h2>
             <span class="text-xs text-gray-500">Needs attention</span>
           </div>
-          <ul v-if="alerts.length > 0" class="space-y-4">
-            <li
-              v-for="alert in alerts"
-              :key="alert.title"
-              class="rounded-xl bg-amber-50 p-3 border-l-4 border-amber-400"
-            >
-              <p class="text-sm font-semibold text-amber-900">
-                {{ alert.title }}
-              </p>
-              <p class="text-xs text-amber-700">{{ alert.message }}</p>
-              <p class="mt-2 text-xs text-amber-600">
-                {{ new Date(alert.timestamp).toLocaleString() }}
-              </p>
-            </li>
-          </ul>
-          <p v-else class="text-sm text-gray-500 text-center py-4">
-            No alerts at this time
-          </p>
+
+          <template v-if="loading">
+            <div v-for="i in 3" :key="i" class="space-y-2">
+              <USkeleton class="h-4 w-48 bg-gray-200" />
+              <USkeleton class="h-3 w-full bg-gray-200" />
+              <USkeleton class="h-3 w-32 bg-gray-200" />
+            </div>
+          </template>
+
+          <template v-else>
+            <ul v-if="alerts.length > 0" class="space-y-4">
+              <li
+                v-for="alert in alerts"
+                :key="alert.title"
+                class="rounded-xl bg-amber-50 p-3 border-l-4 border-amber-400"
+              >
+                <p class="text-sm font-semibold text-amber-900">
+                  {{ alert.title }}
+                </p>
+                <p class="text-xs text-amber-700">{{ alert.message }}</p>
+                <p class="mt-2 text-xs text-amber-600">
+                  {{ new Date(alert.timestamp).toLocaleString() }}
+                </p>
+              </li>
+            </ul>
+            <p v-else class="text-sm text-gray-500 text-center py-4">
+              No alerts at this time
+            </p>
+          </template>
         </UCard>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 mt-8 lg:grid-cols-2">
+      <div class="grid grid-cols-1 gap-5 mt-5 lg:grid-cols-2">
         <UCard class="rounded-2xl">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-900">Session Status</h2>
             <span class="text-xs text-gray-500">Live</span>
           </div>
-          <div v-if="sessions.length > 0" class="space-y-4">
-            <div
-              v-for="(session, index) in sessions"
-              :key="index"
-              class="rounded-xl border border-gray-100 p-4"
-            >
-              <p class="text-sm font-semibold text-gray-900">
-                {{ session.name }}
-              </p>
-              <p class="text-xs text-gray-500">{{ session.time }}</p>
-              <div class="mt-3 h-2 w-full rounded-full bg-gray-100">
-                <div
-                  class="h-2 rounded-full transition-all duration-500"
-                  :class="
-                    session.progress >= 100
-                      ? 'bg-gray-400'
-                      : session.progress > 70
-                        ? 'bg-amber-500'
-                        : 'bg-primary'
-                  "
-                  :style="{ width: `${Math.min(session.progress, 100)}%` }"
-                ></div>
-              </div>
-              <p class="mt-2 text-xs text-gray-500">
-                {{
-                  session.progress >= 100
-                    ? "Completed"
-                    : `${session.progress}% elapsed`
-                }}
-              </p>
+
+          <template v-if="loading">
+            <div class="rounded-xl py-4 space-y-3">
+              <USkeleton class="h-4 w-40 bg-gray-200" />
+              <USkeleton class="h-3 w-24 bg-gray-200" />
+              <USkeleton class="h-2 w-full bg-gray-200" />
             </div>
-          </div>
-          <p v-else class="text-sm text-gray-500 text-center py-8">
-            No sessions scheduled for today
-          </p>
+          </template>
+
+          <template v-else>
+            <div v-if="sessions.length > 0" class="space-y-4">
+              <div
+                v-for="(session, index) in sessions"
+                :key="index"
+                class="rounded-xl border border-gray-100 p-4"
+              >
+                <p class="text-sm font-semibold text-gray-900">
+                  {{ session.name }}
+                </p>
+                <p class="text-xs text-gray-500">{{ session.time }}</p>
+                <div class="mt-3 h-2 w-full rounded-full bg-gray-100">
+                  <div
+                    class="h-2 rounded-full transition-all duration-500"
+                    :class="
+                      session.progress >= 100
+                        ? 'bg-gray-400'
+                        : session.progress > 70
+                          ? 'bg-amber-500'
+                          : 'bg-primary'
+                    "
+                    :style="{ width: `${Math.min(session.progress, 100)}%` }"
+                  ></div>
+                </div>
+                <p class="mt-2 text-xs text-gray-500">
+                  {{
+                    session.progress >= 100
+                      ? "Completed"
+                      : `${session.progress}% elapsed`
+                  }}
+                </p>
+              </div>
+            </div>
+            <p v-else class="text-sm text-gray-500 text-center py-8">
+              No sessions scheduled for today
+            </p>
+          </template>
         </UCard>
 
         <UCard class="rounded-2xl">
@@ -239,47 +275,58 @@ onMounted(() => {
             <h2 class="text-lg font-semibold text-gray-900">System Overview</h2>
             <span class="text-xs text-gray-500">Summary</span>
           </div>
-          <div class="space-y-4">
-            <div
-              class="flex items-center justify-between p-3 rounded-lg bg-blue-50"
-            >
-              <div>
-                <p class="text-sm font-semibold text-blue-900">
-                  Active Students
-                </p>
-                <p class="text-xs text-blue-700">Total enrolled</p>
-              </div>
-              <p class="text-2xl font-bold text-blue-900">
-                {{ dashboardData?.students_active || 0 }}
-              </p>
+
+          <template v-if="loading">
+            <div class="rounded-xl py-4 space-y-3">
+              <USkeleton class="h-4 w-40 bg-gray-200" />
+              <USkeleton class="h-3 w-24 bg-gray-200" />
+              <USkeleton class="h-2 w-full bg-gray-200" />
             </div>
-            <div
-              class="flex items-center justify-between p-3 rounded-lg bg-green-50"
-            >
-              <div>
-                <p class="text-sm font-semibold text-green-900">
-                  Currently Clocked In
+          </template>
+
+          <template v-else>
+            <div class="space-y-4">
+              <div
+                class="flex items-center justify-between p-3 rounded-lg bg-blue-50"
+              >
+                <div>
+                  <p class="text-sm font-semibold text-blue-900">
+                    Active Students
+                  </p>
+                  <p class="text-xs text-blue-700">Total enrolled</p>
+                </div>
+                <p class="text-2xl font-bold text-blue-900">
+                  {{ dashboardData?.students_active || 0 }}
                 </p>
-                <p class="text-xs text-green-700">In session now</p>
               </div>
-              <p class="text-2xl font-bold text-green-900">
-                {{ dashboardData?.students_in || 0 }}
-              </p>
-            </div>
-            <div
-              class="flex items-center justify-between p-3 rounded-lg bg-purple-50"
-            >
-              <div>
-                <p class="text-sm font-semibold text-purple-900">
-                  Total Payouts
+              <div
+                class="flex items-center justify-between p-3 rounded-lg bg-green-50"
+              >
+                <div>
+                  <p class="text-sm font-semibold text-green-900">
+                    Currently Clocked In
+                  </p>
+                  <p class="text-xs text-green-700">In session now</p>
+                </div>
+                <p class="text-2xl font-bold text-green-900">
+                  {{ dashboardData?.students_in || 0 }}
                 </p>
-                <p class="text-xs text-purple-700">All time</p>
               </div>
-              <p class="text-xl font-bold text-purple-900">
-                $ {{ dashboardData?.money_out || "0" }}
-              </p>
+              <div
+                class="flex items-center justify-between p-3 rounded-lg bg-purple-50"
+              >
+                <div>
+                  <p class="text-sm font-semibold text-purple-900">
+                    Total Payouts
+                  </p>
+                  <p class="text-xs text-purple-700">All time</p>
+                </div>
+                <p class="text-xl font-bold text-purple-900">
+                  $ {{ dashboardData?.money_out || "0" }}
+                </p>
+              </div>
             </div>
-          </div>
+          </template>
         </UCard>
       </div>
     </div>

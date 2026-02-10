@@ -44,6 +44,7 @@ const fetchingQuestionDetails = ref(false);
 const selectedQuestionID = ref(null);
 
 const questionState = reactive({
+  id: null,
   question: "",
   ask_on_in: false,
   ask_on_out: false,
@@ -139,6 +140,7 @@ async function fetchScheduleQuestions() {
 }
 
 function resetQuestionForm() {
+  questionState.id = null;
   questionState.question = "";
   questionState.ask_on_in = false;
   questionState.ask_on_out = false;
@@ -183,6 +185,7 @@ async function handleQuestionSubmit(event) {
     payload = {
       ...event.data,
     };
+    delete payload.id; // Ensure ID is not sent for creation
   }
 
   isSubmittingQuestion.value = true;
@@ -328,6 +331,7 @@ const editQuestion = async (question) => {
     if (response?.success) {
       const q = response?.question;
 
+      questionState.id = q?.id || null;
       questionState.question = q?.question || "";
       questionState.ask_on_in = q?.ask_on_in === 1 ? true : false;
       questionState.ask_on_out = q?.ask_on_out === 1 ? true : false;
@@ -671,7 +675,7 @@ watch(
     <template #header>
       <div class="flex justify-between w-full">
         <h2 class="text-xl font-bold text-primary">
-          {{ questionState.question ? "Edit" : "Create" }} Question
+          {{ questionState.id ? "Edit" : "Create" }} Question
         </h2>
         <UButton
           size="sm"
@@ -778,9 +782,7 @@ watch(
             type="submit"
             :loading="isSubmittingQuestion"
             :disabled="isSubmittingQuestion"
-            :label="
-              questionState.question ? 'Edit Question' : 'Create Question'
-            "
+            :label="questionState.id ? 'Edit Question' : 'Create Question'"
           />
         </div>
       </UForm>
