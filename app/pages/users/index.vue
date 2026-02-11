@@ -28,13 +28,9 @@ const fetchData = async () => {
       query: { org_id: org_id.value },
     });
 
-    console.log("Full API Response:", response);
-
     if (response.success) {
       // Handle different response structures
       usersData.value = response.users || response.data || response || [];
-      console.log("Users loaded:", usersData.value);
-      console.log("Users data structure:", usersData.value[0]);
     } else {
       console.error("API Error:", response);
       toast.add({
@@ -67,18 +63,24 @@ const toggleAccess = async (userId, departmentId, currentAccess) => {
       method: method,
       body: { user_id: userId, department_id: departmentId },
     });
+    console.log("response", response);
 
-    if (response.success) {
+    if (response?.success) {
       toast.add({
-        description: currentAccess
-          ? "Access removed successfully"
-          : "Access granted successfully",
+        title: "Success",
+        description: response?.message
+          ? response?.message
+          : currentAccess
+            ? "Access removed successfully"
+            : "Access granted successfully",
         color: "success",
         timeout: 2000,
       });
+
       await fetchData(); // Refresh data
     } else {
       toast.add({
+        title: "Failded",
         description: response.message || "Operation failed",
         color: "error",
         timeout: 3000,
@@ -108,7 +110,7 @@ const userColumns = [
               "flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center",
           },
           [
-            h("UIcon", {
+            h(resolveComponent("UIcon"), {
               name: "i-heroicons-user",
               class: "w-4 h-4 text-white",
             }),
@@ -137,13 +139,23 @@ const userColumns = [
     accessorKey: "email",
     header: "Email",
     cell: ({ row }) => {
-      return h(
-        "span",
-        {
-          class: "text-gray-600 ",
-        },
-        row.original.email || "No email provided",
-      );
+      const email = row.original.email;
+      return email
+        ? h(
+            "a",
+            {
+              href: `mailto:${email}`,
+              class: "text-primary-600 hover:underline",
+            },
+            email,
+          )
+        : h(
+            "span",
+            {
+              class: "text-gray-400 italic",
+            },
+            "No email provided",
+          );
     },
   },
   {
@@ -154,8 +166,8 @@ const userColumns = [
 
       if (departments.length === 0) {
         return h("div", { class: "text-center py-4" }, [
-          h("UIcon", {
-            name: "i-heroicons-building-office-2",
+          h(resolveComponent("UIcon"), {
+            name: "i-lucide-building",
             class: "w-6 h-6 mx-auto text-gray-400 mb-1",
           }),
           h(
@@ -170,7 +182,7 @@ const userColumns = [
 
       return h(
         "div",
-        { class: "space-y-2 max-w-lg" },
+        { class: "space-y-2  grid xl:grid-cols-2 gap-2" },
         departments.map((department) =>
           h(
             "div",
@@ -183,35 +195,38 @@ const userColumns = [
               }`,
             },
             [
-              h("div", { class: "flex items-center space-x-2 flex-1" }, [
-                h("UIcon", {
-                  name: "i-heroicons-building-office-2",
+              h("div", { class: "flex items-center space-x-2" }, [
+                h(resolveComponent("UIcon"), {
+                  name: "i-lucide-building",
                   class: `w-4 h-4 ${department.has_access ? "text-green-600" : "text-gray-500"}`,
                 }),
                 h(
                   "span",
                   {
-                    class: `text-sm font-medium ${department.has_access ? "text-green-800" : "text-gray-700"}`,
+                    class: `text-sm font-medium capitalize ${department.has_access ? "text-green-800" : "text-gray-700"}`,
                   },
                   department.name,
                 ),
                 h(
-                  "UBadge",
+                  resolveComponent("UBadge"),
                   {
                     color: department.has_access ? "success" : "primary",
                     variant: "soft",
                     size: "xs",
                   },
-                  department.has_access ? "Access" : "No Access",
+                  {
+                    default: () =>
+                      department.has_access ? "Access" : "No Access",
+                  },
                 ),
               ]),
               h(
-                "UButton",
+                resolveComponent("UButton"),
                 {
                   color: department.has_access ? "error" : "success",
                   variant: department.has_access ? "outline" : "solid",
                   size: "xs",
-                  class: "ml-2 cursor-pointer",
+                  class: "ml-2 cursor-pointer flex items-center",
                   onClick: () =>
                     toggleAccess(
                       row.original.user_id,
@@ -219,15 +234,17 @@ const userColumns = [
                       department.has_access,
                     ),
                 },
-                [
-                  h("UIcon", {
-                    name: department.has_access
-                      ? "i-heroicons-minus-circle"
-                      : "i-heroicons-plus-circle",
-                    class: "w-3 h-3 mr-1",
-                  }),
-                  department.has_access ? "Remove" : "Grant",
-                ],
+                {
+                  default: () => [
+                    h(resolveComponent("UIcon"), {
+                      name: department.has_access
+                        ? "i-heroicons-minus-circle"
+                        : "i-heroicons-plus-circle",
+                      class: "w-3 h-3 mr-1",
+                    }),
+                    department.has_access ? "Remove" : "Grant",
+                  ],
+                },
               ),
             ],
           ),

@@ -8,8 +8,6 @@ definePageMeta({
   middleware: ["auth"],
 });
 
-const { $printJS } = useNuxtApp();
-
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -26,7 +24,6 @@ const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
 const showModal = ref(false);
-const processRulesResponse = ref(null);
 const processChecksLoading = ref(false);
 const processDepositLoading = ref(false);
 const newGroup = ref(false);
@@ -37,7 +34,6 @@ const deleteModal = ref(false);
 const fetchingGroups = ref(false);
 const processChecksModal = ref(false);
 const processDepositModal = ref(false);
-const errorProcessMessages = ref(null);
 const operaterLabels = ref({});
 const metricLabels = ref({});
 const isDeletingProcessAllPayroll = ref(false);
@@ -134,11 +130,6 @@ const confirmDeleteProcessAllPayroll = async () => {
 const isModalOpen = async () => {
   resetGroupForm();
   showModal.value = true;
-  await rulesOptionsFetch();
-  await fetchProcessRules({
-    from_date: calendarRange.value.start?.toString(),
-    till_date: calendarRange.value.end?.toString(),
-  });
 };
 
 // MM/dd/yyyy
@@ -154,13 +145,26 @@ const fetchProcessRules = async (date) => {
     });
 
     if (response?.success) {
-      processRulesResponse.value = response;
-      console.log(
-        "🚀 ~ fetchProcessRules ~ processRulesResponse.value:",
-        processRulesResponse.value,
-      );
+      toast.add({
+        title: "Success",
+        description:
+          response?.message ||
+          "Export processing started. File will be available shortly.",
+        color: "success",
+        duration: 2000,
+      });
+      showModal.value = false;
     } else {
-      errorProcessMessages.value = response?.message;
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data.errors ||
+          response?._data.message ||
+          "Failed to process rules. Please try again later.",
+        color: "error",
+        duration: 2000,
+      });
     }
   } catch (err) {
     console.log("🚀 ~ fetchProcessRules ~ err:", err);
@@ -758,7 +762,7 @@ const rulesOptionsFetch = async () => {
 
 // watch for datepicker changes
 const onDateChange = async (val) => {
-  if (!val?.start || !val?.end) {
+  if (!val?.from_date || !val?.till_date) {
     toast.add({
       title: "Error",
       description: "Please select a valid date range.",
@@ -768,15 +772,14 @@ const onDateChange = async (val) => {
   }
 
   await fetchProcessRules({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
+    ...val,
   });
 };
 
 // watch for Create Check Datepicker changes
 const onProcessCheckFormSubmit = async (val) => {
   if (!val?.from_date || !val?.till_date) {
-    return toast.add({
+    toast.add({
       title: "Error",
       description: "Please select a valid date range.",
       color: "error",
@@ -954,14 +957,6 @@ const fetchMainPageStudentCheck = async (data) => {
         }));
 
         pdfCheckModal.value = true;
-
-        toast.add({
-          title: "Success",
-          description:
-            response?.message || "Student checks processed successfully",
-          color: "success",
-          duration: 2000,
-        });
         singleStudentCheckModal.value = false;
       } else {
         toast.add({
@@ -1294,21 +1289,17 @@ watch(
   </UModal>
 
   <!-- Modal for Processing Rules -->
-
-  <CommonRulesModal
+  <CommonProcessCheckDepositModal
     v-model="showModal"
-    title="Processing Rules"
-    :rules="[]"
-    :message="processRulesResponse"
+    title="Process Rules"
     :loading="loading"
-    :metric-labels="metricLabels"
-    :operater-labels="operaterLabels"
     type="process"
-    @date-change="onDateChange"
+    isDescriptionRequired
+    @submit="onDateChange"
   />
 
   <!-- Modal for Process Check Rules -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="processChecksModal"
     title="Process Checks"
     :loading="processChecksLoading"
@@ -1317,7 +1308,7 @@ watch(
   />
 
   <!-- Modal for deposit Rules -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="processDepositModal"
     title="Process Deposit"
     :loading="processDepositLoading"
@@ -1415,7 +1406,7 @@ watch(
   </UModal>
 
   <!-- Single Student Processing Check Modal (Main Page) -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="singleStudentCheckModal"
     :title="
       selectedStudentForAction
@@ -1424,12 +1415,12 @@ watch(
     "
     :loading="processCheckSingleStudentLoading"
     type="check"
-    isStudent
+    isDescriptionRequired
     @submit="onMainPageStudentCheckDateChange"
   />
 
   <!-- Single Student Processing Deposit Modal (Main Page) -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="singleStudentDepositModal"
     :title="
       selectedStudentForAction
@@ -1438,7 +1429,7 @@ watch(
     "
     :loading="processDepositSingleStudentLoading"
     type="deposit"
-    isStudent
+    isDescriptionRequired
     @submit="onMainPageStudentDepositDateChange"
   />
 

@@ -8,8 +8,6 @@ definePageMeta({
   middleware: ["auth"],
 });
 
-const { $printJS } = useNuxtApp();
-
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -720,14 +718,6 @@ const fetchSingleStudentCheck = async (data) => {
         );
 
         pdfCheckModal.value = true;
-
-        toast.add({
-          title: "Success",
-          description: response?.message || "Check processed successfully",
-          color: "success",
-          duration: 2000,
-        });
-
         singleStudentCheckModal.value = false;
       } else {
         toast.add({
@@ -1322,7 +1312,7 @@ watch(activeTab, (newTab) => {
   />
 
   <!-- Modal for Process Checks Rules -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="processChecksModal"
     title="Process Checks"
     :loading="processChecksLoading"
@@ -1331,7 +1321,7 @@ watch(activeTab, (newTab) => {
   />
 
   <!-- Modal for Deposit Checks -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="processDepositModal"
     title="Process Deposit"
     :loading="processDepositLoading"
@@ -1394,7 +1384,7 @@ watch(activeTab, (newTab) => {
   </UModal>
 
   <!-- Single Student Processing Check Modal -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="singleStudentCheckModal"
     :title="
       selectedStudent
@@ -1403,12 +1393,12 @@ watch(activeTab, (newTab) => {
     "
     :loading="processCheckSingleStudentLoading"
     type="check"
-    isStudent
+    isDescriptionRequired
     @submit="onSingleGroupCheckDateChange"
   />
 
   <!-- Single Student Processing Deposit Modal -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="singleStudentDepositModal"
     :title="
       selectedStudent
@@ -1417,7 +1407,7 @@ watch(activeTab, (newTab) => {
     "
     :loading="processDepositSingleStudentLoading"
     type="deposit"
-    isStudent
+    isDescriptionRequired
     @submit="onSingleGroupDepositDateChange"
   />
 

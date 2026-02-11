@@ -74,7 +74,11 @@ watch(
     <!-- Body -->
     <template #body>
       <!-- Date Range -->
-      <UFormField label="Select Date Range" class="text-lg font-bold mb-4">
+      <UFormField
+        label="Select Date Range"
+        class="text-lg font-bold mb-4"
+        required
+      >
         <UPopover v-model:open="calendarOpen">
           <UButton
             color="neutral"
