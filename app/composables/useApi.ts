@@ -26,8 +26,7 @@ export const useApi = () => {
       if (error.response?._data?.reLogin === true) {
         const message = error.response?._data?.message
         toast.add({
-          title: "Failed",
-          description: message || "Token has expired.",
+          title: message || "Token has expired.",
           color: "error",
         });
         token.value = null; // Clear cookie correctly
