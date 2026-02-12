@@ -3,7 +3,7 @@ export const useApi = () => {
   const config = useRuntimeConfig();
   const baseUrl = config.public.API_URL;
   const token = useCookie("kollel_sys_token");
-
+  const toast = useToast()
   return async (url: string, options: any = {}) => {
     try {
       // Don't set Content-Type if body is FormData (let browser set multipart/form-data)
@@ -24,6 +24,12 @@ export const useApi = () => {
       });
     } catch (error: any) {
       if (error.response?._data?.reLogin === true) {
+        const message = error.response?._data?.message
+        toast.add({
+          title: "Failed",
+          description: message || "Token has expired.",
+          color: "error",
+        });
         token.value = null; // Clear cookie correctly
         navigateTo('/login')
       }

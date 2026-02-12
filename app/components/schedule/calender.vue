@@ -250,65 +250,64 @@ watch(
         label="Next"
       />
     </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse table-auto">
+        <thead>
+          <tr class="bg-gray-200"></tr>
+          <tr class="bg-gray-200">
+            <th class="p-2 border border-gray-300">זונטאג</th>
+            <th class="p-2 border border-gray-300">מאנטאג</th>
+            <th class="p-2 border border-gray-300">דינסטאג</th>
+            <th class="p-2 border border-gray-300">מיטוואך</th>
+            <th class="p-2 border border-gray-300">דאנערשטאג</th>
+            <th class="p-2 border border-gray-300">פרייטאג</th>
+            <th class="p-2 border border-gray-300">שבת קודש</th>
+          </tr>
+        </thead>
 
-    <table class="w-full border-collapse table-auto">
-      <thead>
-        <tr class="bg-gray-200"></tr>
-        <tr class="bg-gray-200">
-          <th class="p-2 border border-gray-300">זונטאג</th>
-          <th class="p-2 border border-gray-300">מאנטאג</th>
-          <th class="p-2 border border-gray-300">דינסטאג</th>
-          <th class="p-2 border border-gray-300">מיטוואך</th>
-          <th class="p-2 border border-gray-300">דאנערשטאג</th>
-          <th class="p-2 border border-gray-300">פרייטאג</th>
-          <th class="p-2 border border-gray-300">שבת קודש</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <tr v-for="week in weeks" :key="week[0]?.date">
-          <td
-            v-for="day in week"
-            :key="day?.date"
-            class="p-2 border border-gray-300 whitespace-normal"
-          >
-            <div class="h-16 flex flex-col items-center text-sm">
-              <span v-if="day?.date" class="flex flex-col">
-                {{ g2h(day.date.string) }}
-                <small>({{ day.date.string }})</small>
-              </span>
-            </div>
-
-            <div
-              v-if="day?.data"
-              v-for="s in day.data.schedule"
-              class="my-2 flex items-center px-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
+        <tbody>
+          <tr v-for="week in weeks" :key="week[0]?.date">
+            <td
+              v-for="day in week"
+              :key="day?.date"
+              class="p-2 border border-gray-300 whitespace-normal"
             >
-              Seder <span v-text="s.session"></span>:
-              <span v-html="sec_to_time(s.start)"></span> -
-              <span v-html="sec_to_time(s.end)"></span>
+              <div class="h-16 flex flex-col items-center text-sm">
+                <span v-if="day?.date" class="flex flex-col">
+                  {{ g2h(day.date.string) }}
+                  <small>({{ day.date.string }})</small>
+                </span>
+              </div>
 
-              <UButton
-                color="success"
-                variant="soft"
-                class=""
-                icon="i-lucide-square-pen"
-                @click="edit(s)"
-              />
+              <div
+                v-if="day?.data"
+                v-for="s in day.data.schedule"
+                class="my-2 flex items-center px-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
+              >
+                Seder <span v-text="s.session"></span>:
+                <span v-html="sec_to_time(s.start)"></span> -
+                <span v-html="sec_to_time(s.end)"></span>
 
-              <UButton
-                color="error"
-                variant="soft"
-                icon="i-lucide-trash-2"
-                class=""
-                :disabled="isDeletingSchedule"
-                @click="deleteSchedule(s.id)"
-              />
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+                <UButton
+                  color="success"
+                  variant="soft"
+                  icon="i-lucide-square-pen"
+                  @click="edit(s)"
+                />
+
+                <UButton
+                  color="error"
+                  variant="soft"
+                  icon="i-lucide-trash-2"
+                  :disabled="isDeletingSchedule"
+                  @click="deleteSchedule(s.id)"
+                />
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Delete schedule confirm modal -->

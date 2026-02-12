@@ -53,8 +53,8 @@ const data = [
     <div class="flex justify-between items-center gap-4">
       <h2 class="text-xl font-bold">Requests</h2>
       <div class="flex justify-end gap-2">
-        <UButton icon="" label="Approve All" color="success" variant="solid" />
-        <UButton icon="" label="Reject All" color="error" variant="solid" />
+        <UButton label="Approve All" color="success" variant="solid" />
+        <UButton label="Reject All" color="error" variant="solid" />
       </div>
     </div>
   </UCard>

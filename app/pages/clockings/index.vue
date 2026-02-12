@@ -596,7 +596,8 @@ watch(
       :columns="clockingsColumns"
       :loading="loading"
       :data="clockingsData"
-      class="flex-1 mt-6"
+      sticky
+      class="flex-1 mt-6 max-h-160"
     />
     <!-- Pagination Info -->
     <div class="flex justify-between items-center mt-4 text-sm text-gray-600">
@@ -612,27 +613,25 @@ watch(
       </div>
       <div class="flex gap-2">
         <UButton
-          v-if="pagination.currentPage > 1"
-          variant="outline"
-          size="sm"
+          size="xs"
           label="Previous"
+          color="neutral"
+          variant="soft"
           icon="i-lucide-chevron-left"
           @click="goToPreviousPage"
-          :loading="loading"
-          :disabled="loading"
+          :disabled="pagination.currentPage === 1 || loading"
         />
         <span class="px-3 py-2"
           >{{ pagination.currentPage }} / {{ pagination.lastPage }}
         </span>
         <UButton
-          v-if="pagination.currentPage < pagination.lastPage"
-          variant="outline"
-          size="sm"
+          size="xs"
           label="Next"
-          icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="soft"
+          trailing-icon="i-lucide-chevron-right"
           @click="goToNextPage"
-          :loading="loading"
-          :disabled="loading"
+          :disabled="pagination.currentPage === pagination.total || loading"
         />
       </div>
     </div>

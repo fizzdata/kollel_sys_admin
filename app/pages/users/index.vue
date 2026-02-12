@@ -263,7 +263,12 @@ const userColumns = [
         <p class="text-gray-600">Manage user access to departments</p>
       </div>
       <div class="flex justify-end gap-2">
-        <UBadge color="primary" variant="soft" size="lg">
+        <UBadge
+          v-if="usersData.length > 0"
+          color="primary"
+          variant="soft"
+          size="lg"
+        >
           {{ usersData.length }} Users
         </UBadge>
         <UButton
@@ -290,7 +295,8 @@ const userColumns = [
       :columns="userColumns"
       :data="usersData"
       :loading="loading"
-      class="flex-1 mt-6"
+      sticky
+      class="flex-1 mt-6 max-h-160"
     />
   </UCard>
 </template>

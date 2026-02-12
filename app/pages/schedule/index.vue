@@ -595,6 +595,12 @@ watch(
         </UTable>
       </div>
     </div>
+
+    <div v-if="loading" class="fixed inset-0 z-50 bg-black/10">
+      <div class="flex justify-center items-center h-full text-center inset-0">
+        <BaseSpinner :show-loader="loading" />
+      </div>
+    </div>
   </div>
   <!-- Modal for Edit Schedule -->
   <UModal v-model:open="editScheduleModal">

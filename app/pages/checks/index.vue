@@ -22,7 +22,11 @@ const toDate = ref("");
 const payToFilter = ref("");
 const clearedFilter = ref("");
 const searchTerm = ref("");
-
+const paginationData = ref({
+  from: 0,
+  to: 0,
+  total: 0,
+});
 // Filter options
 const clearedOptions = [
   { label: "All", value: null },
@@ -51,16 +55,22 @@ const fetchChecks = async (page = 1) => {
 
     if (response.success) {
       checks.value = response.checks.data || response.checks;
+      paginationData.value = {
+        from: response.checks.from,
+        to: response.checks.to,
+        total: response.checks.total,
+      };
       currentPage.value = response.checks.current_page || 1;
       totalPages.value = response.checks.last_page || 1;
     } else {
       toast.add({
         title: "Error",
-        description: response.message || "Failed to fetch checks",
+        description: response?.message || "Failed to fetch checks",
         color: "error",
       });
     }
   } catch (error) {
+    console.log("🚀 ~ fetchChecks ~ error:", error);
     toast.add({
       title: "Error",
       description: "Failed to fetch checks. Please try again later.",
@@ -168,9 +178,23 @@ onMounted(() => {
 });
 
 // Watch for filter changes
-watch([payToFilter, clearedFilter, searchTerm], () => {
+watch([payToFilter, clearedFilter], () => {
   currentPage.value = 1; // Reset to first page
   fetchChecks();
+});
+let searchTimeout = null;
+
+watch(searchTerm, () => {
+  currentPage.value = 1;
+
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+
+  searchTimeout = setTimeout(() => {
+    currentPage.value = 1; // Reset to first page
+    fetchChecks();
+  }, 500); // debounce delay (ms)
 });
 
 // Pagination
@@ -225,7 +249,7 @@ const columns = [
       h(
         resolveComponent("UBadge"),
         {
-          color: row.original.cleared ? "green" : "yellow",
+          color: row.original.cleared ? "success" : "warning",
           variant: "solid",
           size: "sm",
         },
@@ -254,9 +278,20 @@ const columns = [
               ],
             )
           : h(
-              "span",
-              { class: "text-xs text-gray-500 px-2 py-1" },
-              "Already cleared",
+              resolveComponent("UButton"),
+              {
+                size: "sm",
+                color: "success",
+                variant: "soft",
+                class: "pointer-events-none font-bold",
+              },
+              () => [
+                h(resolveComponent("UIcon"), {
+                  name: "i-heroicons-check-circle",
+                  class: "w-4 h-4 mr-1",
+                }),
+                "Already cleared",
+              ],
             ),
       ]),
   },
@@ -303,7 +338,7 @@ const columns = [
       variant="outline"
       placeholder="Search checks..."
       :ui="{ trailing: 'pe-1' }"
-      class="flex-1"
+      class="flex-1 w-full"
     >
       <template v-if="searchTerm?.length" #trailing>
         <UButton
@@ -358,34 +393,39 @@ const columns = [
       :columns="columns"
       :loading="loading"
       :data="checks"
-      class="flex-1 mt-6"
+      sticky
+      class="flex-1 mt-6 max-h-160"
     />
 
     <!-- Pagination -->
     <div
       class="flex justify-between items-center mt-6 pt-4 border-t border-default"
     >
-      <div class="text-sm text-gray-600">
-        Page {{ currentPage }} of {{ totalPages }}
+      <div class="text-sm text-gray-700">
+        Showing {{ paginationData.from }} to {{ paginationData.to }} of
+        {{ paginationData.total }} results
       </div>
-      <div class="flex gap-2">
+
+      <div class="flex items-center gap-2">
         <UButton
           @click="goToPage(currentPage - 1)"
-          :disabled="currentPage === 1"
+          :disabled="currentPage === 1 || loading"
           size="sm"
-          color="gray"
+          color="neutral"
           variant="soft"
           icon="i-heroicons-chevron-left"
           label="Previous"
         />
-
+        <div class="text-sm text-gray-600">
+          Page {{ currentPage }} of {{ totalPages }}
+        </div>
         <UButton
           @click="goToPage(currentPage + 1)"
-          :disabled="currentPage === totalPages"
+          :disabled="currentPage === totalPages || loading"
           size="sm"
-          color="gray"
+          color="neutral"
           variant="soft"
-          icon="i-heroicons-chevron-right"
+          trailing-icon="i-heroicons-chevron-right"
           label="Next"
         />
       </div>
