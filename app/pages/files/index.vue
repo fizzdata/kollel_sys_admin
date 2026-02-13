@@ -173,15 +173,15 @@ onMounted(async () => {
   <!-- Files Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage files</h2>
+      <h2 class="md:text-lg text-base font-bold">View and manage files</h2>
     </div>
     <UTable
       :columns="columns"
       :loading="loading"
       :data="filteredFiles"
-      class="flex-1 mt-6"
+      class="flex-1 md:mt-6 mt-2"
     />
   </UCard>
 </template>

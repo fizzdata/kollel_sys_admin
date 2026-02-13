@@ -277,10 +277,10 @@ const toggleSwitch = async () => {
 <template>
   <UCard class="rounded-2xl shadow-sm">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
     >
-      <h2 class="text-xl font-bold">All Students</h2>
-      <div class="flex justify-end gap-2">
+      <h2 class="text-lg sm:text-xl font-bold">All Students</h2>
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UButton
           @click="isModalOpen"
           icon="i-lucide-circle-plus"
@@ -324,15 +324,17 @@ const toggleSwitch = async () => {
   <!-- Students Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">Manage students and their access</h2>
+      <h2 class="md:text-lg text-base font-bold">
+        Manage students and their access
+      </h2>
     </div>
     <UTable
       :columns="columns"
       :loading="loading"
       :data="filteredStudents"
-      class="flex-1 mt-6"
+      class="flex-1 md:mt-6 mt-2"
     />
   </UCard>
   <!-- Modal for Create New Student -->

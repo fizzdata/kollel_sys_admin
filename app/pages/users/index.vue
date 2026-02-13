@@ -257,12 +257,14 @@ const userColumns = [
 
 <template>
   <UCard class="rounded-2xl shadow-sm">
-    <div class="flex justify-between items-center gap-4">
+    <div
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div>
-        <h1 class="text-xl font-bold">User Management</h1>
+        <h1 class="text-lg sm:text-xl font-bold">User Management</h1>
         <p class="text-gray-600">Manage user access to departments</p>
       </div>
-      <div class="flex justify-end gap-2">
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UBadge
           v-if="usersData.length > 0"
           color="primary"
@@ -285,9 +287,9 @@ const userColumns = [
   <!-- Users Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">Users & Department Access</h2>
+      <h2 class="md:text-lg text-base font-bold">Users & Department Access</h2>
     </div>
 
     <!-- Users Table -->
@@ -296,7 +298,7 @@ const userColumns = [
       :data="usersData"
       :loading="loading"
       sticky
-      class="flex-1 mt-6 max-h-160"
+      class="flex-1 md:mt-6 mt-2 max-h-160"
     />
   </UCard>
 </template>

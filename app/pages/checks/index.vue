@@ -301,12 +301,12 @@ const columns = [
 <template>
   <UCard class="rounded-2xl shadow-sm">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <h2 class="text-xl font-bold">Checks Management</h2>
 
       <!-- Export Section -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UInput
           v-model="fromDate"
           type="date"
@@ -385,28 +385,28 @@ const columns = [
   <!-- Checks Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage checks</h2>
+      <h2 class="md:text-lg text-base font-bold">View and manage checks</h2>
     </div>
     <UTable
       :columns="columns"
       :loading="loading"
       :data="checks"
       sticky
-      class="flex-1 mt-6 max-h-160"
+      class="flex-1 md:mt-6 mt-2 max-h-160"
     />
 
     <!-- Pagination -->
     <div
-      class="flex justify-between items-center mt-6 pt-4 border-t border-default"
+      class="flex flex-col md:flex-row justify-between md:items-center mt-4 md:text-sm text-xs text-gray-600"
     >
-      <div class="text-sm text-gray-700">
+      <div>
         Showing {{ paginationData.from }} to {{ paginationData.to }} of
         {{ paginationData.total }} results
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex mt-2 md:mt-0 justify-center items-center sm:flex-row">
         <UButton
           @click="goToPage(currentPage - 1)"
           :disabled="currentPage === 1 || loading"
@@ -416,9 +416,7 @@ const columns = [
           icon="i-heroicons-chevron-left"
           label="Previous"
         />
-        <div class="text-sm text-gray-600">
-          Page {{ currentPage }} of {{ totalPages }}
-        </div>
+        <div class="px-3 py-1">Page {{ currentPage }} of {{ totalPages }}</div>
         <UButton
           @click="goToPage(currentPage + 1)"
           :disabled="currentPage === totalPages || loading"

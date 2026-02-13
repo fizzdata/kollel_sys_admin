@@ -537,10 +537,10 @@ watch(
     <!-- Header Card -->
     <UCard class="rounded-2xl shadow-sm mb-4">
       <div
-        class="flex flex-col md:flex-row justify-between md:items-center gap-4 md:mb-0"
+        class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <h2 class="text-xl font-bold">Schedules</h2>
-        <div class="flex justify-end gap-2">
+        <h2 class="text-lg sm:text-xl font-bold">Schedules</h2>
+        <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
           <UButton
             v-if="activeTab === '0'"
             to="/schedule/populate"
@@ -773,6 +773,7 @@ watch(
             v-model="questionState.ask_only"
             placeholder="Specific user or condition"
             type="text"
+            class="w-full"
           />
         </UFormField>
 

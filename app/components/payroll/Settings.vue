@@ -104,8 +104,10 @@ watch(
     <BaseSpinner :show-loader="fetchingSettings" size="md" />
   </div>
   <div v-else class="mt-6 flex items-center justify-center px-4">
-    <UCard class="w-full max-w-2xl rounded-2xl py-6 sm:py-8">
-      <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">
+    <UCard class="w-full max-w-2xl rounded-2xl py-2">
+      <h2
+        class="md:text-2xl text-xl font-semibold text-gray-800 md:mb-6 mb-4 text-center"
+      >
         Bank Details
       </h2>
 

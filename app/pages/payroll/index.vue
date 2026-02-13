@@ -1099,8 +1099,10 @@ watch(
 
 <template>
   <UCard class="rounded-2xl shadow-sm">
-    <div class="flex justify-between items-center gap-4">
-      <h2 class="text-xl font-bold">
+    <div
+      class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"
+    >
+      <h2 class="text-lg sm:text-xl font-bold">
         {{
           activeTab === "0"
             ? "Recent Payroll"
@@ -1112,7 +1114,7 @@ watch(
         }}
       </h2>
 
-      <div class="flex flex-wrap gap-2 justify-end">
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UButton
           @click="isGroupModalOpen"
           icon="la:user-plus"
@@ -1149,45 +1151,51 @@ watch(
   <!-- Recent Payroll Tab 1 -->
   <UCard v-if="activeTab === '0'" class="rounded-2xl shadow-sm my-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage recent payrolls</h2>
+      <h2 class="md:text-lg text-base font-bold">
+        View and manage recent payrolls
+      </h2>
     </div>
     <UTable
       :columns="recentPayrollColumns"
       :loading="fetchingPayroll"
       :data="recentPayroll"
-      class="flex-1 mt-6"
+      class="flex-1 md:mt-6 mt-2"
     />
   </UCard>
 
   <!-- Fetch Group Tab 2 -->
   <UCard v-if="activeTab === '1'" class="rounded-2xl shadow-sm my-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage payroll groups</h2>
+      <h2 class="md:text-lg text-base font-bold">
+        View and manage payroll groups
+      </h2>
     </div>
     <UTable
       :columns="columns"
       :loading="fetchingGroups"
       :data="groups"
-      class="flex-1 mt-6"
+      class="flex-1 md:mt-6 mt-2"
     />
   </UCard>
 
   <!-- All Students Tab 3 -->
   <UCard v-if="activeTab === '2'" class="rounded-2xl shadow-sm my-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage all students</h2>
+      <h2 class="md:text-lg text-base font-bold">
+        View and manage all students
+      </h2>
     </div>
     <UTable
       :columns="allStudentsColumns"
       :loading="fetchingAllStudents"
       :data="allStudentsData"
-      class="flex-1 mt-6"
+      class="flex-1 md:mt-6 mt-2"
     />
   </UCard>
 

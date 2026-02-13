@@ -322,7 +322,7 @@ onMounted(async () => {
 
           <div class="flex-1">
             <div class="flex justify-between">
-              <h2 class="text-xl font-semibold">
+              <h2 class="md:text-xl text-base font-semibold">
                 {{
                   student?.page_title ||
                   student?.Student?.first_name +
@@ -493,43 +493,45 @@ onMounted(async () => {
 
       <UCard v-if="activeTab === '1'" class="rounded-2xl shadow-sm mt-6">
         <div
-          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
         >
-          <h2 class="text-lg font-bold">Manage Deposits</h2>
+          <h2 class="md:text-lg text-base font-bold">Manage Deposits</h2>
         </div>
         <UTable
           :columns="transactionsColumns"
           :loading="loading"
           :data="transactionsData"
-          class="flex-1 mt-6 max-h-112"
+          class="flex-1 md:mt-6 mt-2 max-h-112"
           sticky
         />
       </UCard>
       <UCard v-if="activeTab === '2'" class="rounded-2xl shadow-sm mt-6">
         <div
-          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
         >
-          <h2 class="text-lg font-bold">Manage Checks</h2>
+          <h2 class="md:text-lg text-base font-bold">Manage Checks</h2>
         </div>
         <UTable
           :columns="checksColumns"
           :loading="loading"
           :data="checksData"
-          class="flex-1 mt-6 max-h-112"
+          class="flex-1 md:mt-6 mt-2 max-h-112"
           sticky
         />
       </UCard>
       <UCard v-if="activeTab === '3'" class="rounded-2xl shadow-sm mt-6">
         <div
-          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+          class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
         >
-          <h2 class="text-lg font-bold">Manage Student Responses</h2>
+          <h2 class="md:text-lg text-base font-bold">
+            Manage Student Responses
+          </h2>
         </div>
         <UTable
           :columns="responsesColumns"
           :loading="loading"
           :data="responsesData"
-          class="flex-1 mt-6 max-h-112"
+          class="flex-1 md:mt-6 mt-2 max-h-112"
           sticky
         />
       </UCard>

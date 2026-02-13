@@ -139,7 +139,9 @@ watch(() => props.items, generateCalendar, { deep: true });
         label="Previous"
       />
 
-      <h2 class="text-2xl font-bold text-gray-900 text-center flex-1">
+      <h2
+        class="md:text-2xl text-xl font-bold text-gray-900 text-center flex-1"
+      >
         {{ month_year() }}
       </h2>
       <UButton

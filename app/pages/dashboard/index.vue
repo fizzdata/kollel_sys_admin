@@ -152,7 +152,7 @@ onMounted(() => {
     </div>
 
     <div>
-      <div class="grid grid-cols-1 gap-5 mt-6 md:grid-cols-2 lg:grid-cols-4">
+      <div class="grid grid-cols-1 gap-5 mt-6 md:grid-cols-2 xl:grid-cols-4">
         <UCard
           v-for="(stat, i) in loading ? 4 : stats"
           :key="loading ? i : stat.label"

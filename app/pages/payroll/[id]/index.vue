@@ -926,7 +926,7 @@ watch(activeTab, (newTab) => {
         <div class="flex flex-col gap-6">
           <!-- Header -->
           <div
-            class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            class="grid grid-cols-1 gap-4 md:grid-cols-2 flex-wrap justify-between items-start"
           >
             <!-- Group Info -->
             <div class="space-y-1">
@@ -948,7 +948,7 @@ watch(activeTab, (newTab) => {
             </div>
 
             <!-- Actions -->
-            <div class="flex flex-wrap gap-2 justify-end">
+            <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
               <!-- TAB 0 ACTIONS -->
               <template v-if="activeTab === '0'">
                 <UButton
@@ -1017,7 +1017,7 @@ watch(activeTab, (newTab) => {
       <div v-else>
         <div v-if="rules?.length > 0">
           <div
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6"
           >
             <UCard
               v-for="rule in rules"
@@ -1073,9 +1073,11 @@ watch(activeTab, (newTab) => {
     <!-- Students Tab -->
     <UCard class="rounded-2xl shadow-sm mt-6">
       <div
-        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
       >
-        <h2 class="text-lg font-bold">View and manage group students</h2>
+        <h2 class="md:text-lg text-base font-bold">
+          View and manage group students
+        </h2>
       </div>
 
       <PayrollStudents

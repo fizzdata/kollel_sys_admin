@@ -381,9 +381,11 @@ watch(
 </script>
 <template>
   <UCard class="rounded-2xl shadow-sm">
-    <div class="flex justify-between items-center gap-4">
-      <h2 class="text-xl font-bold">All Transactions</h2>
-      <div class="flex justify-end gap-2">
+    <div
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <h2 class="text-lg sm:text-xl font-bold">All Transactions</h2>
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UButton
           @click="onClickNewTransaction"
           icon="i-lucide-circle-plus"
@@ -431,27 +433,29 @@ watch(
   <!-- Clockings Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage all transactions.</h2>
+      <h2 class="md:text-lg text-base font-bold">
+        View and manage all transactions.
+      </h2>
     </div>
 
     <UTable
       :columns="transactionsColumns"
       :loading="loading"
       :data="transactions && transactions?.data"
-      class="flex-1 mt-6"
+      class="flex-1 md:mt-6 mt-2"
     />
 
     <div
       v-if="paginationData"
-      class="flex flex-col md:flex-row items-center justify-between mt-4 w-full gap-4"
+      class="flex flex-col md:flex-row justify-between md:items-center mt-4 md:text-sm text-xs text-gray-600"
     >
       <div class="text-sm text-gray-700">
         Showing {{ paginationData.from }} to {{ paginationData.to }} of
         {{ paginationData.total }} results
       </div>
-      <div class="flex flex-col items-center sm:flex-row">
+      <div class="flex mt-4 md:mt-0 justify-center items-center sm:flex-row">
         <div class="flex gap-2">
           <UButton
             @click="goToPage(1)"
