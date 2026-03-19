@@ -291,6 +291,11 @@ const toggleSwitch = async () => {
           icon="i-lucide-file-text"
           label="Import Students"
         />
+        <UButton
+          @click="exportStudent"
+          icon="i-lucide-file-text"
+          label="Export Students"
+        />
       </div>
     </div>
   </UCard>
@@ -326,7 +331,7 @@ const toggleSwitch = async () => {
     <div
       class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
     >
-      <h2 class="text-lg font-bold">Manage students and their access</h2>
+      <h2 class="text-lg font-bold">Manage students and their state</h2>
     </div>
     <UTable
       :columns="columns"

@@ -6,6 +6,9 @@ definePageMeta({
 
 const api = useApi();
 const toast = useToast();
+import CheckCreateModal from "~/components/common/CheckCreateModal.vue";
+
+const showCreateModal = ref(false);
 
 // Reactive data
 const checks = ref([]);
@@ -20,7 +23,9 @@ const toDate = ref("");
 
 // Filter options
 const payToFilter = ref("");
-const clearedFilter = ref("");
+const statusFilter = ref("");
+// Backwards-compatible alias: some templates/code reference `clearedFilter`
+const clearedFilter = statusFilter;
 const searchTerm = ref("");
 
 // Filter options
@@ -40,8 +45,8 @@ const fetchChecks = async (page = 1) => {
     if (payToFilter.value) {
       url += `&pay_to=${encodeURIComponent(payToFilter.value)}`;
     }
-    if (clearedFilter.value) {
-      url += `&cleared=${clearedFilter.value}`;
+    if (statusFilter.value) {
+      url += `&status=${statusFilter.value}`;
     }
     if (searchTerm.value) {
       url += `&search=${encodeURIComponent(searchTerm.value)}`;
@@ -74,9 +79,9 @@ const fetchChecks = async (page = 1) => {
 // Mark check as cleared
 const markAsCleared = async (checkId) => {
   try {
-    const response = await api(`/api/checks/${checkId}/cleared`, {
+    const response = await api(`/api/checks/${checkId}/status`, {
       method: "POST",
-      body: { id: checkId },
+      body: { id: checkId, status: "cleared" },
     });
 
     if (response.success) {
@@ -98,6 +103,138 @@ const markAsCleared = async (checkId) => {
     toast.add({
       title: "Error",
       description: "Failed to mark check as cleared",
+      color: "error",
+    });
+  }
+};
+// print checks — open PDF in a new tab and trigger browser print
+const printChecks = async (checkId) => {
+  try {
+    const response = await api(`/api/checks/${checkId}/print`, {
+      method: "GET",
+    });
+
+    if (response.success) {
+      const byteCharacters = atob(response.pdf);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      const printWindow = window.open(url, "_blank");
+      const tryPrint = () => {
+        if (!printWindow) return;
+        try {
+          printWindow.focus();
+          printWindow.print();
+        } catch (e) {
+          // ignore print errors
+        }
+      };
+
+      // Try to print once the window has loaded, with a fallback timeout
+      if (printWindow) {
+        printWindow.onload = tryPrint;
+        setTimeout(tryPrint, 500);
+        // Revoke URL after a delay to avoid breaking the opened PDF before printing
+        setTimeout(() => {
+          try {
+            window.URL.revokeObjectURL(url);
+          } catch (e) {}
+        }, 10000);
+      } else {
+        // Could not open new window/tab
+        window.URL.revokeObjectURL(url);
+        toast.add({
+          title: "Error",
+          description: "Unable to open print window",
+          color: "error",
+        });
+      }
+    } else {
+      toast.add({
+        title: "Error",
+        description: response.message || "Failed to print check",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    toast.add({
+      title: "Error",
+      description: "Failed to print check",
+      color: "error",
+    });
+  }
+};
+
+// download check PDF without opening a new window
+const downloadCheck = async (checkId, checkNumber = "") => {
+  try {
+    const response = await api(`/api/checks/${checkId}/print`, {
+      method: "GET",
+    });
+
+    if (response.success) {
+      const byteCharacters = atob(response.pdf);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `check_${checkNumber || checkId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      //window.URL.revokeObjectURL(url);
+    } else {
+      toast.add({
+        title: "Error",
+        description: response.message || "Failed to download PDF",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    toast.add({
+      title: "Error",
+      description: "Failed to download PDF",
+      color: "error",
+    });
+  }
+};
+// Mark check as voided
+const markAsVoided = async (checkId) => {
+  try {
+    const response = await api(`/api/checks/${checkId}/status`, {
+      method: "POST",
+      body: { id: checkId, status: "voided" },
+    });
+
+    if (response.success) {
+      toast.add({
+        title: "Success",
+        description: "Check marked as voided",
+        color: "success",
+      });
+      // Refresh the list
+      await fetchChecks(currentPage.value);
+    } else {
+      toast.add({
+        title: "Error",
+        description: response.message || "Failed to mark check as voided",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    toast.add({
+      title: "Error",
+      description: "Failed to mark check as voided",
       color: "error",
     });
   }
@@ -168,7 +305,7 @@ onMounted(() => {
 });
 
 // Watch for filter changes
-watch([payToFilter, clearedFilter, searchTerm], () => {
+watch([payToFilter, statusFilter, searchTerm], () => {
   currentPage.value = 1; // Reset to first page
   fetchChecks();
 });
@@ -219,24 +356,24 @@ const columns = [
       ),
   },
   {
-    accessorKey: "cleared",
+    accessorKey: "status",
     header: "Status",
     cell: ({ row }) =>
       h(
         resolveComponent("UBadge"),
         {
-          color: row.original.cleared ? "green" : "yellow",
+          color: row.original.status === "cleared" ? "green" : "yellow",
           variant: "solid",
           size: "sm",
         },
-        () => (row.original.cleared ? "Cleared" : "Pending"),
+        () => row.original.status,
       ),
   },
   {
     header: "Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        !row.original.cleared
+        row.original.status !== "cleared"
           ? h(
               resolveComponent("UButton"),
               {
@@ -258,6 +395,60 @@ const columns = [
               { class: "text-xs text-gray-500 px-2 py-1" },
               "Already cleared",
             ),
+        row.original.status !== "voided"
+          ? h(
+              resolveComponent("UButton"),
+              {
+                size: "sm",
+                color: "red",
+                variant: "soft",
+                onClick: () => markAsVoided(row.original.id),
+              },
+              () => [
+                h(resolveComponent("UIcon"), {
+                  name: "i-heroicons-x-circle",
+                  class: "w-4 h-4 mr-1",
+                }),
+                "Mark Voided",
+              ],
+            )
+          : h(
+              "span",
+              { class: "text-xs text-gray-500 px-2 py-1" },
+              "Voided",
+            ),
+            h(
+              resolveComponent("UButton"),
+              {
+                size: "sm",
+                color: "blue",
+                variant: "soft",
+                onClick: () => printChecks(row.original.id),
+              },
+              () => [
+                h(resolveComponent("UIcon"), {
+                  name: "i-heroicons-printer",
+                  class: "w-4 h-4 mr-1",
+                }),
+                "Print",
+              ],
+            ),
+            h(
+              resolveComponent("UButton"),
+              {
+                size: "sm",
+                color: "green",
+                variant: "soft",
+                onClick: () => downloadCheck(row.original.id, row.original.check_number),
+              },
+              () => [
+                h(resolveComponent("UIcon"), {
+                  name: "i-heroicons-arrow-down-tray",
+                  class: "w-4 h-4 mr-1",
+                }),
+                "Download PDF",
+              ],
+            ),
       ]),
   },
 ];
@@ -272,6 +463,13 @@ const columns = [
 
       <!-- Export Section -->
       <div class="flex items-center gap-2">
+        <UButton
+          @click="showCreateModal = true"
+          size="md"
+          color="primary"
+          icon="i-heroicons-plus"
+          label="Create Check"
+        />
         <UInput
           v-model="fromDate"
           type="date"
@@ -339,7 +537,7 @@ const columns = [
     </UInput>
 
     <USelect
-      v-model="clearedFilter"
+      v-model="statusFilter"
       :items="clearedOptions"
       size="lg"
       placeholder="Filter by Status"
@@ -391,4 +589,6 @@ const columns = [
       </div>
     </div>
   </UCard>
+
+  <CheckCreateModal v-model:open="showCreateModal" @submit="fetchChecks" @cancel="showCreateModal = false" />
 </template>
