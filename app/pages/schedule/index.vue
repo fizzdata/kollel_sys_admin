@@ -28,16 +28,16 @@ const state = reactive({
   id: null,
   start: undefined,
   end: undefined,
+  question_in: null,
+  question_out: null,
 });
 
 // Schedule Questions
 const scheduleQuestions = ref([]);
 const questionsLoading = ref(false);
 const createQuestionModal = ref(false);
-const assignQuestionModal = ref(false);
 const selectedQuestion = ref(null);
 const isSubmittingQuestion = ref(false);
-const isSubmittingAssignment = ref(false);
 const isDeletingScheduleQuestion = ref(false);
 const deleteSchdeduleQuestionModal = ref(false);
 const fetchingQuestionDetails = ref(false);
@@ -50,17 +50,11 @@ const questionState = reactive({
   ask_on_out: false,
   is_active: true,
   ask_every_time: false,
-  require_yes_to_proceed: false,
+  require_button_1_to_proceed: false,
   button_text_1: "",
   button_text_2: "",
   button_text_3: "",
   ask_only: "",
-});
-
-const assignmentState = reactive({
-  scheduleId: null,
-  questionId: null,
-  assignTo: "q_in", // 'q_in', 'q_out', or 'both'
 });
 
 async function fetchSchedules() {
@@ -106,14 +100,21 @@ function handleYearMonth({ from, to }) {
 
 function displayModel(payload) {
   editScheduleModal.value = true;
+  fetchScheduleQuestions();
+
   state.id = payload.id;
   state.start = convertTo24Hour(payload.start);
   state.end = convertTo24Hour(payload.end);
+  state.question_in = payload.question_in ?? null;
+  state.question_out = payload.question_out ?? null;
 }
 
 const resetEditSchedule = () => {
+  state.id = null;
   state.start = undefined;
   state.end = undefined;
+  state.question_in = null;
+  state.question_out = null;
 };
 
 // Schedule Questions Functions
@@ -146,7 +147,7 @@ function resetQuestionForm() {
   questionState.ask_on_out = false;
   questionState.is_active = true;
   questionState.ask_every_time = false;
-  questionState.require_yes_to_proceed = false;
+  questionState.require_button_1_to_proceed = false;
   questionState.button_text_1 = "";
   questionState.button_text_2 = "";
   questionState.button_text_3 = "";
@@ -159,7 +160,7 @@ function openCreateQuestionModal() {
 }
 
 async function handleQuestionSubmit(event) {
-  if (!questionState.question.trim()) {
+  if (!questionState.question_text.trim()) {
     toast.add({
       title: "Validation Error",
       description: "Question text is required",
@@ -232,92 +233,21 @@ async function handleQuestionSubmit(event) {
   }
 }
 
-function openAssignQuestionModal(question) {
-  selectedQuestion.value = question;
-  assignmentState.scheduleId = null;
-  assignmentState.questionId = question.id;
-  assignmentState.assignTo = "q_in";
+const questionOptions = computed(() => {
+  const base = [{ label: "None", value: null }];
 
-  // Ensure schedules are available
-  if (!schedules.value || schedules.value.length === 0) {
-    fetchSchedules();
+  if (!scheduleQuestions.value || !Array.isArray(scheduleQuestions.value)) {
+    return base;
   }
 
-  assignQuestionModal.value = true;
-}
-
-// Computed property for schedule options
-const scheduleOptions = computed(() => {
-  if (!schedules.value || !Array.isArray(schedules.value)) {
-    return [];
-  }
-
-  return schedules.value.map((schedule) => ({
-    label: `${schedule.start} - ${schedule.end} ${schedule.title ? "(" + schedule.title + ")" : ""}`,
-    value: schedule.id,
-  }));
+  return [
+    ...base,
+    ...scheduleQuestions.value.map((question) => ({
+      label: question.question_text || question.question || `Question #${question.id}`,
+      value: question.id,
+    })),
+  ];
 });
-
-async function submitAssignment() {
-  if (!assignmentState.scheduleId) {
-    toast.add({
-      title: "Validation Error",
-      description: "Please select a schedule",
-      color: "error",
-    });
-    return;
-  }
-
-  isSubmittingAssignment.value = true;
-  try {
-    const assignmentData = {
-      scheduleId: assignmentState.scheduleId,
-      questionId: assignmentState.questionId,
-      assignTo: assignmentState.assignTo,
-    };
-
-    const response = await api("/api/schedule-question-assignments", {
-      method: "POST",
-      body: assignmentData,
-    });
-
-    if (response?.success) {
-      const assignToText =
-        assignmentState.assignTo === "both"
-          ? "check-in and check-out"
-          : assignmentState.assignTo === "q_in"
-            ? "check-in"
-            : "check-out";
-
-      toast.add({
-        title: "Success",
-        description: `Question assigned to schedule for ${assignToText} successfully`,
-        color: "success",
-        duration: 2000,
-      });
-      assignQuestionModal.value = false;
-      await fetchSchedules(); // Refresh schedules to see updates
-    } else {
-      toast.add({
-        title: "Failed",
-        description:
-          response?.message ||
-          response?._data?.message ||
-          "Failed to assign question",
-        color: "error",
-      });
-    }
-  } catch (error) {
-    console.error("Error assigning question:", error);
-    toast.add({
-      title: "Error",
-      description: "An unexpected error occurred",
-      color: "error",
-    });
-  } finally {
-    isSubmittingAssignment.value = false;
-  }
-}
 
 const editQuestion = async (question) => {
   selectedQuestionID.value = question?.id;
@@ -337,8 +267,8 @@ const editQuestion = async (question) => {
       questionState.ask_on_out = q?.ask_on_out === 1 ? true : false;
       questionState.is_active = q?.is_active === 1 ? true : false;
       questionState.ask_every_time = q?.ask_every_time === 1 ? true : false;
-      questionState.require_yes_to_proceed =
-        q?.require_yes_to_proceed === 1 ? true : false;
+      questionState.require_button_1_to_proceed =
+        q?.require_button_1_to_proceed === 1 ? true : false;
       questionState.button_text_1 = q?.button_text_1 || "";
       questionState.button_text_2 = q?.button_text_2 || "";
       questionState.button_text_3 = q?.button_text_3 || "";
@@ -417,6 +347,8 @@ const onSubmit = async (event) => {
       body: {
         start: event.data.start,
         end: event.data.end,
+        question_in: event.data.question_in ?? null,
+        question_out: event.data.question_out ?? null,
       },
     });
 
@@ -459,7 +391,7 @@ const onSubmit = async (event) => {
 
 const scheduleColumns = [
   {
-    accessorKey: "question",
+    accessorKey: "question_text",
     header: "Question",
   },
 
@@ -467,25 +399,10 @@ const scheduleColumns = [
     header: "Quick Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Assign Question Button
+        // Edit Question Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Assign Question" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-link",
-                size: "md",
-                color: "primary",
-                variant: "soft",
-                onClick: () => openAssignQuestionModal(row.original),
-              }),
-          },
-        ),
-        // Edit Schedule Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Edit Schedule" },
+          { text: "Edit Question" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -499,10 +416,10 @@ const scheduleColumns = [
               }),
           },
         ),
-        // Delete Schedule Button
+        // Delete Question Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Delete Schedule" },
+          { text: "Delete Question" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
@@ -645,6 +562,27 @@ watch(
             />
           </UFormField>
         </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 mb-2 gap-4">
+          <UFormField label="Question for Clock-In" name="question_in">
+            <USelect
+              v-model="state.question_in"
+              :items="questionOptions"
+              placeholder="Select question (optional)"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Question for Clock-Out" name="question_out">
+            <USelect
+              v-model="state.question_out"
+              :items="questionOptions"
+              placeholder="Select question (optional)"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+
         <div
           class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
         >
@@ -704,27 +642,13 @@ watch(
         <!-- Question Text -->
         <UFormField label="Question Text" required>
           <UInput
-            v-model="questionState.question"
-            placeholder="Enter your question"
+            v-model="questionState.question_text"
+            placeholder="Enter your question in Yiddish"
             type="text"
             class="w-full"
           />
         </UFormField>
 
-        <!-- Ask On Checkin/Checkout -->
-        <div class="space-y-2">
-          <label class="block text-sm font-medium">When to Ask</label>
-          <div class="flex gap-4">
-            <UCheckbox
-              v-model="questionState.ask_on_in"
-              label="Ask on Check-In"
-            />
-            <UCheckbox
-              v-model="questionState.ask_on_out"
-              label="Ask on Check-Out"
-            />
-          </div>
-        </div>
 
         <!-- Additional Options -->
         <div class="space-y-2">
@@ -733,9 +657,9 @@ watch(
             v-model="questionState.ask_every_time"
             label="Ask Every Time"
           />
-          <UCheckbox
-            v-model="questionState.require_yes_to_proceed"
-            label="Require Yes to Proceed"
+          <UCheckbox 
+             v-model="questionState.require_button_1_to_proceed"
+            label="Require Button 1 to Proceed"
           />
         </div>
 
@@ -745,17 +669,17 @@ watch(
           <div class="grid md:grid-cols-2 gap-4">
             <UInput
               v-model="questionState.button_text_1"
-              placeholder="Button 1 text (optional)"
-              type="text"
+              placeholder="Button 1 text in Yiddish"
+              type="text" required
             />
             <UInput
               v-model="questionState.button_text_2"
-              placeholder="Button 2 text (optional)"
+              placeholder="Button 2 text in Yiddish (optional)"
               type="text"
             />
             <UInput
               v-model="questionState.button_text_3"
-              placeholder="Button 3 text (optional)"
+              placeholder="Button 3 text in Yiddish   (optional)"
               type="text"
             />
           </div>
@@ -789,73 +713,6 @@ watch(
     </template>
   </UModal>
 
-  <!-- Modal for Assign Question -->
-  <UModal v-model:open="assignQuestionModal">
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">
-          Assign Question to Schedule
-        </h2>
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="assignQuestionModal = false"
-        />
-      </div>
-    </template>
-
-    <template #body>
-      <div class="space-y-4">
-        <!-- Selected Question Display -->
-        <div class="bg-gray-50 p-4 rounded-lg">
-          <p class="text-sm text-gray-600">Selected Question:</p>
-          <p class="font-semibold">{{ selectedQuestion?.question }}</p>
-        </div>
-
-        <!-- Schedule Selection -->
-        <UFormField label="Select Schedule" required>
-          <USelect
-            v-model="assignmentState.scheduleId"
-            :items="scheduleOptions"
-            placeholder="Choose a schedule"
-          />
-        </UFormField>
-
-        <!-- Assignment Type Selection -->
-        <UFormField label="Assign Question For" required>
-          <URadioGroup
-            v-model="assignmentState.assignTo"
-            :items="[
-              { value: 'q_in', label: 'Check-In Only' },
-              { value: 'q_out', label: 'Check-Out Only' },
-              { value: 'both', label: 'Both Check-In and Check-Out' },
-            ]"
-          />
-        </UFormField>
-
-        <!-- Actions -->
-        <div class="flex justify-end gap-2 border-t border-gray-200 pt-4">
-          <UButton
-            color="neutral"
-            variant="solid"
-            label="Cancel"
-            @click="assignQuestionModal = false"
-          />
-          <UButton
-            type="submit"
-            :loading="isSubmittingAssignment"
-            :disabled="isSubmittingAssignment"
-            label="Assign Question"
-            @click="submitAssignment"
-          />
-        </div>
-      </div>
-    </template>
-  </UModal>
-
   <!-- Modal for schedule question  -->
   <UModal
     v-model:open="deleteSchdeduleQuestionModal"
@@ -871,7 +728,7 @@ watch(
         <p>
           Are you sure you want to delete this
           <strong v-if="selectedQuestion">{{
-            selectedQuestion?.question
+            selectedQuestion?.question_text
           }}</strong>
           schedule question?
         </p>

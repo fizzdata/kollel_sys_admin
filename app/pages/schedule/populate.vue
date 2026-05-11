@@ -29,7 +29,9 @@ const isSubmitting = ref(false);
 const fromDatePickerOpen = ref(false);
 const toDatePickerOpen = ref(false);
 const defaultSchedules = ref([]);
+const scheduleQuestions = ref([]);
 const scheduleFetching = ref(false);
+const questionsFetching = ref(false);
 const defaultScheduleModal = ref(false);
 const selectedSchedule = ref(null);
 const schdeuleFormSubmiting = ref(false);
@@ -146,6 +148,10 @@ async function fetchDefaultSchedules() {
               ? secondsToAmPm(schedule.b_begin)
               : "-",
             seder2_end: schedule.b_ends ? secondsToAmPm(schedule.b_ends) : "-",
+            a_question_in: schedule.a_question_in ?? null,
+            a_question_out: schedule.a_question_out ?? null,
+            b_question_in: schedule.b_question_in ?? null,
+            b_question_out: schedule.b_question_out ?? null,
           };
         },
       );
@@ -162,6 +168,44 @@ async function fetchDefaultSchedules() {
   }
 }
 
+async function fetchScheduleQuestions() {
+  questionsFetching.value = true;
+  try {
+    const response = await api("/api/schedules/questions", {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      scheduleQuestions.value = response?.questions || [];
+    }
+  } catch (err) {
+    console.log("Error fetching schedule questions:", err);
+    toast.add({
+      title: "Error",
+      description: "Failed to load schedule questions",
+      color: "error",
+    });
+  } finally {
+    questionsFetching.value = false;
+  }
+}
+
+const questionOptions = computed(() => {
+  const base = [{ label: "None", value: null }];
+
+  if (!scheduleQuestions.value || !Array.isArray(scheduleQuestions.value)) {
+    return base;
+  }
+
+  return [
+    ...base,
+    ...scheduleQuestions.value.map((question) => ({
+      label: question.question_text || question.question || `Question #${question.id}`,
+      value: question.id,
+    })),
+  ];
+});
+
 const columns = [
   {
     accessorKey: "day_of_week",
@@ -171,6 +215,83 @@ const columns = [
   { accessorKey: "seder1_end", header: "Seder 1 Ends" },
   { accessorKey: "seder2_begin", header: "Seder 2 Begins" },
   { accessorKey: "seder2_end", header: "Seder 2 Ends" },
+  {
+    accessorKey: "questions",
+    header: "Questions",
+    cell: ({ row }) => {
+      const hasAIn = Boolean(row.original.a_question_in);
+      const hasAOut = Boolean(row.original.a_question_out);
+      const hasBIn = Boolean(row.original.b_question_in);
+      const hasBOut = Boolean(row.original.b_question_out);
+
+      return h("div", { class: "flex flex-col gap-1 text-xs" }, [
+        h("div", { class: "flex items-center gap-2" }, [
+          h("span", { class: "font-medium text-gray-600" }, "A"),
+          hasAIn
+            ? h(
+                resolveComponent("UTooltip"),
+                { text: "Seder A: Question In" },
+                {
+                  default: () =>
+                    h(resolveComponent("UIcon"), {
+                      name: "i-lucide-log-in",
+                      class: "size-4 text-emerald-700",
+                    }),
+                },
+              )
+            : null,
+          hasAOut
+            ? h(
+                resolveComponent("UTooltip"),
+                { text: "Seder A: Question Out" },
+                {
+                  default: () =>
+                    h(resolveComponent("UIcon"), {
+                      name: "i-lucide-log-out",
+                      class: "size-4 text-amber-700",
+                    }),
+                },
+              )
+            : null,
+          !hasAIn && !hasAOut
+            ? h("span", { class: "text-gray-400" }, "-")
+            : null,
+        ]),
+        h("div", { class: "flex items-center gap-2" }, [
+          h("span", { class: "font-medium text-gray-600" }, "B"),
+          hasBIn
+            ? h(
+                resolveComponent("UTooltip"),
+                { text: "Seder B: Question In" },
+                {
+                  default: () =>
+                    h(resolveComponent("UIcon"), {
+                      name: "i-lucide-log-in",
+                      class: "size-4 text-emerald-700",
+                    }),
+                },
+              )
+            : null,
+          hasBOut
+            ? h(
+                resolveComponent("UTooltip"),
+                { text: "Seder B: Question Out" },
+                {
+                  default: () =>
+                    h(resolveComponent("UIcon"), {
+                      name: "i-lucide-log-out",
+                      class: "size-4 text-amber-700",
+                    }),
+                },
+              )
+            : null,
+          !hasBIn && !hasBOut
+            ? h("span", { class: "text-gray-400" }, "-")
+            : null,
+        ]),
+      ]);
+    },
+  },
   {
     accessorKey: "action",
     header: "Edit / Set",
@@ -219,6 +340,10 @@ const schdeuleState = reactive({
   a_ends: null,
   b_begin: null,
   b_ends: null,
+  a_question_in: null,
+  a_question_out: null,
+  b_question_in: null,
+  b_question_out: null,
 });
 
 const schduleResetForm = () => {
@@ -227,16 +352,27 @@ const schduleResetForm = () => {
   schdeuleState.a_ends = null;
   schdeuleState.b_begin = null;
   schdeuleState.b_ends = null;
+  schdeuleState.a_question_in = null;
+  schdeuleState.a_question_out = null;
+  schdeuleState.b_question_in = null;
+  schdeuleState.b_question_out = null;
 };
 
 const editSchedule = (schedule) => {
   selectedSchedule.value = schedule;
   defaultScheduleModal.value = true;
+  if (!scheduleQuestions.value.length) {
+    fetchScheduleQuestions();
+  }
   schdeuleState.day_of_week = schedule.day_of_week;
   schdeuleState.a_begin = convertTo24Hour(schedule.seder1_begin);
   schdeuleState.a_ends = convertTo24Hour(schedule.seder1_end);
   schdeuleState.b_begin = convertTo24Hour(schedule.seder2_begin);
   schdeuleState.b_ends = convertTo24Hour(schedule.seder2_end);
+  schdeuleState.a_question_in = schedule.a_question_in ?? null;
+  schdeuleState.a_question_out = schedule.a_question_out ?? null;
+  schdeuleState.b_question_in = schedule.b_question_in ?? null;
+  schdeuleState.b_question_out = schedule.b_question_out ?? null;
 };
 const onScheduleSubmit = async (event) => {
   schdeuleFormSubmiting.value = true;
@@ -348,7 +484,7 @@ const onSubmitScheduleDelete = async () => {
 };
 
 onMounted(async () => {
-  await fetchDefaultSchedules();
+  await Promise.all([fetchDefaultSchedules(), fetchScheduleQuestions()]);
 });
 </script>
 <template>
@@ -512,6 +648,29 @@ onMounted(async () => {
               class="w-full"
             />
           </UFormField>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Seder A Question In">
+              <USelect
+                v-model="schdeuleState.a_question_in"
+                :items="questionOptions"
+                :loading="questionsFetching"
+                placeholder="Select question (optional)"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField label="Seder A Question Out">
+              <USelect
+                v-model="schdeuleState.a_question_out"
+                :items="questionOptions"
+                :loading="questionsFetching"
+                placeholder="Select question (optional)"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+
           <UFormField label="Seder B Begin">
             <UInput
               v-model="schdeuleState.b_begin"
@@ -530,6 +689,28 @@ onMounted(async () => {
               class="w-full"
             />
           </UFormField>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Seder B Question In">
+              <USelect
+                v-model="schdeuleState.b_question_in"
+                :items="questionOptions"
+                :loading="questionsFetching"
+                placeholder="Select question (optional)"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField label="Seder B Question Out">
+              <USelect
+                v-model="schdeuleState.b_question_out"
+                :items="questionOptions"
+                :loading="questionsFetching"
+                placeholder="Select question (optional)"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
         </div>
         <div
           class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"

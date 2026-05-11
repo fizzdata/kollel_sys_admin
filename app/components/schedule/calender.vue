@@ -22,6 +22,8 @@ const model = reactive({
   day: "",
   start: "",
   end: "",
+  question_in: null,
+  question_out: null,
 });
 
 const api = useApi();
@@ -166,6 +168,8 @@ function edit(current) {
   model.day = current.day;
   model.start = sec_to_time(current.start, false);
   model.end = sec_to_time(current.end, false);
+  model.question_in = current.question_in ?? null;
+  model.question_out = current.question_out ?? null;
   emit("edit_clicked", model);
 }
 
@@ -287,6 +291,21 @@ watch(
               Seder <span v-text="s.session"></span>:
               <span v-html="sec_to_time(s.start)"></span> -
               <span v-html="sec_to_time(s.end)"></span>
+
+              <div class="flex items-center gap-1 ml-2">
+                <UTooltip v-if="s.question_in" text="Question on Clock-In">
+                  <UIcon
+                    name="i-lucide-log-in"
+                    class="text-emerald-700 size-4"
+                  />
+                </UTooltip>
+                <UTooltip v-if="s.question_out" text="Question on Clock-Out">
+                  <UIcon
+                    name="i-lucide-log-out"
+                    class="text-amber-700 size-4"
+                  />
+                </UTooltip>
+              </div>
 
               <UButton
                 color="success"

@@ -47,8 +47,6 @@ const columns = [
       ),
   },
   { accessorKey: "fingerprints", header: "Fingerprints" },
-  { accessorKey: "first_yiddish_name", header: "First Yiddish Name" },
-  { accessorKey: "last_yiddish_name", header: "Last Yiddish Name" },
   { accessorKey: "phone", header: "Phone" },
   {
     header: "Quick Actions",
@@ -83,14 +81,50 @@ const columns = [
         }),
       ]),
   },
+  {
+    accessorKey: "first_yiddish_name",
+    header: "Yiddish Name",
+      cell: ({ row }) =>
+      h(
+        resolveComponent("NuxtLink"),
+        {
+          to: `/students/${row.original.id}`, // dynamic route to student detail page
+          class: "text-primary hover:underline cursor-pointer",
+        },
+        () => `${row.original.first_yiddish_name || ""} ${row.original.last_yiddish_name || ""}`.trim(),
+      ),
+  }
 ];
 
-const editStudent = (student) => {
-  selectedStudent.value = student;
-  // Open modal instantly
-  showModal.value = true;
-  // Fetch wages in background (non-blocking)
-  fetchwages();
+const editStudent = async (student) => {
+  try {
+    loading.value = true;
+    const response = await api(`/api/students/${student.id}`);
+
+    if (response?.success) {
+      selectedStudent.value = response?.student || response?.data || student;
+    } else {
+      selectedStudent.value = student;
+      toast.add({
+        title: "Failed",
+        description: response?.message || "Unable to load full student details.",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to load student details:", error);
+    selectedStudent.value = student;
+    toast.add({
+      title: "Error",
+      description: "Unable to load student details. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    loading.value = false;
+    showModal.value = true;
+  }
 };
 
 const toggleStudentStatus = async (student) => {
@@ -166,16 +200,22 @@ const filteredStudents = computed(() => {
   const term = searchTerm.value.toLowerCase();
 
   return students.value.filter((student) => {
+    const yiddishFullName =
+      `${student.first_yiddish_name || ""} ${student.last_yiddish_name || ""}`.toLowerCase();
+
     return (
       student.first_name?.toLowerCase().includes(term) ||
       student.last_name?.toLowerCase().includes(term) ||
       student.last_yiddish_name?.toLowerCase().includes(term) ||
-      student.first_yiddish_name?.toLowerCase().includes(term)
+      student.first_yiddish_name?.toLowerCase().includes(term) ||
+      yiddishFullName.includes(term) ||
+      student.phone?.toString().toLowerCase().includes(term)
     );
   });
 });
 
 const isModalOpen = async () => {
+  selectedStudent.value = null;
   showModal.value = true;
 };
 const exportStudent = async () => {

@@ -37,14 +37,7 @@ const redirectTo = computed(() => (token.value ? "/dashboard" : "/login"));
       <h1 class="text-3xl font-semibold text-center text-primary mb-8">
         Comprehensive Attendance and Performance System for Kollelim
       </h1>
-      <div class="text-center">
-        <UButton
-          size="xl"
-          class="my-5"
-          :to="redirectTo"
-          label="Go to your account"
-        />
-      </div>
+      
       <p class="text-lg text-gray-700 mb-6 font-medium">
         The program is a comprehensive and automated system designed for
         Kollelim, offering a highly organized solution for managing attendance,

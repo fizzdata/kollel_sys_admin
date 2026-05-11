@@ -1,6 +1,6 @@
 <!-- Modal for Create New Student -->
 <script setup>
-import { object, string } from "yup";
+import { array, mixed, object, string } from "yup";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }, // or whatever type
@@ -18,8 +18,49 @@ const toast = useToast();
 const api = useApi();
 const fetchingWages = ref(false);
 const wageItems = ref([]);
-const showModal = ref(false);
 const isSubmitting = ref(false);
+
+const mapStudentWageGroups = (student = {}) => {
+  const rawGroups =
+    student?.wage_group ||
+    student?.wages_group ||
+    student?.wages_groups ||
+    student?.wage ||
+    [];
+
+  const groups = Array.isArray(rawGroups)
+    ? rawGroups
+    : rawGroups !== null && rawGroups !== undefined && rawGroups !== ""
+      ? [rawGroups]
+      : [];
+
+  return groups
+    .map((item) => {
+      if (item && typeof item === "object") {
+        return {
+          label: item?.name || item?.label || `Group ${item?.id || item?.value}`,
+          value: item?.id ?? item?.value,
+        };
+      }
+
+      return {
+        label: `Group ${item}`,
+        value: item,
+      };
+    })
+    .filter((item) => item.value !== undefined && item.value !== null);
+};
+
+const getInitialState = (student = {}) => ({
+  id: student?.id || null,
+  first_name: student?.first_name || "",
+  last_name: student?.last_name || "",
+  first_yiddish_name: student?.first_yiddish_name || "",
+  last_yiddish_name: student?.last_yiddish_name || "",
+  phone: student?.phone || "",
+  address: student?.address || "",
+  wage_groups: mapStudentWageGroups(student),
+});
 
 const schema = object({
   first_name: string().required("First Name is required"),
@@ -30,40 +71,25 @@ const schema = object({
     .required("Phone is required")
     .matches(/^\d{10}$/, "Phone must be exactly 10 digits"),
   address: string().required("Address is required"),
-  wage: string().required("Wage is required"),
+  wage_groups: array()
+    .of(mixed().required())
+    .min(1, "At least one wage group is required")
+    .required("Wage group is required"),
 });
 
-const state = reactive({
-  id: props?.selectedStudent?.id || null,
-  first_name: props?.selectedStudent?.first_name || "",
-  last_name: props?.selectedStudent?.last_name || "",
-  first_yiddish_name: props?.selectedStudent?.first_yiddish_name || "",
-  last_yiddish_name: props?.selectedStudent?.last_yiddish_name || "",
-  phone: props?.selectedStudent?.phone || "",
-  address: props?.selectedStudent?.address || "",
-  wage: props?.selectedStudent?.wage || "",
-});
+const state = reactive(getInitialState(props?.selectedStudent));
 
 // Watch for changes in initialData
 watch(
   () => props.selectedStudent,
   (newVal) => {
-    if (newVal) {
-      Object.assign(state, newVal);
-    }
+    Object.assign(state, getInitialState(newVal || {}));
   },
   { immediate: true, deep: true },
 );
 
 const resetForm = () => {
-  state.id = null;
-  state.first_name = "";
-  state.last_name = "";
-  state.first_yiddish_name = "";
-  state.last_yiddish_name = "";
-  state.phone = "";
-  state.address = "";
-  state.wage = "";
+  Object.assign(state, getInitialState({}));
 };
 
 const handleClose = () => {
@@ -76,16 +102,25 @@ const handleSubmit = async (event) => {
 
   const endpoint = state.id ? `/api/students/${state.id}` : `/api/students`;
   const method = state.id ? "PUT" : "POST";
-  delete event.data.id;
+  const wageGroupIds = (event?.data?.wage_groups || [])
+    .map((group) => group?.value ?? group)
+    .filter((id) => id !== undefined && id !== null && id !== "");
+
+  const payload = {
+    ...event.data,
+    wage_group: wageGroupIds,
+    wage: wageGroupIds,
+  };
+  delete payload.id;
+  delete payload.wage_groups;
 
   try {
     const response = await api(endpoint, {
       method: method,
-      body: event.data,
+      body: payload,
     });
 
     if (response?.success) {
-      showModal.value = false;
       toast.add({
         title: "Success",
         description: response?.message
@@ -251,13 +286,14 @@ onMounted(async () => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Wage" name="wage" required>
-            <USelect
-              v-model="state.wage"
+          <UFormField label="Wage Groups" name="wage_groups" required>
+            <USelectMenu
+              v-model="state.wage_groups"
               :items="wageItems"
               class="w-full"
-              placeholder="Select Your Wage"
+              placeholder="Select Wage Groups"
               size="lg"
+              multiple
             />
           </UFormField>
 
@@ -271,7 +307,7 @@ onMounted(async () => {
               @click="
                 () => {
                   isOpen = false;
-                  handleClose;
+                  handleClose();
                 }
               "
             />

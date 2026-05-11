@@ -141,12 +141,6 @@ onMounted(() => {
             :loading="loading"
             @click="fetchDashboard"
           />
-          <UButton
-            color="primary"
-            label="Open Session"
-            icon="i-heroicons-clock"
-            to="/schedule"
-          />
         </template>
       </div>
     </div>
