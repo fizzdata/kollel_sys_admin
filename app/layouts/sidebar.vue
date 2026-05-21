@@ -26,6 +26,7 @@ const navigation = [
   { name: "Students", href: "/students", key: "students" },
   { name: "Schedule", href: "/schedule", key: "schedule" },
   { name: "Clockings", href: "/clockings", key: "clockings" },
+  { name: "Devices", href: "/devices", key: "devices" },
   { name: "Transaction", href: "/transactions", key: "transactions" },
   { name: "Payroll", href: "/payroll", key: "payroll" },
   { name: "Checks", href: "/checks", key: "checks" },

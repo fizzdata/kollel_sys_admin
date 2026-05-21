@@ -166,7 +166,15 @@ const responsesColumns = [
 ];
 
 const handleEditClick = (student) => {
-  selectedStudent.value = student;
+  selectedStudent.value = {
+    ...student,
+    wage_group:
+      student?.wage_group ||
+      student?.wages_group ||
+      student?.wages_groups ||
+      student?.wage ||
+      [],
+  };
   showModal.value = true;
 };
 
@@ -365,7 +373,7 @@ onMounted(async () => {
                 <!-- Edit Student -->
                 <UTooltip text="Edit student">
                   <button
-                    @click="handleEditClick(student?.Student)"
+                    @click="handleEditClick({ ...(student?.Student || {}), wage_group: student?.wage_group || [] })"
                     class="cursor-pointer"
                   >
                     <UIcon name="i-lucide-square-pen" class="size-5" />

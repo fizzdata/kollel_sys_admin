@@ -101,8 +101,15 @@ const editStudent = async (student) => {
     loading.value = true;
     const response = await api(`/api/students/${student.id}`);
 
-    if (response?.success) {
-      selectedStudent.value = response?.student || response?.data || student;
+    if (response?.success || response?.Student) {
+      const detailedStudent = {
+        ...(response?.student || response?.Student || response?.data || {}),
+      };
+
+      detailedStudent.wage_group =
+        response?.wage_group || detailedStudent?.wage_group || [];
+
+      selectedStudent.value = detailedStudent;
     } else {
       selectedStudent.value = student;
       toast.add({
@@ -218,8 +225,64 @@ const isModalOpen = async () => {
   selectedStudent.value = null;
   showModal.value = true;
 };
-const exportStudent = async () => {
+const openImportStudentModal = async () => {
   importStudentModal.value = true;
+};
+
+const exportStudents = () => {
+  if (!filteredStudents.value?.length) {
+    toast.add({
+      title: "No Data",
+      description: "There are no students to export.",
+      color: "warning",
+      duration: 2000,
+    });
+    return;
+  }
+
+  const headers = [
+    "id",
+    "first_name",
+    "last_name",
+    "first_yiddish_name",
+    "last_yiddish_name",
+    "phone",
+    "address",
+    "wage_group",
+    "old_id",
+    "active",
+  ];
+
+  const escapeCsvValue = (value) => {
+    const stringValue = value == null ? "" : String(value);
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  };
+
+  const rows = filteredStudents.value.map((student) =>
+    headers.map((header) => escapeCsvValue(student?.[header])).join(","),
+  );
+
+  // Add UTF-8 BOM so Excel preserves Yiddish/Hebrew characters.
+  const csvContent = [headers.join(","), ...rows].join("\n");
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const today = new Date().toISOString().slice(0, 10);
+
+  link.href = url;
+  link.download = `students_${today}.csv`;
+  link.click();
+  window.URL.revokeObjectURL(url);
+
+  toast.add({
+    title: "Success",
+    description: "Students exported successfully.",
+    color: "success",
+    duration: 2000,
+  });
 };
 
 const handleSubmit = () => {
@@ -327,12 +390,12 @@ const toggleSwitch = async () => {
           label="Create New Student"
         />
         <UButton
-          @click="exportStudent"
+          @click="openImportStudentModal"
           icon="i-lucide-file-text"
           label="Import Students"
         />
         <UButton
-          @click="exportStudent"
+          @click="exportStudents"
           icon="i-lucide-file-text"
           label="Export Students"
         />
