@@ -14,34 +14,91 @@ const loading = ref(false);
 const devices = ref([]);
 const selectedDeviceId = ref(null);
 const search = ref("");
-const selectedCommand = ref("restart_app");
+const selectedCommand = ref("allow_minimize");
 const payloadText = ref("");
 const commandLoadingDeviceId = ref(null);
 const commandLoadingName = ref("");
+const orgDisplayMessage = ref("");
+const orgDisplayMessageSaving = ref(false);
 
 const commandOptions = [
 	{
-		label: "Restart App",
-		value: "restart_app",
-		description: "Restart the kiosk application on the device.",
+		label: "Enable Remote Support",
+		value: "enable_remote_support",
+		description: "Enable remote support mode on the device.",
+		samplePayload: {},
 	},
 	{
-		label: "Allow Minimize (2 min)",
+		label: "Allow Other Windows (2 min)",
 		value: "allow_minimize",
-		description: "Temporarily let the kiosk be minimized or switched away from for 2 minutes.",
+		description: "Temporarily remove keep-on-top protection for 2 minutes so you can use other apps on the device.",
 		defaultPayload: {
+			duration_minutes: 2,
+		},
+		samplePayload: {
 			duration_minutes: 2,
 		},
 	},
 	{
+		label: "Disable Remote Support",
+		value: "disable_remote_support",
+		description: "Disable remote support mode on the device.",
+		samplePayload: {},
+	},
+	{
 		label: "Restore Kiosk Lock",
 		value: "restore_kiosk_lock",
-		description: "Restore the kiosk lock immediately and prevent minimizing again.",
+		description: "Restore keep-on-top protection immediately.",
+		samplePayload: {},
+	},
+	{
+		label: "Set Time Zone",
+		value: "set_timezone",
+		description: "Set the Windows time zone on the device.",
+		samplePayload: {
+			time_zone_id: "Eastern Standard Time",
+		},
+	},
+	{
+		label: "Launch AnyDesk",
+		value: "launch_anydesk",
+		description: "Launch AnyDesk on the device if it is installed in a standard location.",
+		samplePayload: {},
+	},
+	{
+		label: "Show Message",
+		value: "show_message",
+		description: "Show a popup message on the kiosk.",
+		samplePayload: {
+			title: "Support",
+			message: "Please wait for support.",
+		},
+	},
+	{
+		label: "Send Logs",
+		value: "send_logs",
+		description: "Upload a recent local log excerpt back through the command result message.",
+		samplePayload: {},
 	},
 	{
 		label: "Install Update",
 		value: "install_update",
 		description: "Ask the device to install an available update using an installer_url payload.",
+		samplePayload: {
+			installer_url: "https://example.com/kollel-sys-installer.exe",
+		},
+	},
+	{
+		label: "Restart App",
+		value: "restart_app",
+		description: "Restart the kiosk application on the device.",
+		samplePayload: {},
+	},
+	{
+		label: "Reboot Device",
+		value: "reboot_device",
+		description: "Reboot Windows so system-level changes can take effect.",
+		samplePayload: {},
 	},
 ];
 
@@ -49,6 +106,22 @@ const commandLabels = commandOptions.reduce((labels, option) => {
 	labels[option.value] = option.label;
 	return labels;
 }, {});
+
+const selectedCommandOption = computed(() => {
+	return commandOptions.find((option) => option.value === selectedCommand.value) || null;
+});
+
+const stringifyPayload = (payload) => {
+	if (!payload || Object.keys(payload).length === 0) {
+		return "{}";
+	}
+
+	return JSON.stringify(payload, null, 2);
+};
+
+const applySelectedCommandPayload = () => {
+	payloadText.value = stringifyPayload(selectedCommandOption.value?.samplePayload);
+};
 
 const syncSelectedDevice = () => {
 	if (!devices.value.length) {
@@ -182,6 +255,82 @@ const fetchDevices = async () => {
 	}
 };
 
+const fetchOrgDisplayMessage = async () => {
+	if (!orgId.value) {
+		orgDisplayMessage.value = "";
+		return;
+	}
+
+	try {
+		const response = await api("/api/devices/org-message", {
+			method: "GET",
+			query: {
+				org_id: orgId.value,
+			},
+		});
+
+		if (response.success) {
+			orgDisplayMessage.value = response.display_msg || "";
+			return;
+		}
+
+		toast.add({
+			description: responseMessage(response, "Failed to load organization home message."),
+			color: "error",
+			timeout: 3000,
+		});
+	} catch (error) {
+		console.error("Error loading org display message", error);
+		toast.add({
+			description: "Failed to load organization home message.",
+			color: "error",
+			timeout: 3000,
+		});
+	}
+};
+
+const saveOrgDisplayMessage = async () => {
+	if (!orgId.value) {
+		return;
+	}
+
+	orgDisplayMessageSaving.value = true;
+
+	try {
+		const response = await api("/api/devices/org-message", {
+			method: "POST",
+			body: {
+				org_id: orgId.value,
+				display_msg: orgDisplayMessage.value || "",
+			},
+		});
+
+		if (response.success) {
+			toast.add({
+				description: responseMessage(response, "Organization home message updated."),
+				color: "success",
+				timeout: 2500,
+			});
+			return;
+		}
+
+		toast.add({
+			description: responseMessage(response, "Failed to update organization home message."),
+			color: "error",
+			timeout: 3000,
+		});
+	} catch (error) {
+		console.error("Error saving org display message", error);
+		toast.add({
+			description: "Failed to update organization home message.",
+			color: "error",
+			timeout: 3000,
+		});
+	} finally {
+		orgDisplayMessageSaving.value = false;
+	}
+};
+
 const queueCommand = async (commandName = selectedCommand.value) => {
 	if (!selectedDevice.value) {
 		return;
@@ -229,7 +378,7 @@ const queueCommand = async (commandName = selectedCommand.value) => {
 				color: "success",
 				timeout: 2500,
 			});
-			payloadText.value = "";
+			applySelectedCommandPayload();
 			await fetchDevices();
 			return;
 		}
@@ -276,11 +425,45 @@ const copyValue = async (value, label) => {
 	}
 };
 
-onMounted(fetchDevices);
+watch(selectedCommand, () => {
+	applySelectedCommandPayload();
+}, { immediate: true });
+
+onMounted(async () => {
+	await Promise.all([fetchDevices(), fetchOrgDisplayMessage()]);
+});
 </script>
 
 <template>
 	<div class="space-y-6">
+		<UCard class="rounded-2xl shadow-sm">
+			<div class="space-y-3">
+				<div>
+					<h2 class="text-base font-semibold text-gray-900">Home Screen Message (Org-wide)</h2>
+					<p class="mt-1 text-sm text-gray-600">
+						This message appears on every kiosk in this organization below the time. Device popup messages remain device-specific.
+					</p>
+				</div>
+
+				<UTextarea
+					v-model="orgDisplayMessage"
+					:rows="3"
+					placeholder="Type a message for all devices in this organization"
+				/>
+
+				<div class="flex justify-end">
+					<UButton
+						color="primary"
+						:loading="orgDisplayMessageSaving"
+						:disabled="orgDisplayMessageSaving"
+						@click="saveOrgDisplayMessage"
+					>
+						Save Home Message
+					</UButton>
+				</div>
+			</div>
+		</UCard>
+
 		<UCard class="rounded-2xl shadow-sm">
 			<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
 				<div>
@@ -580,87 +763,89 @@ onMounted(fetchDevices);
 						</p>
 						<p
 							v-if="selectedDevice.last_command.message"
-							class="mt-2 rounded-lg bg-white px-3 py-2 text-sm text-gray-700"
+							class="mt-2 max-h-80 overflow-auto rounded-lg bg-white px-3 py-2 text-xs whitespace-pre-wrap text-gray-700"
 						>
 							{{ selectedDevice.last_command.message }}
 						</p>
 					</div>
 
-					<div>
-						<div class="flex items-center justify-between gap-3">
-							<div>
-								<h3 class="text-sm font-semibold text-gray-900">Quick Commands</h3>
-								<p class="text-xs text-gray-500">
-									Queue one of the supported commands for the next sync.
-								</p>
-							</div>
-						</div>
+					<div class="rounded-xl border border-gray-200 p-5 space-y-4">
+	<div>
+		<h3 class="text-sm font-semibold text-gray-900">
+			Command Payload
+		</h3>
 
-						<div class="mt-3 grid gap-2 sm:grid-cols-2">
-							<UButton
-								v-for="option in commandOptions"
-								:key="option.value"
-								color="primary"
-								variant="outline"
-								class="justify-center"
-								:loading="isCommandLoading(selectedDevice.id, option.value)"
-								:disabled="commandLoadingDeviceId === selectedDevice.id"
-								@click="queueCommand(option.value)"
-							>
-								{{ option.label }}
-							</UButton>
-						</div>
-					</div>
+		<p class="mt-1 text-xs leading-5 text-gray-500">
+			Select a command and optionally customize the JSON payload before queueing it to the device.
+		</p>
+	</div>
 
-					<div class="rounded-xl border border-gray-200 p-4">
-						<div>
-							<h3 class="text-sm font-semibold text-gray-900">Command Payload</h3>
-							<p class="mt-1 text-xs text-gray-500">
-								Optional JSON payload for commands like app updates or custom minimize duration.
-							</p>
-						</div>
+	<div class="space-y-2">
+		<label
+			class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+		>
+			Command
+		</label>
 
-						<div class="mt-3 space-y-3">
-							<label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">
-								Command
-							</label>
-							<select
-								v-model="selectedCommand"
-								class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-							>
-								<option
-									v-for="option in commandOptions"
-									:key="option.value"
-									:value="option.value"
-								>
-									{{ option.label }}
-								</option>
-							</select>
+		<select
+			v-model="selectedCommand"
+			class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+		>
+			<option
+				v-for="option in commandOptions"
+				:key="option.value"
+				:value="option.value"
+			>
+				{{ option.label }}
+			</option>
+		</select>
+	</div>
 
-							<div class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
-								{{
-									commandOptions.find((option) => option.value === selectedCommand)
-										?.description
-								}}
-							</div>
+	<div
+		class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs leading-5 text-gray-600"
+	>
+		{{ selectedCommandOption?.description }}
+	</div>
 
-							<UTextarea
-								v-model="payloadText"
-								:rows="5"
-								placeholder='Optional JSON payload, for example {"installer_url":"https://example.com/kollel-sys-installer.exe"}'
-							/>
+	<div class="space-y-2">
+		<div class="flex items-center justify-between">
+			<label
+				class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+			>
+				JSON Payload
+			</label>
 
-							<UButton
-								color="primary"
-								block
-								:loading="isCommandLoading(selectedDevice.id, selectedCommand)"
-								:disabled="commandLoadingDeviceId === selectedDevice.id"
-								@click="queueCommand()"
-							>
-								Queue Selected Command
-							</UButton>
-						</div>
-					</div>
+			<UButton
+				color="neutral"
+				variant="ghost"
+				size="xs"
+				@click="applySelectedCommandPayload"
+			>
+				Reset Sample
+			</UButton>
+		</div>
+
+		<UTextarea
+			v-model="payloadText"
+			:rows="10"
+			:ui="{
+				base: 'font-mono text-xs leading-5 resize-y'
+			}"
+			placeholder="{}"
+		/>
+	</div>
+
+	<UButton
+		color="primary"
+		block
+		size="lg"
+		:loading="isCommandLoading(selectedDevice.id, selectedCommand)"
+		:disabled="commandLoadingDeviceId === selectedDevice.id"
+		@click="queueCommand()"
+	>
+		Queue Selected Command
+	</UButton>
+</div>
 				</div>
 
 				<div v-else class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center">
