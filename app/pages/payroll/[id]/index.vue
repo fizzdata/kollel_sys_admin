@@ -8,8 +8,6 @@ definePageMeta({
   middleware: ["auth"],
 });
 
-const { $printJS } = useNuxtApp();
-
 // Get today's date
 const todayDate = today(getLocalTimeZone());
 
@@ -70,6 +68,12 @@ const processDepositModal = ref(false);
 
 const fetchingGroupStudents = ref(false);
 const fetchingRules = ref(false);
+
+// All Groups state for rule assignment
+const allGroups = ref([]);
+const fetchingGroups = ref(false);
+const assigningRuleIds = ref([]);
+const selectedRuleToAdd = ref(null);
 
 // Student states
 const groupStudents = ref([]);
@@ -139,6 +143,7 @@ const rulesform = ref({
   apply_once: "Apply Once",
   description: "",
   reference_id: "",
+  group_ids: [],
 });
 
 const rulesState = reactive({ ...rulesform.value });
@@ -156,8 +161,199 @@ const resetRulesForm = () => {
     apply_once: "Apply Once",
     description: "",
     reference_id: "",
+    group_ids: [],
   });
   Object.assign(rulesState, rulesform.value);
+};
+
+const normalizeGroupIds = (groupIds = []) =>
+  Array.isArray(groupIds)
+    ? groupIds.map((group) =>
+        typeof group === "object" ? group.value : Number(group),
+      )
+    : [];
+
+const sortedGroups = computed(() => {
+  return [...allGroups.value].sort((a, b) => {
+    if (String(a.id) === String(groupId)) return -1;
+    if (String(b.id) === String(groupId)) return 1;
+    return a.name.localeCompare(b.name);
+  });
+});
+
+const getRuleSummary = (rule) => {
+  const metricLabel = metricLabels.value[rule.metric] || rule.metric;
+  const operatorLabel = operaterLabels.value[rule.operator] || rule.operator;
+  const amountUnit = rule.amount_type === "fixed" ? "dollars" : "percent";
+  const cadence = Number(rule.apply_once) ? "once" : "each time";
+
+  return `If ${metricLabel} is ${operatorLabel} ${rule.value}, ${Number(rule.is_deduction) ? "Deduction" : "Bonus"} is ${rule.amount_type} ${rule.amount} ${amountUnit}, ${cadence}`;
+};
+
+const currentGroupRules = computed(() =>
+  allGroups.value.filter((rule) =>
+    normalizeGroupIds(rule.group_ids).includes(Number(groupId)),
+  ),
+);
+const availableRulesForCurrentGroup = computed(() =>
+  allGroups.value.filter((rule) => !normalizeGroupIds(rule.group_ids).includes(Number(groupId))),
+);
+
+const availableRuleOptions = computed(() =>
+  availableRulesForCurrentGroup.value.map((rule) => ({
+    label: `#${rule.id} - ${rule.description || getRuleSummary(rule)}`,
+    value: rule.id,
+  })),
+);
+
+const getAssignedRulesForGroup = (group) =>
+  rules.value.filter((rule) => normalizeGroupIds(rule.group_ids).includes(group.id));
+
+const getAvailableRulesForGroup = (group) =>
+  rules.value.filter(
+    (rule) => !normalizeGroupIds(rule.group_ids).includes(group.id),
+  );
+
+const isAssigningRule = (ruleId, groupId) =>
+  assigningRuleIds.value.includes(`${ruleId}-${groupId}`);
+
+const updateRuleAssignments = async (rule, groupIds, successMessage) => {
+  const payload = {
+    metric: rule.metric,
+    operator: rule.operator,
+    value: rule.value,
+    second_value: rule.second_value,
+    second_operator: rule.second_operator,
+    is_deduction: Boolean(Number(rule.is_deduction)),
+    amount_type: rule.amount_type,
+    amount: rule.amount,
+    description: rule.description,
+    apply_once: Boolean(Number(rule.apply_once)),
+    session: rule.session,
+    reference_id: rule.reference_id,
+    group_ids: groupIds,
+  };
+
+  const response = await api(`/api/payroll/group/${groupId}/rules/${rule.id}`, {
+    method: "PUT",
+    body: payload,
+  });
+
+  if (!response?.success) {
+    throw new Error(
+      response?._data?.errors ||
+        response?._data?.message ||
+        response?.message ||
+        "Failed to update rule assignments",
+    );
+  }
+
+  rule.group_ids = groupIds;
+
+  toast.add({
+    title: "Success",
+    description: successMessage,
+    color: "success",
+    duration: 2000,
+  });
+};
+
+const handleAssignRuleToGroup = async (group, rule) => {
+  const existingGroupIds = normalizeGroupIds(rule.group_ids);
+
+  if (existingGroupIds.includes(group.id)) {
+    return;
+  }
+
+  const loadingKey = `${rule.id}-${group.id}`;
+
+  try {
+    assigningRuleIds.value.push(loadingKey);
+    await updateRuleAssignments(
+      rule,
+      [...existingGroupIds, group.id],
+      `Rule added to ${group.name}`,
+    );
+  } catch (error) {
+    console.error("Error assigning rule:", error);
+    toast.add({
+      title: "Error",
+      description: error.message || "Failed to add rule to group.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    assigningRuleIds.value = assigningRuleIds.value.filter(
+      (key) => key !== loadingKey,
+    );
+  }
+};
+
+const handleRemoveRuleFromGroup = async (group, rule) => {
+  const existingGroupIds = normalizeGroupIds(rule.group_ids);
+
+  if (!existingGroupIds.includes(group.id)) {
+    return;
+  }
+
+  const loadingKey = `${rule.id}-${group.id}`;
+
+  try {
+    assigningRuleIds.value.push(loadingKey);
+    await updateRuleAssignments(
+      rule,
+      existingGroupIds.filter((id) => id !== group.id),
+      `Rule removed from ${group.name}`,
+    );
+  } catch (error) {
+    console.error("Error removing rule:", error);
+    toast.add({
+      title: "Error",
+      description: error.message || "Failed to remove rule from group.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    assigningRuleIds.value = assigningRuleIds.value.filter(
+      (key) => key !== loadingKey,
+    );
+  }
+};
+
+const handleAddRuleToCurrentGroup = async () => {
+  const selectedRuleId =
+    typeof selectedRuleToAdd.value === "object"
+      ? selectedRuleToAdd.value?.value
+      : selectedRuleToAdd.value;
+
+  if (!selectedRuleId) {
+    toast.add({
+      title: "Error",
+      description: "Please select a rule to add.",
+      color: "error",
+      duration: 2000,
+    });
+    return;
+  }
+
+  const rule = allGroups.value.find((item) => Number(item.id) === Number(selectedRuleId));
+
+  if (!rule) {
+    toast.add({
+      title: "Error",
+      description: "Selected rule not found.",
+      color: "error",
+      duration: 2000,
+    });
+    return;
+  }
+
+  await handleAssignRuleToGroup(
+    { id: Number(groupId), name: fetchingGroupDetails.value?.name || "group" },
+    rule,
+  );
+  selectedRuleToAdd.value = null;
+  await fetchAllGroups();
 };
 
 // MM/dd/yyyy
@@ -305,6 +501,11 @@ const editRules = (rules) => {
   rulesState.reference_id = rules.reference_id;
   rulesState.session = rules.session;
   rulesState.session = rules.session;
+  
+  // Set group_ids if they exist
+  if (rules.group_ids && Array.isArray(rules.group_ids)) {
+    rulesState.group_ids = normalizeGroupIds(rules.group_ids);
+  }
 };
 
 const confirmDeleteRules = async () => {
@@ -358,17 +559,21 @@ const onSubmit = async (event) => {
   try {
     isSubmitting.value = true;
 
+    // Convert group_ids from objects to IDs if needed
+    const groupIds = normalizeGroupIds(event.data.group_ids);
+
     const endpoint = rulesform.value.id
       ? `/api/payroll/group/${groupId}/rules/${rulesform.value.id}`
       : `/api/payroll/group/${groupId}/rules`;
 
     const payload = {
       ...event.data,
-      is_deduction: event.data.is_deduction === "true" ? true : false,
+      id: rulesform.value.id,
+      is_deduction:
+        event.data.is_deduction === true || event.data.is_deduction === "true",
       apply_once: event.data.apply_once === "Apply Once" ? true : false,
+      group_ids: groupIds,
     };
-
-    delete payload.id;
     const response = await api(endpoint, {
       method: rulesform.value.id ? "PUT" : "POST",
       body: payload,
@@ -378,9 +583,10 @@ const onSubmit = async (event) => {
       toast.add({
         title: "Success",
         description:
-          response?.message || rulesform.value.id
+          response?.message ||
+          (rulesform.value.id
             ? "Pay rule updated successfully"
-            : "Pay rule created successfully",
+            : "Pay rule created successfully"),
         color: "success",
         duration: 2000,
       });
@@ -567,6 +773,27 @@ const fetchAllStudents = async () => {
   }
 };
 
+const fetchAllGroups = async () => {
+  try {
+    fetchingGroups.value = true;
+    const response = await api(`/api/payroll/rules`);
+
+    if (response?.success) {
+      allGroups.value = response?.pay_rules || [];
+    }
+  } catch (err) {
+    console.log("Error fetching rules:", err);
+    toast.add({
+      title: "Error",
+      description:
+        "An unexpected error occurred while fetching rules. Please try again later.",
+      color: "error",
+    });
+  } finally {
+    fetchingGroups.value = false;
+  }
+};
+
 const studentState = reactive({
   student_ids: [],
 });
@@ -720,14 +947,6 @@ const fetchSingleStudentCheck = async (data) => {
         );
 
         pdfCheckModal.value = true;
-
-        toast.add({
-          title: "Success",
-          description: response?.message || "Check processed successfully",
-          color: "success",
-          duration: 2000,
-        });
-
         singleStudentCheckModal.value = false;
       } else {
         toast.add({
@@ -842,7 +1061,11 @@ onMounted(async () => {
   loading.value = true;
   await fetchGroupDetail();
   loading.value = false;
-  await fetchRules(false);
+  await rulesOptionsFetch();
+  await fetchAllGroups();
+  rules.value = allGroups.value.filter((rule) =>
+    normalizeGroupIds(rule.group_ids).includes(Number(groupId)),
+  );
 });
 
 const onDateChange = async (val) => {
@@ -910,7 +1133,11 @@ const onDepositFormSubmit = async (val) => {
 // watch for tab changes
 watch(activeTab, (newTab) => {
   if (newTab === "0") {
-    fetchRules(true);
+    fetchAllGroups().then(() => {
+      rules.value = allGroups.value.filter((rule) =>
+        normalizeGroupIds(rule.group_ids).includes(Number(groupId)),
+      );
+    });
   } else if (newTab === "1") {
     fetchGroupStudents();
   }
@@ -936,7 +1163,7 @@ watch(activeTab, (newTab) => {
         <div class="flex flex-col gap-6">
           <!-- Header -->
           <div
-            class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            class="grid grid-cols-1 gap-4 md:grid-cols-2 flex-wrap justify-between items-start"
           >
             <!-- Group Info -->
             <div class="space-y-1">
@@ -958,7 +1185,7 @@ watch(activeTab, (newTab) => {
             </div>
 
             <!-- Actions -->
-            <div class="flex flex-wrap gap-2 justify-end">
+            <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
               <!-- TAB 0 ACTIONS -->
               <template v-if="activeTab === '0'">
                 <UButton
@@ -967,13 +1194,6 @@ watch(activeTab, (newTab) => {
                   variant="solid"
                   color="primary"
                   @click="isProcessModalOpen"
-                />
-                <UButton
-                  icon="i-lucide-plus"
-                  label="Create Rule"
-                  variant="solid"
-                  color="primary"
-                  @click="isCreateRuleModalOpen"
                 />
                 <UButton
                   icon="i-lucide-check-square"
@@ -1025,25 +1245,17 @@ watch(activeTab, (newTab) => {
       </div>
 
       <div v-else>
-        <div v-if="rules?.length > 0">
+        <div v-if="currentGroupRules?.length > 0">
           <div
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6"
           >
             <UCard
-              v-for="rule in rules"
+              v-for="rule in currentGroupRules"
               :key="rule.id"
               class="rounded-2xl shadow hover:shadow-xl transition-shadow duration-300"
             >
               <div>
-                <label>
-                  If {{ metricLabels[rule.metric] }} is
-                  {{ operaterLabels[rule.operator] }} {{ rule.value }},
-                  {{ rule.is_deduction ? "Deduction" : "Bonus" }} is
-                  {{ rule.amount_type }}
-                  {{ rule.amount }}
-                  {{ rule.amount_type === "fixed" ? "dollars" : "percent" }},
-                  {{ rule.apply_once ? "once" : "each time" }}
-                </label>
+                <label>{{ getRuleSummary(rule) }}</label>
               </div>
               <div
                 class="flex justify-between items-baseline text-end gap-6 text-gray-500"
@@ -1051,31 +1263,51 @@ watch(activeTab, (newTab) => {
                 <p class="text-xs mt-2">
                   {{ rule.description }}
                 </p>
-                <div class="flex gap-2 items-center">
-                  <UButton
-                    icon="i-lucide-square-pen"
-                    size="md"
-                    color="success"
-                    variant="soft"
-                    @click="editRules(rule)"
-                  />
-
-                  <UButton
-                    icon="i-lucide-trash-2"
-                    size="md"
-                    color="error"
-                    variant="soft"
-                    @click="deleteRule(rule)"
-                  />
-                </div>
+                <UButton
+                  icon="i-lucide-x"
+                  size="md"
+                  color="error"
+                  variant="soft"
+                  :loading="isAssigningRule(rule.id, Number(groupId))"
+                  :disabled="isAssigningRule(rule.id, Number(groupId))"
+                  @click="
+                    handleRemoveRuleFromGroup(
+                      { id: Number(groupId), name: fetchingGroupDetails?.name || 'group' },
+                      rule,
+                    )
+                  "
+                />
               </div>
             </UCard>
           </div>
         </div>
         <div v-else class="text-center text-gray-500 mt-10">
-          No Rules found. Click <strong>Create Rule</strong> button to add rules
-          in this group.
+          No rules in this group yet.
         </div>
+
+        <UCard class="rounded-2xl shadow-sm mt-6">
+          <div class="flex flex-col md:flex-row md:items-end gap-3">
+            <UFormField
+              label="Add Existing Rule"
+              name="selected_rule_to_add"
+              class="flex-1"
+            >
+              <USelectMenu
+                v-model="selectedRuleToAdd"
+                :items="availableRuleOptions"
+                placeholder="Select rule by id and description"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UButton
+              color="primary"
+              label="Add Rule"
+              :disabled="!availableRuleOptions.length"
+              @click="handleAddRuleToCurrentGroup"
+            />
+          </div>
+        </UCard>
       </div>
     </div>
   </template>
@@ -1083,9 +1315,11 @@ watch(activeTab, (newTab) => {
     <!-- Students Tab -->
     <UCard class="rounded-2xl shadow-sm mt-6">
       <div
-        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
       >
-        <h2 class="text-lg font-bold">View and manage group students</h2>
+        <h2 class="md:text-lg text-base font-bold">
+          View and manage group students
+        </h2>
       </div>
 
       <PayrollStudents
@@ -1143,6 +1377,10 @@ watch(activeTab, (newTab) => {
         @submit="onSubmit"
       >
         <div class="grid grid-cols-2 gap-4">
+          <div class="col-span-2 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
+            Save the rule here. Group assignment is managed from the main
+            payroll Rules tab.
+          </div>
           <UFormField label="Metric" name="metric" required>
             <USelect
               v-model="rulesState.metric"
@@ -1322,7 +1560,7 @@ watch(activeTab, (newTab) => {
   />
 
   <!-- Modal for Process Checks Rules -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="processChecksModal"
     title="Process Checks"
     :loading="processChecksLoading"
@@ -1331,7 +1569,7 @@ watch(activeTab, (newTab) => {
   />
 
   <!-- Modal for Deposit Checks -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="processDepositModal"
     title="Process Deposit"
     :loading="processDepositLoading"
@@ -1394,7 +1632,7 @@ watch(activeTab, (newTab) => {
   </UModal>
 
   <!-- Single Student Processing Check Modal -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="singleStudentCheckModal"
     :title="
       selectedStudent
@@ -1403,12 +1641,12 @@ watch(activeTab, (newTab) => {
     "
     :loading="processCheckSingleStudentLoading"
     type="check"
-    isStudent
+    isDescriptionRequired
     @submit="onSingleGroupCheckDateChange"
   />
 
   <!-- Single Student Processing Deposit Modal -->
-  <CommonChecksDepositModal
+  <CommonProcessCheckDepositModal
     v-model="singleStudentDepositModal"
     :title="
       selectedStudent
@@ -1417,7 +1655,7 @@ watch(activeTab, (newTab) => {
     "
     :loading="processDepositSingleStudentLoading"
     type="deposit"
-    isStudent
+    isDescriptionRequired
     @submit="onSingleGroupDepositDateChange"
   />
 

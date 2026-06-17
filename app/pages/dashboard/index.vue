@@ -146,24 +146,26 @@ onMounted(() => {
     </div>
 
     <div>
-      <div class="grid grid-cols-1 gap-5 mt-6 md:grid-cols-2 lg:grid-cols-4">
+      <div class="grid grid-cols-1 gap-5 mt-6 md:grid-cols-2 xl:grid-cols-4">
         <UCard
           v-for="(stat, i) in loading ? 4 : stats"
           :key="loading ? i : stat.label"
           class="rounded-2xl border border-gray-100"
         >
           <div class="space-y-2">
-            <p class="text-sm text-gray-500">{{ stat.label }}</p>
-
             <template v-if="loading">
+              <USkeleton class="h-4 w-24 bg-gray-200" />
               <USkeleton class="h-8 w-20 bg-gray-200" />
               <USkeleton class="h-3 w-16 bg-gray-200" />
             </template>
 
             <template v-else>
+              <p class="text-sm text-gray-500">{{ stat.label }}</p>
+
               <p class="text-3xl font-semibold text-gray-900">
                 {{ stat.value }}
               </p>
+
               <p class="text-xs text-emerald-600 font-medium">
                 {{ stat.delta }}
               </p>
@@ -174,12 +176,11 @@ onMounted(() => {
 
       <div class="grid grid-cols-1 gap-6">
         <UCard class="rounded-2xl mt-5">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Alerts</h2>
-            <span class="text-xs text-gray-500">Needs attention</span>
-          </div>
-
           <template v-if="loading">
+            <div class="flex items-center justify-between mb-4">
+              <USkeleton class="h-4 w-46 bg-gray-200" />
+              <USkeleton class="h-4 w-40 bg-gray-200" />
+            </div>
             <div v-for="i in 3" :key="i" class="space-y-2">
               <USkeleton class="h-4 w-48 bg-gray-200" />
               <USkeleton class="h-3 w-full bg-gray-200" />
@@ -188,6 +189,10 @@ onMounted(() => {
           </template>
 
           <template v-else>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold text-gray-900">Alerts</h2>
+              <span class="text-xs text-gray-500">Needs attention</span>
+            </div>
             <ul v-if="alerts.length > 0" class="space-y-4">
               <li
                 v-for="alert in alerts"
@@ -212,12 +217,11 @@ onMounted(() => {
 
       <div class="grid grid-cols-1 gap-5 mt-5 lg:grid-cols-2">
         <UCard class="rounded-2xl">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Session Status</h2>
-            <span class="text-xs text-gray-500">Live</span>
-          </div>
-
           <template v-if="loading">
+            <div class="flex items-center justify-between mb-4">
+              <USkeleton class="h-4 w-46 bg-gray-200" />
+              <USkeleton class="h-4 w-40 bg-gray-200" />
+            </div>
             <div class="rounded-xl py-4 space-y-3">
               <USkeleton class="h-4 w-40 bg-gray-200" />
               <USkeleton class="h-3 w-24 bg-gray-200" />
@@ -226,6 +230,13 @@ onMounted(() => {
           </template>
 
           <template v-else>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold text-gray-900">
+                Session Status
+              </h2>
+              <span class="text-xs text-gray-500">Live</span>
+            </div>
+
             <div v-if="sessions.length > 0" class="space-y-4">
               <div
                 v-for="(session, index) in sessions"
@@ -241,7 +252,7 @@ onMounted(() => {
                     class="h-2 rounded-full transition-all duration-500"
                     :class="
                       session.progress >= 100
-                        ? 'bg-gray-400'
+                        ? 'bg-green-400'
                         : session.progress > 70
                           ? 'bg-amber-500'
                           : 'bg-primary'
@@ -265,12 +276,12 @@ onMounted(() => {
         </UCard>
 
         <UCard class="rounded-2xl">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">System Overview</h2>
-            <span class="text-xs text-gray-500">Summary</span>
-          </div>
-
           <template v-if="loading">
+            <div class="flex items-center justify-between mb-4">
+              <USkeleton class="h-4 w-46 bg-gray-200" />
+              <USkeleton class="h-4 w-40 bg-gray-200" />
+            </div>
+
             <div class="rounded-xl py-4 space-y-3">
               <USkeleton class="h-4 w-40 bg-gray-200" />
               <USkeleton class="h-3 w-24 bg-gray-200" />
@@ -279,6 +290,12 @@ onMounted(() => {
           </template>
 
           <template v-else>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold text-gray-900">
+                System Overview
+              </h2>
+              <span class="text-xs text-gray-500">Summary</span>
+            </div>
             <div class="space-y-4">
               <div
                 class="flex items-center justify-between p-3 rounded-lg bg-blue-50"

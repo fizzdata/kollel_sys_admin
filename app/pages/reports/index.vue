@@ -113,10 +113,12 @@ watch(
 );
 </script>
 <template>
-  <UCard class="rounded-2xl shadow-sm mb-4">
-    <div class="flex justify-between items-center gap-4">
-      <div class="flex items-center gap-1 mb-4 md:mb-0 text-xl font-bold">
-        <h2 class="">
+  <UCard class="rounded-2xl shadow-sm">
+    <div
+      class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div class="flex items-center gap-1 mb-0 text-xl font-bold">
+        <h2 class="text-lg sm:text-xl font-bold">
           Reports -
           {{
             activeTab === "0"
@@ -128,7 +130,7 @@ watch(
         </h2>
       </div>
 
-      <div class="space-x-2">
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UButton
           v-if="activeTab === '0'"
           icon="i-lucide-file-text"
@@ -219,15 +221,17 @@ watch(
 
     <UCard class="rounded-2xl shadow-sm mt-6">
       <div
-        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
       >
-        <h2 class="text-lg font-bold">View and manage half hour reports</h2>
+        <h2 class="md:text-lg text-base font-bold">
+          View and manage half hour reports
+        </h2>
       </div>
       <UTable
         :columns="halfHourColumns"
         :loading="loading"
         :data="halfHourData"
-        class="flex-1 mt-6"
+        class="flex-1 md:mt-6 mt-2"
       />
     </UCard>
   </div>
@@ -291,21 +295,23 @@ watch(
     </div>
     <UCard class="rounded-2xl shadow-sm mt-6">
       <div
-        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
       >
-        <h2 class="text-lg font-bold">View and manage percent reports</h2>
+        <h2 class="md:text-lg text-base font-bold">
+          View and manage percent reports
+        </h2>
       </div>
       <UTable
         :columns="percentColumns"
         :loading="loading"
         :data="percentData"
-        class="flex-1 mt-6"
+        class="flex-1 md:mt-6 mt-2"
       />
     </UCard>
   </div>
   <div v-if="activeTab === '2'">
     <div class="flex flex-wrap gap-4 items-center my-6">
-      <div class="flex gap-4 items-center">
+      <div class="flex flex-col md:flex-row gap-4">
         <UFormField
           label="Wage"
           name="wage"
@@ -364,15 +370,17 @@ watch(
     </div>
     <UCard class="rounded-2xl shadow-sm mt-6">
       <div
-        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+        class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
       >
-        <h2 class="text-lg font-bold">View and manage question reports</h2>
+        <h2 class="md:text-lg text-base font-bold">
+          View and manage question reports
+        </h2>
       </div>
       <UTable
         :columns="questionColumns"
         :loading="loading"
         :data="questionData"
-        class="flex-1 mt-6"
+        class="flex-1 md:mt-6 mt-2"
       />
     </UCard>
   </div>

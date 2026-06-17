@@ -152,7 +152,7 @@ const studentColumns = [
     :columns="studentColumns"
     :loading="fetchingGroupStudents"
     :data="students"
-    class="flex-1 mt-6"
+    class="flex-1 md:mt-6 mt-2"
   />
 
   <!-- Delete Student confirm modal -->

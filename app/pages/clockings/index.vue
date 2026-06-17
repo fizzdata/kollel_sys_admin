@@ -509,9 +509,12 @@ watch(
 </script>
 <template>
   <UCard class="rounded-2xl shadow-sm">
-    <div class="flex justify-between items-center gap-4">
-      <h2 class="text-xl font-bold">This Weeks Clockings</h2>
-      <div class="flex justify-end gap-2">
+    <div
+      class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"
+    >
+      <h2 class="text-lg sm:text-xl font-bold">This Week’s Clockings</h2>
+
+      <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UButton
           @click="
             () => {
@@ -521,7 +524,6 @@ watch(
           "
           icon="i-lucide-plus"
           label="Create New Clockings"
-          class="text-white"
           color="primary"
           variant="solid"
         />
@@ -540,8 +542,9 @@ watch(
       </div>
     </div>
   </UCard>
+
   <div class="flex justify-between my-6">
-    <div class="flex gap-4 items-center">
+    <div class="flex flex-col md:flex-row gap-4 md:items-center">
       <UPopover v-model:open="open">
         <UButton
           color="neutral"
@@ -583,23 +586,27 @@ watch(
       icon=""
       label="Requests"
       variant="outline"
+      hidden
     />
   </div>
   <!-- Clockings Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">
     <div
-      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 md:mb-0"
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-0"
     >
-      <h2 class="text-lg font-bold">View and manage Clockings</h2>
+      <h2 class="md:text-lg text-base font-bold">View and manage Clockings</h2>
     </div>
     <UTable
       :columns="clockingsColumns"
       :loading="loading"
       :data="clockingsData"
-      class="flex-1 mt-6"
+      sticky
+      class="flex-1 md:mt-6 mt-2 max-h-160"
     />
     <!-- Pagination Info -->
-    <div class="flex justify-between items-center mt-4 text-sm text-gray-600">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center mt-4 md:text-sm text-xs text-gray-600"
+    >
       <div>
         Showing {{ (pagination.currentPage - 1) * pagination.perPage + 1 }} to
         {{
@@ -610,29 +617,27 @@ watch(
         }}
         of {{ pagination.total }} results
       </div>
-      <div class="flex gap-2">
+      <div class="flex mt-2 md:mt-0 justify-center items-center sm:flex-row">
         <UButton
-          v-if="pagination.currentPage > 1"
-          variant="outline"
           size="sm"
           label="Previous"
+          color="neutral"
+          variant="soft"
           icon="i-lucide-chevron-left"
           @click="goToPreviousPage"
-          :loading="loading"
-          :disabled="loading"
+          :disabled="pagination.currentPage === 1 || loading"
         />
         <span class="px-3 py-2"
-          >{{ pagination.currentPage }} / {{ pagination.lastPage }}
+          >Page {{ pagination.currentPage }} of {{ pagination.lastPage }}
         </span>
         <UButton
-          v-if="pagination.currentPage < pagination.lastPage"
-          variant="outline"
           size="sm"
           label="Next"
-          icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="soft"
+          trailing-icon="i-lucide-chevron-right"
           @click="goToNextPage"
-          :loading="loading"
-          :disabled="loading"
+          :disabled="pagination.currentPage === pagination.total || loading"
         />
       </div>
     </div>

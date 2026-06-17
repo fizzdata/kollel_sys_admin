@@ -9,7 +9,7 @@ const props = defineProps({
   modelValue: Boolean,
   title: { type: String, default: "Processing Rules" },
   type: { type: String, default: "process" },
-  isStudent: { type: Boolean, default: false },
+  isDescriptionRequired: { type: Boolean, default: false },
   loading: Boolean,
 });
 
@@ -34,7 +34,7 @@ const df = new DateFormatter("en-US", { dateStyle: "medium" });
 
 const handleSubmit = () => {
   let payload = {};
-  if (!props.isStudent) {
+  if (!props.isDescriptionRequired) {
     payload = {
       from_date: calendarRange.value.start?.toString(),
       till_date: calendarRange.value.end?.toString(),
@@ -88,7 +88,7 @@ watch(
     <template #body>
       <UForm @submit="handleSubmit">
         <!-- Date Range -->
-        <UFormField label="Select Date Range" class="mb-4">
+        <UFormField label="Select Date Range" class="mb-4" required>
           <UPopover v-model:open="calendarOpen">
             <UButton
               color="neutral"
@@ -120,7 +120,11 @@ watch(
           </UPopover>
         </UFormField>
 
-        <UFormField v-if="!isStudent" label="Description" name="description">
+        <UFormField
+          v-if="!isDescriptionRequired"
+          label="Description"
+          name="description"
+        >
           <UTextarea
             v-model="description"
             placeholder="Enter Description"
@@ -142,7 +146,13 @@ watch(
             type="submit"
             :loading="loading"
             :disabled="loading"
-            :label="type === 'check' ? 'Process Check' : 'Process Depost'"
+            :label="
+              type === 'check'
+                ? 'Process Check'
+                : type === 'deposit'
+                  ? 'Process Depost'
+                  : 'Process'
+            "
           />
         </div>
       </UForm>
