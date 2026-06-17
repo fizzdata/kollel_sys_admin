@@ -283,39 +283,30 @@ watch(
                 </span>
               </div>
 
-<<<<<<< HEAD
-              <div class="flex items-center gap-1 ml-2">
-                <UTooltip v-if="s.question_in" text="Question on Clock-In">
-                  <UIcon
-                    name="i-lucide-log-in"
-                    class="text-emerald-700 size-4"
-                  />
-                </UTooltip>
-                <UTooltip v-if="s.question_out" text="Question on Clock-Out">
-                  <UIcon
-                    name="i-lucide-log-out"
-                    class="text-amber-700 size-4"
-                  />
-                </UTooltip>
-              </div>
-
-              <UButton
-                color="success"
-                variant="soft"
-                class=""
-                icon="i-lucide-square-pen"
-                @click="edit(s)"
-              />
-=======
               <div
                 v-if="day?.data"
                 v-for="s in day.data.schedule"
+                :key="s.id"
                 class="my-2 flex items-center px-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
               >
                 Seder <span v-text="s.session"></span>:
                 <span v-html="sec_to_time(s.start)"></span> -
                 <span v-html="sec_to_time(s.end)"></span>
->>>>>>> f4e82446810c0d522762a5cbf45aa9b7f82b1c8e
+
+                <div class="flex items-center gap-1 ml-2">
+                  <UTooltip v-if="s.question_in" text="Question on Clock-In">
+                    <UIcon
+                      name="i-lucide-log-in"
+                      class="text-emerald-700 size-4"
+                    />
+                  </UTooltip>
+                  <UTooltip v-if="s.question_out" text="Question on Clock-Out">
+                    <UIcon
+                      name="i-lucide-log-out"
+                      class="text-amber-700 size-4"
+                    />
+                  </UTooltip>
+                </div>
 
                 <UButton
                   color="success"
