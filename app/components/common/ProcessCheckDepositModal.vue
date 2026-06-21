@@ -13,7 +13,7 @@ const props = defineProps({
   loading: Boolean,
 });
 
-const emit = defineEmits(["update:modelValue", "submit"]);
+const emit = defineEmits(["update:modelValue", "submit", "date-change"]);
 
 const calendarOpen = ref(false);
 // Get today's date
@@ -29,6 +29,7 @@ const calendarRange = ref({
 });
 
 const description = ref("");
+const checkDate = ref("");
 
 const df = new DateFormatter("en-US", { dateStyle: "medium" });
 
@@ -39,11 +40,13 @@ const handleSubmit = () => {
       from_date: calendarRange.value.start?.toString(),
       till_date: calendarRange.value.end?.toString(),
       description: description.value,
+      check_date: props.type === "check" ? checkDate.value || null : null,
     };
   } else {
     payload = {
       from_date: calendarRange.value.start?.toString(),
       till_date: calendarRange.value.end?.toString(),
+      check_date: props.type === "check" ? checkDate.value || null : null,
     };
   }
 
@@ -61,6 +64,16 @@ watch(
     }
   },
   { deep: true },
+);
+
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (!isOpen) {
+      description.value = "";
+      checkDate.value = "";
+    }
+  },
 );
 </script>
 
@@ -129,6 +142,20 @@ watch(
             v-model="description"
             placeholder="Enter Description"
             class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          v-if="type === 'check'"
+          label="Check Date (Optional)"
+          name="check_date"
+          class="mt-4"
+        >
+          <UInput
+            v-model="checkDate"
+            type="date"
+            class="w-full"
+            placeholder="Leave empty to use today's date"
           />
         </UFormField>
 

@@ -675,6 +675,7 @@ const fetchProcessChecks = async (data) => {
         from_date: data?.from_date,
         till_date: data?.till_date,
         description: data?.description,
+        check_date: data?.check_date,
       },
     });
 
@@ -1376,6 +1377,7 @@ const fetchMainPageStudentCheck = async (data) => {
           body: {
             from_date: data?.from_date,
             till_date: data?.till_date,
+            check_date: data?.check_date,
           },
         },
       );
@@ -1483,6 +1485,7 @@ const onMainPageStudentCheckDateChange = async (val) => {
   await fetchMainPageStudentCheck({
     from_date: val.from_date,
     till_date: val.till_date,
+    check_date: val.check_date,
   });
 };
 

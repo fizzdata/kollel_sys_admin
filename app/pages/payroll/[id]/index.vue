@@ -395,6 +395,7 @@ const fetchProcessChecks = async (data) => {
         from_date: data?.from_date,
         till_date: data?.till_date,
         description: data?.description,
+        check_date: data?.check_date,
       },
     });
 
@@ -932,6 +933,7 @@ const fetchSingleStudentCheck = async (data) => {
           body: {
             from_date: data?.from_date,
             till_date: data?.till_date,
+            check_date: data?.check_date,
           },
         },
       );
