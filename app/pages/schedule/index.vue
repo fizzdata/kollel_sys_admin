@@ -45,7 +45,7 @@ const selectedQuestionID = ref(null);
 
 const questionState = reactive({
   id: null,
-  question: "",
+  question_text: "",
   ask_on_in: false,
   ask_on_out: false,
   is_active: true,
@@ -54,8 +54,39 @@ const questionState = reactive({
   button_text_1: "",
   button_text_2: "",
   button_text_3: "",
-  ask_only: "",
+  ask_only: [],
 });
+
+// Groups for "Ask Only" restriction
+const groups = ref([]);
+const groupsLoading = ref(false);
+
+const groupOptions = computed(() =>
+  groups.value.map((group) => ({
+    label: group.name,
+    value: group.id,
+  })),
+);
+
+async function fetchGroups() {
+  groupsLoading.value = true;
+  try {
+    const response = await api("/api/payroll/groups");
+
+    if (response?.success) {
+      groups.value = response?.groups || [];
+    }
+  } catch (err) {
+    console.log("Error fetching groups:", err);
+    toast.add({
+      title: "Error",
+      description: "Failed to load groups",
+      color: "error",
+    });
+  } finally {
+    groupsLoading.value = false;
+  }
+}
 
 async function fetchSchedules() {
   loading.value = true;
@@ -142,7 +173,7 @@ async function fetchScheduleQuestions() {
 
 function resetQuestionForm() {
   questionState.id = null;
-  questionState.question = "";
+  questionState.question_text = "";
   questionState.ask_on_in = false;
   questionState.ask_on_out = false;
   questionState.is_active = true;
@@ -151,16 +182,27 @@ function resetQuestionForm() {
   questionState.button_text_1 = "";
   questionState.button_text_2 = "";
   questionState.button_text_3 = "";
-  questionState.ask_only = "";
+  questionState.ask_only = [];
 }
 
 function openCreateQuestionModal() {
   resetQuestionForm();
+  selectedQuestionID.value = null;
+
+  if (!groups.value.length) {
+    fetchGroups();
+  }
+
   createQuestionModal.value = true;
 }
 
+function closeQuestionModal() {
+  createQuestionModal.value = false;
+  selectedQuestionID.value = null;
+}
+
 async function handleQuestionSubmit(event) {
-  if (!questionState.question_text.trim()) {
+  if (!questionState.question_text?.trim()) {
     toast.add({
       title: "Validation Error",
       description: "Question text is required",
@@ -175,16 +217,22 @@ async function handleQuestionSubmit(event) {
 
   const method = selectedQuestionID.value ? "PUT" : "POST";
 
+  const askOnlyGroupIds = (event.data.ask_only || [])
+    .map((group) => group?.value ?? group)
+    .filter((id) => id !== undefined && id !== null && id !== "");
+
   let payload = null;
 
   if (selectedQuestionID.value) {
     payload = {
       id: selectedQuestionID.value,
       ...event.data,
+      ask_only: askOnlyGroupIds,
     };
   } else {
     payload = {
       ...event.data,
+      ask_only: askOnlyGroupIds,
     };
     delete payload.id; // Ensure ID is not sent for creation
   }
@@ -200,9 +248,10 @@ async function handleQuestionSubmit(event) {
       toast.add({
         title: "Success",
         description:
-          response?.message || selectedQuestionID.value
+          response?.message ||
+          (selectedQuestionID.value
             ? "Question updated successfully"
-            : "Question created successfully",
+            : "Question created successfully"),
         color: "success",
         duration: 2000,
       });
@@ -254,6 +303,11 @@ const editQuestion = async (question) => {
 
   try {
     fetchingQuestionDetails.value = true;
+
+    if (!groups.value.length) {
+      await fetchGroups();
+    }
+
     const response = await api(`/api/schedules/questions/${question.id}`, {
       method: "GET",
     });
@@ -262,7 +316,7 @@ const editQuestion = async (question) => {
       const q = response?.question;
 
       questionState.id = q?.id || null;
-      questionState.question = q?.question || "";
+      questionState.question_text = q?.question_text || "";
       questionState.ask_on_in = q?.ask_on_in === 1 ? true : false;
       questionState.ask_on_out = q?.ask_on_out === 1 ? true : false;
       questionState.is_active = q?.is_active === 1 ? true : false;
@@ -272,7 +326,9 @@ const editQuestion = async (question) => {
       questionState.button_text_1 = q?.button_text_1 || "";
       questionState.button_text_2 = q?.button_text_2 || "";
       questionState.button_text_3 = q?.button_text_3 || "";
-      questionState.ask_only = q?.ask_only || "";
+      questionState.ask_only = (q?.ask_only || [])
+        .map((id) => groupOptions.value.find((option) => option.value === id))
+        .filter(Boolean);
 
       createQuestionModal.value = true;
     }
@@ -443,6 +499,7 @@ watch(
       fetchSchedules();
     } else if (newTab === "1") {
       fetchScheduleQuestions();
+      fetchGroups();
     }
   },
   { immediate: true },
@@ -627,7 +684,7 @@ watch(
           color="primary"
           class="rounded-full p-2"
           icon="i-lucide-x"
-          @click="createQuestionModal = false"
+          @click="closeQuestionModal"
         />
       </div>
     </template>
@@ -692,12 +749,17 @@ watch(
         </div>
 
         <!-- Ask Only -->
-        <UFormField label="Ask Only (optional)">
-          <UInput
+        <UFormField
+          label="Ask Only for Groups (optional)"
+          help="Leave empty to ask all students"
+        >
+          <USelectMenu
             v-model="questionState.ask_only"
-            placeholder="Specific user or condition"
-            type="text"
+            :items="groupOptions"
+            :loading="groupsLoading"
+            placeholder="Select groups"
             class="w-full"
+            multiple
           />
         </UFormField>
 
@@ -707,13 +769,13 @@ watch(
             color="neutral"
             variant="solid"
             label="Cancel"
-            @click="createQuestionModal = false"
+            @click="closeQuestionModal"
           />
           <UButton
             type="submit"
             :loading="isSubmittingQuestion"
             :disabled="isSubmittingQuestion"
-            :label="questionState.id ? 'Edit Question' : 'Create Question'"
+            :label="questionState.id ? 'Update Question' : 'Create Question'"
           />
         </div>
       </UForm>

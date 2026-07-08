@@ -125,6 +125,58 @@ const ruleForm = ref({
 
 const ruleState = reactive({ ...ruleForm.value });
 
+// Questions for the "answered_question" metric
+const scheduleQuestions = ref([]);
+
+const questionOptions = computed(() =>
+  scheduleQuestions.value.map((question) => ({
+    label: question.question_text,
+    value: question.id,
+  })),
+);
+
+const answerOptions = computed(() => {
+  const question = scheduleQuestions.value.find(
+    (q) => q.id === ruleState.reference_id,
+  );
+
+  if (!question) return [];
+
+  return [1, 2, 3]
+    .filter((n) => question[`button_text_${n}`])
+    .map((n) => ({
+      label: question[`button_text_${n}`],
+      value: n,
+    }));
+});
+
+async function fetchScheduleQuestions() {
+  try {
+    const response = await api("/api/schedules/questions");
+
+    if (response?.success) {
+      scheduleQuestions.value = response?.questions || [];
+    }
+  } catch (err) {
+    console.log("Error fetching questions:", err);
+    toast.add({
+      title: "Error",
+      description: "Failed to load schedule questions",
+      color: "error",
+    });
+  }
+}
+
+// Operator/value have no meaning for answered_question; keep validation happy
+watch(
+  () => ruleState.metric,
+  (metric) => {
+    if (metric === "answered_question") {
+      ruleState.operator = "=";
+    }
+  },
+);
+
 const isGroupModalOpen = async () => {
   newGroup.value = true;
   resetGroupForm();
@@ -571,16 +623,19 @@ const openCreateRuleModal = async () => {
   rulesModalOpen.value = true;
   await rulesOptionsFetch();
   await fetchGroups();
+  await fetchScheduleQuestions();
 };
 
 const editRule = async (rule) => {
   await rulesOptionsFetch();
   await fetchGroups();
+  await fetchScheduleQuestions();
   rulesModalOpen.value = true;
   ruleForm.value.id = rule.id;
   ruleState.metric = rule.metric;
   ruleState.operator = rule.operator;
-  ruleState.value = rule.value;
+  ruleState.value =
+    rule.metric === "answered_question" ? Number(rule.value) : rule.value;
   ruleState.second_value = rule.second_value;
   ruleState.second_operator = rule.second_operator;
   ruleState.is_deduction = rule.is_deduction === 1 ? true : false;
@@ -1782,24 +1837,47 @@ watch(
               size="lg"
             />
           </UFormField>
-          <UFormField label="Operator" name="operator" required>
-            <USelect
-              v-model="ruleState.operator"
-              :items="operatorOptions"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Value" name="value" required>
-            <UInput
-              v-model="ruleState.value"
-              placeholder="Enter value"
-              class="w-full"
-              type="number"
-              size="lg"
-            />
-          </UFormField>
+          <template v-if="ruleState.metric === 'answered_question'">
+            <UFormField label="Question" name="reference_id" required>
+              <USelect
+                v-model="ruleState.reference_id"
+                :items="questionOptions"
+                placeholder="Select question"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Answer" name="value" required>
+              <USelect
+                v-model="ruleState.value"
+                :items="answerOptions"
+                :disabled="!ruleState.reference_id"
+                placeholder="Select answer"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+          </template>
+          <template v-else>
+            <UFormField label="Operator" name="operator" required>
+              <USelect
+                v-model="ruleState.operator"
+                :items="operatorOptions"
+                placeholder="Please Select"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Value" name="value" required>
+              <UInput
+                v-model="ruleState.value"
+                placeholder="Enter value"
+                class="w-full"
+                type="number"
+                size="lg"
+              />
+            </UFormField>
+          </template>
           <UFormField label="Second Operator" name="second_operator">
             <USelect
               v-model="ruleState.second_operator"
@@ -1868,7 +1946,11 @@ watch(
               size="lg"
             />
           </UFormField>
-          <UFormField label="Reference" name="reference_id">
+          <UFormField
+            v-if="ruleState.metric !== 'answered_question'"
+            label="Reference"
+            name="reference_id"
+          >
             <UInput
               v-model.number="ruleState.reference_id"
               placeholder="Enter reference"

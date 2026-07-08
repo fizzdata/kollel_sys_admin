@@ -148,6 +148,58 @@ const rulesform = ref({
 
 const rulesState = reactive({ ...rulesform.value });
 
+// Questions for the "answered_question" metric
+const scheduleQuestions = ref([]);
+
+const questionOptions = computed(() =>
+  scheduleQuestions.value.map((question) => ({
+    label: question.question_text,
+    value: question.id,
+  })),
+);
+
+const answerOptions = computed(() => {
+  const question = scheduleQuestions.value.find(
+    (q) => q.id === rulesState.reference_id,
+  );
+
+  if (!question) return [];
+
+  return [1, 2, 3]
+    .filter((n) => question[`button_text_${n}`])
+    .map((n) => ({
+      label: question[`button_text_${n}`],
+      value: n,
+    }));
+});
+
+async function fetchScheduleQuestions() {
+  try {
+    const response = await api("/api/schedules/questions");
+
+    if (response?.success) {
+      scheduleQuestions.value = response?.questions || [];
+    }
+  } catch (err) {
+    console.log("Error fetching questions:", err);
+    toast.add({
+      title: "Error",
+      description: "Failed to load schedule questions",
+      color: "error",
+    });
+  }
+}
+
+// Operator/value have no meaning for answered_question; keep validation happy
+watch(
+  () => rulesState.metric,
+  (metric) => {
+    if (metric === "answered_question") {
+      rulesState.operator = "=";
+    }
+  },
+);
+
 const resetRulesForm = () => {
   Object.assign(rulesform.value, {
     id: null,
@@ -484,6 +536,7 @@ const fetchProcessDeposit = async (data) => {
 
 const editRules = (rules) => {
   rulesOptionsFetch();
+  fetchScheduleQuestions();
 
   // Open modal instantly
   rulesModalOpen.value = true;
@@ -492,7 +545,8 @@ const editRules = (rules) => {
   rulesform.value.id = rules.id;
   rulesState.metric = rules.metric;
   rulesState.operator = rules.operator;
-  rulesState.value = rules.value;
+  rulesState.value =
+    rules.metric === "answered_question" ? Number(rules.value) : rules.value;
   rulesState.second_value = rules.second_value;
   rulesState.is_deduction = rules.is_deduction === 1 ? true : false;
   rulesState.amount_type = rules.amount_type;
@@ -710,6 +764,7 @@ const fetchRules = async (refresh = false) => {
 const isCreateRuleModalOpen = async () => {
   rulesModalOpen.value = true;
   await rulesOptionsFetch();
+  await fetchScheduleQuestions();
 };
 
 const deleteRule = (rule) => {
@@ -1392,24 +1447,47 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Operator" name="operator" required>
-            <USelect
-              v-model="rulesState.operator"
-              :items="operatorOptions"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Value" name="value" required>
-            <UInput
-              v-model="rulesState.value"
-              placeholder="Enter your value"
-              class="w-full"
-              type="number"
-              size="lg"
-            />
-          </UFormField>
+          <template v-if="rulesState.metric === 'answered_question'">
+            <UFormField label="Question" name="reference_id" required>
+              <USelect
+                v-model="rulesState.reference_id"
+                :items="questionOptions"
+                placeholder="Select question"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Answer" name="value" required>
+              <USelect
+                v-model="rulesState.value"
+                :items="answerOptions"
+                :disabled="!rulesState.reference_id"
+                placeholder="Select answer"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+          </template>
+          <template v-else>
+            <UFormField label="Operator" name="operator" required>
+              <USelect
+                v-model="rulesState.operator"
+                :items="operatorOptions"
+                placeholder="Please Select"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Value" name="value" required>
+              <UInput
+                v-model="rulesState.value"
+                placeholder="Enter your value"
+                class="w-full"
+                type="number"
+                size="lg"
+              />
+            </UFormField>
+          </template>
           <UFormField label="Second Operator" name="second_operator" required>
             <USelect
               v-model="rulesState.second_operator"
@@ -1478,7 +1556,11 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Reference" name="reference_id">
+          <UFormField
+            v-if="rulesState.metric !== 'answered_question'"
+            label="Reference"
+            name="reference_id"
+          >
             <UInput
               v-model.number="rulesState.reference_id"
               placeholder="Enter your reference id"
