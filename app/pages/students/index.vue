@@ -46,7 +46,12 @@ const columns = [
         () => row.original.first_name + " " + row.original.last_name,
       ),
   },
-  { accessorKey: "fingerprints", header: "Fingerprints" },
+  {
+    accessorKey: "fingerprints",
+    header: "Fingerprints",
+    cell: ({ row }) =>
+      `${row.original.fingerprints ?? 0}/${row.original.max_fingerprints ?? 1}`,
+  },
   { accessorKey: "phone", header: "Phone" },
   {
     header: "Quick Actions",
