@@ -14,6 +14,13 @@ const isOpen = computed({
   set: (value) => emit("update:modelValue", value),
 });
 
+// Must match MAX_FINGERPRINTS_LIMIT in the backend StudentsController
+const MAX_FINGERPRINTS = 5;
+const fingerprintOptions = Array.from(
+  { length: MAX_FINGERPRINTS },
+  (_, i) => i + 1,
+);
+
 const toast = useToast();
 const api = useApi();
 const fetchingWages = ref(false);
@@ -60,6 +67,10 @@ const getInitialState = (student = {}) => ({
   phone: student?.phone || "",
   address: student?.address || "",
   wage_groups: mapStudentWageGroups(student),
+  max_fingerprints: Math.min(
+    Number(student?.max_fingerprints) || 1,
+    MAX_FINGERPRINTS,
+  ),
 });
 
 const schema = object({
@@ -110,6 +121,7 @@ const handleSubmit = async (event) => {
     ...event.data,
     wage_group: wageGroupIds,
     wage: wageGroupIds,
+    max_fingerprints: state.max_fingerprints,
   };
   delete payload.id;
   delete payload.wage_groups;
@@ -294,6 +306,20 @@ onMounted(async () => {
               placeholder="Select Wage Groups"
               size="lg"
               multiple
+            />
+          </UFormField>
+
+          <UFormField
+            v-if="state.id"
+            label="Allowed Fingerprints"
+            name="max_fingerprints"
+            :description="`How many fingerprints this student may register (max ${MAX_FINGERPRINTS})`"
+          >
+            <USelect
+              v-model="state.max_fingerprints"
+              :items="fingerprintOptions"
+              class="w-full"
+              size="lg"
             />
           </UFormField>
 
