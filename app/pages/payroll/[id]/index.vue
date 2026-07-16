@@ -39,6 +39,10 @@ const amountTypeItems = ref([
     value: "percentage",
   },
 ]);
+const metricLogicItems = ref([
+  { label: "AND (both must match)", value: "and" },
+  { label: "OR (either can match)", value: "or" },
+]);
 const route = useRoute();
 const api = useApi();
 const toast = useToast();
@@ -60,6 +64,7 @@ const operatorOptions = ref([]);
 const metricOptions = ref([]);
 const isSubmitting = ref(false);
 const fetchingRulesOptions = ref(false);
+const combineMetricEnabled = ref(false);
 const fetchingGroupDetails = ref(null);
 const deleteModal = ref(false);
 const showModal = ref(false);
@@ -120,6 +125,12 @@ const schema = object({
   operator: string().required("Operator is required"),
   value: string().required("Value is required"),
   second_value: string().nullable(),
+  combined_metric: string().nullable(),
+  combined_operator: string().nullable(),
+  combined_value: string().nullable(),
+  combined_logic: string().nullable(),
+  combined_reference_id: string().nullable(),
+  combined_session: string().nullable(),
   is_deduction: string().required("Is Deduction is required"),
   amount_type: string().required("Amount Type is required"),
   amount: number()
@@ -137,6 +148,13 @@ const rulesform = ref({
   operator: "",
   value: "",
   second_value: "",
+  second_operator: "",
+  combined_metric: "",
+  combined_operator: "",
+  combined_value: "",
+  combined_logic: "and",
+  combined_reference_id: "",
+  combined_session: "",
   is_deduction: "",
   amount_type: "",
   amount: "",
@@ -173,6 +191,25 @@ const answerOptions = computed(() => {
     }));
 });
 
+const secondMetricOptions = computed(() =>
+  metricOptions.value.filter((opt) => opt.value !== rulesState.metric),
+);
+
+const combinedAnswerOptions = computed(() => {
+  const question = scheduleQuestions.value.find(
+    (q) => q.id === rulesState.combined_reference_id,
+  );
+
+  if (!question) return [];
+
+  return [1, 2, 3]
+    .filter((n) => question[`button_text_${n}`])
+    .map((n) => ({
+      label: question[`button_text_${n}`],
+      value: n,
+    }));
+});
+
 async function fetchScheduleQuestions() {
   try {
     const response = await api("/api/schedules/questions");
@@ -197,6 +234,19 @@ watch(
     if (metric === "answered_question") {
       rulesState.operator = "=";
     }
+
+    if (metric && metric === rulesState.combined_metric) {
+      rulesState.combined_metric = "";
+    }
+  },
+);
+
+watch(
+  () => rulesState.combined_metric,
+  (metric) => {
+    if (metric === "answered_question") {
+      rulesState.combined_operator = "=";
+    }
   },
 );
 
@@ -207,6 +257,13 @@ const resetRulesForm = () => {
     operator: "",
     value: "",
     second_value: "",
+    second_operator: "",
+    combined_metric: "",
+    combined_operator: "",
+    combined_value: "",
+    combined_logic: "and",
+    combined_reference_id: "",
+    combined_session: "",
     is_deduction: "",
     amount_type: "",
     amount: "",
@@ -216,6 +273,7 @@ const resetRulesForm = () => {
     group_ids: [],
   });
   Object.assign(rulesState, rulesform.value);
+  combineMetricEnabled.value = false;
 };
 
 const normalizeGroupIds = (groupIds = []) =>
@@ -239,7 +297,11 @@ const getRuleSummary = (rule) => {
   const amountUnit = rule.amount_type === "fixed" ? "dollars" : "percent";
   const cadence = Number(rule.apply_once) ? "once" : "each time";
 
-  return `If ${metricLabel} is ${operatorLabel} ${rule.value}, ${Number(rule.is_deduction) ? "Deduction" : "Bonus"} is ${rule.amount_type} ${rule.amount} ${amountUnit}, ${cadence}`;
+  const combinedText = rule.combined_metric
+    ? ` ${String(rule.combined_logic || "and").toUpperCase()} ${metricLabels.value[rule.combined_metric] || rule.combined_metric}`
+    : "";
+
+  return `If ${metricLabel}${combinedText} is ${operatorLabel} ${rule.value}, ${Number(rule.is_deduction) ? "Deduction" : "Bonus"} is ${rule.amount_type} ${rule.amount} ${amountUnit}, ${cadence}`;
 };
 
 const currentGroupRules = computed(() =>
@@ -276,6 +338,12 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
     value: rule.value,
     second_value: rule.second_value,
     second_operator: rule.second_operator,
+    combined_metric: rule.combined_metric,
+    combined_operator: rule.combined_operator,
+    combined_value: rule.combined_value,
+    combined_session: rule.combined_session,
+    combined_reference_id: rule.combined_reference_id,
+    combined_logic: rule.combined_logic,
     is_deduction: Boolean(Number(rule.is_deduction)),
     amount_type: rule.amount_type,
     amount: rule.amount,
@@ -548,6 +616,13 @@ const editRules = (rules) => {
   rulesState.value =
     rules.metric === "answered_question" ? Number(rules.value) : rules.value;
   rulesState.second_value = rules.second_value;
+  rulesState.second_operator = rules.second_operator;
+  rulesState.combined_metric = rules.combined_metric || "";
+  rulesState.combined_operator = rules.combined_operator || "";
+  rulesState.combined_value = rules.combined_value ?? "";
+  rulesState.combined_logic = rules.combined_logic || "and";
+  rulesState.combined_reference_id = rules.combined_reference_id ?? "";
+  rulesState.combined_session = rules.combined_session ?? "";
   rulesState.is_deduction = rules.is_deduction === 1 ? true : false;
   rulesState.amount_type = rules.amount_type;
   rulesState.amount = rules.amount;
@@ -556,6 +631,7 @@ const editRules = (rules) => {
   rulesState.reference_id = rules.reference_id;
   rulesState.session = rules.session;
   rulesState.session = rules.session;
+  combineMetricEnabled.value = !!rules.combined_metric;
   
   // Set group_ids if they exist
   if (rules.group_ids && Array.isArray(rules.group_ids)) {
@@ -628,6 +704,12 @@ const onSubmit = async (event) => {
         event.data.is_deduction === true || event.data.is_deduction === "true",
       apply_once: event.data.apply_once === "Apply Once" ? true : false,
       group_ids: groupIds,
+      combined_metric: combineMetricEnabled.value ? event.data.combined_metric || null : null,
+      combined_operator: combineMetricEnabled.value ? event.data.combined_operator || null : null,
+      combined_value: combineMetricEnabled.value ? event.data.combined_value || null : null,
+      combined_logic: combineMetricEnabled.value ? event.data.combined_logic || "and" : null,
+      combined_reference_id: combineMetricEnabled.value ? event.data.combined_reference_id || null : null,
+      combined_session: combineMetricEnabled.value ? event.data.combined_session || null : null,
     };
     const response = await api(endpoint, {
       method: rulesform.value.id ? "PUT" : "POST",
@@ -1447,6 +1529,13 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
+          <UFormField
+            label="Combine With Second Metric"
+            name="combine_metric"
+            class="flex items-center"
+          >
+            <USwitch v-model="combineMetricEnabled" />
+          </UFormField>
           <template v-if="rulesState.metric === 'answered_question'">
             <UFormField label="Question" name="reference_id" required>
               <USelect
@@ -1515,6 +1604,78 @@ watch(activeTab, (newTab) => {
               size="lg"
             />
           </UFormField>
+          <template v-if="combineMetricEnabled">
+            <UFormField label="Metric Logic" name="combined_logic" required>
+              <USelect
+                v-model="rulesState.combined_logic"
+                :items="metricLogicItems"
+                placeholder="Select AND/OR"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Second Metric" name="combined_metric" required>
+              <USelect
+                v-model="rulesState.combined_metric"
+                :items="secondMetricOptions"
+                placeholder="Select second metric"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+
+            <template v-if="rulesState.combined_metric === 'answered_question'">
+              <UFormField label="Second Question" name="combined_reference_id" required>
+                <USelect
+                  v-model="rulesState.combined_reference_id"
+                  :items="questionOptions"
+                  placeholder="Select question"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+              <UFormField label="Second Answer" name="combined_value" required>
+                <USelect
+                  v-model="rulesState.combined_value"
+                  :items="combinedAnswerOptions"
+                  :disabled="!rulesState.combined_reference_id"
+                  placeholder="Select answer"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+            </template>
+            <template v-else>
+              <UFormField label="Second Operator" name="combined_operator" required>
+                <USelect
+                  v-model="rulesState.combined_operator"
+                  :items="operatorOptions"
+                  placeholder="Please Select"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+              <UFormField label="Second Value" name="combined_value" required>
+                <UInput
+                  v-model="rulesState.combined_value"
+                  placeholder="Enter second metric value"
+                  class="w-full"
+                  type="number"
+                  size="lg"
+                />
+              </UFormField>
+            </template>
+
+            <UFormField label="Second Session Number" name="combined_session">
+              <UInput
+                v-model="rulesState.combined_session"
+                placeholder="Enter second metric session"
+                class="w-full"
+                type="number"
+                size="lg"
+              />
+            </UFormField>
+          </template>
           <UFormField label="Is Deduction" name="is_deduction" required>
             <USelect
               v-model="rulesState.is_deduction"
