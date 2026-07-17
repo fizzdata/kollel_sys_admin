@@ -1,6 +1,6 @@
 <script setup>
 import { today, getLocalTimeZone } from "@internationalized/date";
-import { object, string, number } from "yup";
+import { object, string, number, array } from "yup";
 import { base64ToPdfUrl } from "~/common/common";
 
 definePageMeta({
@@ -27,9 +27,9 @@ const amountTypeItems = ref([
   { label: "Fixed", value: "fixed" },
   { label: "Percentage", value: "percentage" },
 ]);
-const metricLogicItems = ref([
-  { label: "AND (both must match)", value: "and" },
-  { label: "OR (either can match)", value: "or" },
+const matchModeItems = ref([
+  { label: "ALL metrics must match", value: "all" },
+  { label: "ANY metric can match", value: "any" },
 ]);
 const applyOnceItems = ref(["Apply Once", "Each Time"]);
 
@@ -85,7 +85,6 @@ const operatorOptions = ref([]);
 const metricOptions = ref([]);
 const fetchingRulesOptions = ref(false);
 const isRuleSubmitting = ref(false);
-const combineMetricEnabled = ref(false);
 
 const tabs = [
   { label: "Recent Payroll", key: "recent-payroll" },
@@ -95,17 +94,25 @@ const tabs = [
   { label: "Rules", key: "rules" },
 ];
 
-const rulesSchema = object({
+const conditionSchema = object({
   metric: string().required("Metric is required"),
-  operator: string().required("Operator is required"),
-  value: string().required("Value is required"),
-  second_value: string().nullable(),
-  combined_metric: string().nullable(),
-  combined_operator: string().nullable(),
-  combined_value: string().nullable(),
-  combined_logic: string().nullable(),
-  combined_reference_id: string().nullable(),
-  combined_session: string().nullable(),
+  x_operator: string().required("X Operator is required"),
+  x_value: string().required("X Value is required"),
+  y_operator: string().nullable(),
+  y_value: string().nullable(),
+  reference_id: string().nullable(),
+  session: array()
+    .of(number())
+    .min(1, "Session is required")
+    .required("Session is required"),
+});
+
+const rulesSchema = object({
+  description: string().required("Description is required"),
+  match_mode: string().required("Match mode is required"),
+  conditions: array()
+    .of(conditionSchema)
+    .min(1, "At least one metric is required"),
   is_deduction: string().required("Is Deduction is required"),
   amount_type: string().required("Amount Type is required"),
   amount: number()
@@ -113,34 +120,56 @@ const rulesSchema = object({
     .required("Amount is required")
     .min(0, "Amount cannot be negative"),
   apply_once: string().required("Apply Rules is required"),
-  description: string().required("Description is required"),
-  reference_id: string().nullable(),
+  y_operator: string().nullable(),
+  y_value: string().nullable(),
 });
 
-const ruleForm = ref({
-  id: null,
+const blankCondition = () => ({
   metric: "",
-  operator: "",
-  value: "",
-  second_value: "",
-  second_operator: "",
-  combined_metric: "",
-  combined_operator: "",
-  combined_value: "",
-  combined_logic: "and",
-  combined_reference_id: "",
-  combined_session: "",
+  x_operator: "",
+  x_value: "",
+  y_operator: "",
+  y_value: "",
+  reference_id: "",
+  session: [],
+});
+
+const ruleForm = ref({ id: null });
+
+const ruleState = reactive({
+  description: "",
+  match_mode: "all",
+  conditions: [blankCondition()],
   is_deduction: "",
   amount_type: "",
   amount: "",
   apply_once: "Apply Once",
-  description: "",
-  reference_id: "",
-  session: "",
+  y_operator: "",
+  y_value: "",
   group_ids: [],
 });
 
-const ruleState = reactive({ ...ruleForm.value });
+const addCondition = () => {
+  ruleState.conditions.push(blankCondition());
+};
+
+const removeCondition = (index) => {
+  if (ruleState.conditions.length > 1) {
+    ruleState.conditions.splice(index, 1);
+  }
+};
+
+const sessionOptions = [
+  { label: "Session 1", value: 1 },
+  { label: "Session 2", value: 2 },
+];
+
+// Backend stores a single integer where 0 means "all sessions"
+const sessionsToBackend = (sessions = []) =>
+  sessions.length === 1 ? Number(sessions[0]) : 0;
+
+const sessionsFromBackend = (session) =>
+  session == null || Number(session) === 0 ? [1, 2] : [Number(session)];
 
 // Questions for the "answered_question" metric
 const scheduleQuestions = ref([]);
@@ -152,9 +181,9 @@ const questionOptions = computed(() =>
   })),
 );
 
-const answerOptions = computed(() => {
+const answerOptionsFor = (condition) => {
   const question = scheduleQuestions.value.find(
-    (q) => q.id === ruleState.reference_id,
+    (q) => q.id === condition.reference_id,
   );
 
   if (!question) return [];
@@ -165,26 +194,7 @@ const answerOptions = computed(() => {
       label: question[`button_text_${n}`],
       value: n,
     }));
-});
-
-const secondMetricOptions = computed(() =>
-  metricOptions.value.filter((opt) => opt.value !== ruleState.metric),
-);
-
-const combinedAnswerOptions = computed(() => {
-  const question = scheduleQuestions.value.find(
-    (q) => q.id === ruleState.combined_reference_id,
-  );
-
-  if (!question) return [];
-
-  return [1, 2, 3]
-    .filter((n) => question[`button_text_${n}`])
-    .map((n) => ({
-      label: question[`button_text_${n}`],
-      value: n,
-    }));
-});
+};
 
 async function fetchScheduleQuestions() {
   try {
@@ -205,24 +215,16 @@ async function fetchScheduleQuestions() {
 
 // Operator/value have no meaning for answered_question; keep validation happy
 watch(
-  () => ruleState.metric,
-  (metric) => {
-    if (metric === "answered_question") {
-      ruleState.operator = "=";
-    }
-
-    if (metric && metric === ruleState.combined_metric) {
-      ruleState.combined_metric = "";
-    }
-  },
-);
-
-watch(
-  () => ruleState.combined_metric,
-  (metric) => {
-    if (metric === "answered_question") {
-      ruleState.combined_operator = "=";
-    }
+  () => ruleState.conditions.map((condition) => condition.metric),
+  () => {
+    ruleState.conditions.forEach((condition) => {
+      if (
+        condition.metric === "answered_question" &&
+        condition.x_operator !== "="
+      ) {
+        condition.x_operator = "=";
+      }
+    });
   },
 );
 
@@ -583,16 +585,19 @@ const normalizeGroupIds = (groupIds = []) =>
     : [];
 
 const getRuleSummary = (rule) => {
-  const metricLabel = metricLabels.value[rule.metric] || rule.metric;
-  const operatorLabel = operaterLabels.value[rule.operator] || rule.operator;
-  const amountUnit = rule.amount_type === "fixed" ? "dollars" : "percent";
-  const cadence = Number(rule.apply_once) ? "once" : "each time";
+  const conditions = rule.conditions || [];
+  const first = conditions[0] || {};
+  const metricLabel = metricLabels.value[first.metric] || first.metric || "";
+  const operatorLabel =
+    operaterLabels.value[first.x_operator] || first.x_operator || "";
+  const joiner = rule.match_mode === "any" ? " OR " : " AND ";
 
-  const combinedText = rule.combined_metric
-    ? ` ${String(rule.combined_logic || "and").toUpperCase()} ${metricLabels.value[rule.combined_metric] || rule.combined_metric}`
-    : "";
+  const extraText = conditions
+    .slice(1)
+    .map((condition) => `${joiner}${metricLabels.value[condition.metric] || condition.metric}`)
+    .join("");
 
-  return `#${rule.id} - ${rule.description || `If ${metricLabel}${combinedText} is ${operatorLabel} ${rule.value}`}`;
+  return `#${rule.id} - ${rule.description || `If ${metricLabel}${extraText} is ${operatorLabel} ${first.x_value}`}`;
 };
 
 const getAssignedRulesForGroup = (group) =>
@@ -651,31 +656,20 @@ const handleClose = () => {
 };
 
 const resetRuleForm = () => {
-  Object.assign(ruleForm.value, {
-    id: null,
-    metric: "",
-    operator: "",
-    value: "",
-    second_value: "",
-    second_operator: "",
-    combined_metric: "",
-    combined_operator: "",
-    combined_value: "",
-    combined_logic: "and",
-    combined_reference_id: "",
-    combined_session: "",
+  ruleForm.value.id = null;
+
+  Object.assign(ruleState, {
+    description: "",
+    match_mode: "all",
+    conditions: [blankCondition()],
     is_deduction: "",
     amount_type: "",
     amount: "",
     apply_once: "Apply Once",
-    description: "",
-    reference_id: "",
-    session: "",
+    y_operator: "",
+    y_value: "",
     group_ids: [],
   });
-
-  Object.assign(ruleState, ruleForm.value);
-  combineMetricEnabled.value = false;
 };
 
 const openCreateRuleModal = async () => {
@@ -692,27 +686,32 @@ const editRule = async (rule) => {
   await fetchScheduleQuestions();
   rulesModalOpen.value = true;
   ruleForm.value.id = rule.id;
-  ruleState.metric = rule.metric;
-  ruleState.operator = rule.operator;
-  ruleState.value =
-    rule.metric === "answered_question" ? Number(rule.value) : rule.value;
-  ruleState.second_value = rule.second_value;
-  ruleState.second_operator = rule.second_operator;
-  ruleState.combined_metric = rule.combined_metric || "";
-  ruleState.combined_operator = rule.combined_operator || "";
-  ruleState.combined_value = rule.combined_value ?? "";
-  ruleState.combined_logic = rule.combined_logic || "and";
-  ruleState.combined_reference_id = rule.combined_reference_id ?? "";
-  ruleState.combined_session = rule.combined_session ?? "";
+  ruleState.description = rule.description;
+  ruleState.match_mode = rule.match_mode || "all";
+  ruleState.conditions = (rule.conditions || []).map((condition) => ({
+    metric: condition.metric,
+    x_operator: condition.x_operator,
+    x_value:
+      condition.metric === "answered_question"
+        ? Number(condition.x_value)
+        : condition.x_value,
+    y_operator: condition.y_operator ?? "",
+    y_value: condition.y_value ?? "",
+    reference_id: condition.reference_id ?? "",
+    session: sessionsFromBackend(condition.session),
+  }));
+
+  if (!ruleState.conditions.length) {
+    ruleState.conditions = [blankCondition()];
+  }
+
   ruleState.is_deduction = rule.is_deduction === 1 ? true : false;
   ruleState.amount_type = rule.amount_type;
   ruleState.amount = rule.amount;
   ruleState.apply_once = rule.apply_once === 1 ? "Apply Once" : "Each Time";
-  ruleState.description = rule.description;
-  ruleState.reference_id = rule.reference_id;
-  ruleState.session = rule.session;
+  ruleState.y_operator = rule.y_operator ?? "";
+  ruleState.y_value = rule.y_value ?? "";
   ruleState.group_ids = normalizeGroupIds(rule.group_ids);
-  combineMetricEnabled.value = !!rule.combined_metric;
 };
 
 const askDeleteRule = (rule) => {
@@ -1073,24 +1072,23 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
   }
 
   const payload = {
-    metric: rule.metric,
-    operator: rule.operator,
-    value: rule.value,
-    second_value: rule.second_value,
-    second_operator: rule.second_operator,
-    combined_metric: rule.combined_metric,
-    combined_operator: rule.combined_operator,
-    combined_value: rule.combined_value,
-    combined_session: rule.combined_session,
-    combined_reference_id: rule.combined_reference_id,
-    combined_logic: rule.combined_logic,
+    description: rule.description,
+    match_mode: rule.match_mode || "all",
+    conditions: (rule.conditions || []).map((condition) => ({
+      metric: condition.metric,
+      x_operator: condition.x_operator,
+      x_value: condition.x_value,
+      y_operator: condition.y_operator,
+      y_value: condition.y_value,
+      session: condition.session,
+      reference_id: condition.reference_id,
+    })),
     is_deduction: Boolean(Number(rule.is_deduction)),
     amount_type: rule.amount_type,
     amount: rule.amount,
-    description: rule.description,
     apply_once: Boolean(Number(rule.apply_once)),
-    session: rule.session,
-    reference_id: rule.reference_id,
+    y_operator: rule.y_operator,
+    y_value: rule.y_value,
     group_ids: groupIds,
   };
 
@@ -1128,18 +1126,32 @@ const onRuleSubmit = async (event) => {
       ? `/api/payroll/group/${targetGroupId}/rules/${ruleForm.value.id}`
       : `/api/payroll/group/${targetGroupId}/rules`;
 
+    const applyOnce = event.data.apply_once === "Apply Once";
+
     const payload = {
-      ...event.data,
+      description: event.data.description,
+      match_mode:
+        event.data.conditions.length > 1 ? event.data.match_mode || "all" : "all",
+      conditions: event.data.conditions.map((condition) => ({
+        metric: condition.metric,
+        x_operator: condition.x_operator,
+        x_value: condition.x_value,
+        y_operator: condition.y_operator || null,
+        y_value: condition.y_value || null,
+        session: sessionsToBackend(condition.session),
+        reference_id:
+          condition.metric === "answered_question"
+            ? condition.reference_id || null
+            : null,
+      })),
       is_deduction:
         event.data.is_deduction === true || event.data.is_deduction === "true",
-      apply_once: event.data.apply_once === "Apply Once",
+      amount_type: event.data.amount_type,
+      amount: event.data.amount,
+      apply_once: applyOnce,
+      y_operator: applyOnce ? event.data.y_operator || null : null,
+      y_value: applyOnce ? event.data.y_value || null : null,
       group_ids: groupIds,
-      combined_metric: combineMetricEnabled.value ? event.data.combined_metric || null : null,
-      combined_operator: combineMetricEnabled.value ? event.data.combined_operator || null : null,
-      combined_value: combineMetricEnabled.value ? event.data.combined_value || null : null,
-      combined_logic: combineMetricEnabled.value ? event.data.combined_logic || "and" : null,
-      combined_reference_id: combineMetricEnabled.value ? event.data.combined_reference_id || null : null,
-      combined_session: combineMetricEnabled.value ? event.data.combined_session || null : null,
     };
 
     const response = await api(endpoint, {
@@ -1891,211 +1903,7 @@ watch(
         :schema="rulesSchema"
         @submit="onRuleSubmit"
       >
-        <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Groups" name="group_ids" class="col-span-2">
-            <USelectMenu
-              v-model="ruleState.group_ids"
-              :items="
-                groups.map((group) => ({
-                  label: group.name,
-                  value: group.id,
-                }))
-              "
-              placeholder="Select groups"
-              class="w-full"
-              size="lg"
-              multiple
-            />
-          </UFormField>
-          <UFormField label="Metric" name="metric" required>
-            <USelect
-              v-model="ruleState.metric"
-              :items="metricOptions"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField
-            label="Combine With Second Metric"
-            name="combine_metric"
-            class="flex items-center"
-          >
-            <USwitch v-model="combineMetricEnabled" />
-          </UFormField>
-          <template v-if="ruleState.metric === 'answered_question'">
-            <UFormField label="Question" name="reference_id" required>
-              <USelect
-                v-model="ruleState.reference_id"
-                :items="questionOptions"
-                placeholder="Select question"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Answer" name="value" required>
-              <USelect
-                v-model="ruleState.value"
-                :items="answerOptions"
-                :disabled="!ruleState.reference_id"
-                placeholder="Select answer"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-          </template>
-          <template v-else>
-            <UFormField label="Operator" name="operator" required>
-              <USelect
-                v-model="ruleState.operator"
-                :items="operatorOptions"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Value" name="value" required>
-              <UInput
-                v-model="ruleState.value"
-                placeholder="Enter value"
-                class="w-full"
-                type="number"
-                size="lg"
-              />
-            </UFormField>
-          </template>
-          <UFormField label="Second Operator" name="second_operator">
-            <USelect
-              v-model="ruleState.second_operator"
-              :items="operatorOptions"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Second Value" name="second_value">
-            <UInput
-              v-model="ruleState.second_value"
-              placeholder="Enter second value"
-              class="w-full"
-              type="number"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Session Number" name="session">
-            <UInput
-              v-model="ruleState.session"
-              placeholder="Enter session number"
-              class="w-full"
-              type="number"
-              size="lg"
-            />
-          </UFormField>
-          <template v-if="combineMetricEnabled">
-            <UFormField label="Metric Logic" name="combined_logic" required>
-              <USelect
-                v-model="ruleState.combined_logic"
-                :items="metricLogicItems"
-                placeholder="Select AND/OR"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Second Metric" name="combined_metric" required>
-              <USelect
-                v-model="ruleState.combined_metric"
-                :items="secondMetricOptions"
-                placeholder="Select second metric"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-
-            <template v-if="ruleState.combined_metric === 'answered_question'">
-              <UFormField label="Second Question" name="combined_reference_id" required>
-                <USelect
-                  v-model="ruleState.combined_reference_id"
-                  :items="questionOptions"
-                  placeholder="Select question"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-              <UFormField label="Second Answer" name="combined_value" required>
-                <USelect
-                  v-model="ruleState.combined_value"
-                  :items="combinedAnswerOptions"
-                  :disabled="!ruleState.combined_reference_id"
-                  placeholder="Select answer"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-            </template>
-            <template v-else>
-              <UFormField label="Second Operator" name="combined_operator" required>
-                <USelect
-                  v-model="ruleState.combined_operator"
-                  :items="operatorOptions"
-                  placeholder="Please Select"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-              <UFormField label="Second Value" name="combined_value" required>
-                <UInput
-                  v-model="ruleState.combined_value"
-                  placeholder="Enter second metric value"
-                  class="w-full"
-                  type="number"
-                  size="lg"
-                />
-              </UFormField>
-            </template>
-
-            <UFormField label="Second Session Number" name="combined_session">
-              <UInput
-                v-model="ruleState.combined_session"
-                placeholder="Enter second metric session"
-                class="w-full"
-                type="number"
-                size="lg"
-              />
-            </UFormField>
-          </template>
-          <UFormField label="Is Deduction" name="is_deduction" required>
-            <USelect
-              v-model="ruleState.is_deduction"
-              :items="deductionItems"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Amount Type" name="amount_type" required>
-            <USelect
-              v-model="ruleState.amount_type"
-              :items="amountTypeItems"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Amount" name="amount" required>
-            <UInput
-              v-model="ruleState.amount"
-              placeholder="Enter amount"
-              class="w-full"
-              type="number"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField label="Apply Rules" name="apply_once" required>
-            <URadioGroup
-              v-model="ruleState.apply_once"
-              :items="applyOnceItems"
-            />
-          </UFormField>
+        <div class="space-y-6">
           <UFormField label="Description" name="description" required>
             <UInput
               v-model="ruleState.description"
@@ -2104,19 +1912,234 @@ watch(
               size="lg"
             />
           </UFormField>
-          <UFormField
-            v-if="ruleState.metric !== 'answered_question'"
-            label="Reference"
-            name="reference_id"
+
+          <!-- Metric conditions -->
+          <div
+            v-for="(condition, index) in ruleState.conditions"
+            :key="index"
+            class="border border-gray-200 dark:border-gray-800 rounded-xl p-4"
           >
-            <UInput
-              v-model.number="ruleState.reference_id"
-              placeholder="Enter reference"
-              class="w-full"
-              type="number"
-              size="lg"
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-semibold">Metric {{ index + 1 }}</span>
+              <UButton
+                v-if="ruleState.conditions.length > 1"
+                size="xs"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                @click="removeCondition(index)"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField
+                label="Metric"
+                :name="`conditions[${index}].metric`"
+                required
+                class="col-span-2"
+              >
+                <USelect
+                  v-model="condition.metric"
+                  :items="metricOptions"
+                  placeholder="Please Select"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+              <template v-if="condition.metric === 'answered_question'">
+                <UFormField
+                  label="Question"
+                  :name="`conditions[${index}].reference_id`"
+                  required
+                >
+                  <USelect
+                    v-model="condition.reference_id"
+                    :items="questionOptions"
+                    placeholder="Select question"
+                    class="w-full"
+                    size="lg"
+                  />
+                </UFormField>
+                <UFormField
+                  label="Answer"
+                  :name="`conditions[${index}].x_value`"
+                  required
+                >
+                  <USelect
+                    v-model="condition.x_value"
+                    :items="answerOptionsFor(condition)"
+                    :disabled="!condition.reference_id"
+                    placeholder="Select answer"
+                    class="w-full"
+                    size="lg"
+                  />
+                </UFormField>
+              </template>
+              <template v-else>
+                <UFormField
+                  label="X Operator"
+                  :name="`conditions[${index}].x_operator`"
+                  required
+                >
+                  <USelect
+                    v-model="condition.x_operator"
+                    :items="operatorOptions"
+                    placeholder="Please Select"
+                    class="w-full"
+                    size="lg"
+                  />
+                </UFormField>
+                <UFormField
+                  label="X Value"
+                  :name="`conditions[${index}].x_value`"
+                  required
+                >
+                  <UInput
+                    v-model="condition.x_value"
+                    placeholder="Enter value"
+                    class="w-full"
+                    type="number"
+                    size="lg"
+                  />
+                </UFormField>
+                <UFormField
+                  label="Y Operator"
+                  :name="`conditions[${index}].y_operator`"
+                >
+                  <USelect
+                    v-model="condition.y_operator"
+                    :items="operatorOptions"
+                    placeholder="Please Select"
+                    class="w-full"
+                    size="lg"
+                  />
+                </UFormField>
+                <UFormField
+                  label="Y Value"
+                  :name="`conditions[${index}].y_value`"
+                >
+                  <UInput
+                    v-model="condition.y_value"
+                    placeholder="Enter Y value"
+                    class="w-full"
+                    type="number"
+                    size="lg"
+                  />
+                </UFormField>
+              </template>
+              <UFormField
+                label="Sessions"
+                :name="`conditions[${index}].session`"
+                required
+                class="col-span-2"
+              >
+                <USelect
+                  v-model="condition.session"
+                  :items="sessionOptions"
+                  multiple
+                  placeholder="Select sessions"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+            </div>
+          </div>
+
+          <div class="flex items-end justify-between gap-4">
+            <UButton
+              icon="i-lucide-plus"
+              variant="outline"
+              label="Add Metric"
+              @click="addCondition"
             />
-          </UFormField>
+            <UFormField
+              v-if="ruleState.conditions.length > 1"
+              label="Match"
+              name="match_mode"
+              required
+              class="w-64"
+            >
+              <USelect
+                v-model="ruleState.match_mode"
+                :items="matchModeItems"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+          </div>
+
+          <!-- Payment -->
+          <div
+            class="border-t border-gray-200 dark:border-gray-800 pt-4 grid grid-cols-2 gap-4"
+          >
+            <UFormField label="Amount Type" name="amount_type" required>
+              <USelect
+                v-model="ruleState.amount_type"
+                :items="amountTypeItems"
+                placeholder="Please Select"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Amount" name="amount" required>
+              <UInput
+                v-model="ruleState.amount"
+                placeholder="Enter amount"
+                class="w-full"
+                type="number"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Is Deduction" name="is_deduction" required>
+              <USelect
+                v-model="ruleState.is_deduction"
+                :items="deductionItems"
+                placeholder="Please Select"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Apply Rules" name="apply_once" required>
+              <URadioGroup
+                v-model="ruleState.apply_once"
+                :items="applyOnceItems"
+              />
+            </UFormField>
+            <template v-if="ruleState.apply_once === 'Apply Once'">
+              <UFormField label="Apply Once When Count" name="y_operator">
+                <USelect
+                  v-model="ruleState.y_operator"
+                  :items="operatorOptions"
+                  placeholder="Matched at least once"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+              <UFormField label="Threshold Value" name="y_value">
+                <UInput
+                  v-model="ruleState.y_value"
+                  placeholder="Enter threshold"
+                  class="w-full"
+                  type="number"
+                  size="lg"
+                />
+              </UFormField>
+            </template>
+            <UFormField label="Groups" name="group_ids" class="col-span-2">
+              <USelectMenu
+                v-model="ruleState.group_ids"
+                :items="
+                  groups.map((group) => ({
+                    label: group.name,
+                    value: group.id,
+                  }))
+                "
+                placeholder="Select groups"
+                class="w-full"
+                size="lg"
+                multiple
+              />
+            </UFormField>
+          </div>
         </div>
         <div class="mt-8 flex gap-2 justify-end">
           <UButton
