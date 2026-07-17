@@ -153,10 +153,19 @@ watch(
                   :key="index"
                   class="text-sm border-l-4 pl-2 py-1 border-gray-200 hover:border-primary"
                 >
-                  If {{ metricLabels[item.rule.metric] }}
-                  {{ operaterLabels[item.rule.operator] }}
-                  {{ item.rule.value }},
-                  {{ item.rule.is_deduction ? "Deduction" : "Bonus" }}
+                  If
+                  <span
+                    v-for="(condition, cIndex) in item.rule.conditions || []"
+                    :key="cIndex"
+                  >
+                    <template v-if="cIndex > 0">
+                      {{ item.rule.match_mode === "any" ? " OR " : " AND " }}
+                    </template>
+                    {{ metricLabels[condition.metric] }}
+                    {{ operaterLabels[condition.x_operator] }}
+                    {{ condition.x_value }}
+                  </span>
+                  , {{ item.rule.is_deduction ? "Deduction" : "Bonus" }}
                   {{ item.rule.amount }}
                   {{ item.rule.amount_type === "fixed" ? "dollars" : "%" }}
                   ({{ item.rule.apply_once ? "once" : "each time" }})
