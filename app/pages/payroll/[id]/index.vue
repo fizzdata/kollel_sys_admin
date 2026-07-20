@@ -147,6 +147,17 @@ const schema = object({
   apply_once: string().required("Apply Rules is required"),
   y_operator: string().nullable(),
   y_value: string().nullable(),
+  effective_from: string().nullable(),
+  effective_until: string()
+    .nullable()
+    .test(
+      "after-from",
+      "Must be on or after Effective From",
+      function (value) {
+        const from = this.parent.effective_from;
+        return !value || !from || value >= from;
+      }
+    ),
 });
 
 const blankCondition = () => ({
@@ -171,6 +182,8 @@ const rulesState = reactive({
   apply_once: "Apply Once",
   y_operator: "",
   y_value: "",
+  effective_from: "",
+  effective_until: "",
   group_ids: [],
 });
 
@@ -266,6 +279,8 @@ const resetRulesForm = () => {
     apply_once: "Apply Once",
     y_operator: "",
     y_value: "",
+    effective_from: "",
+    effective_until: "",
     group_ids: [],
   });
 };
@@ -301,6 +316,17 @@ const getRuleSummary = (rule) => {
     .join("");
 
   return `If ${metricLabel}${extraText} is ${operatorLabel} ${first.x_value}, ${Number(rule.is_deduction) ? "Deduction" : "Bonus"} is ${rule.amount_type} ${rule.amount} ${amountUnit}, ${cadence}`;
+};
+
+const effectiveStatus = (rule) => {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const from = rule.effective_from?.slice(0, 10);
+  const until = rule.effective_until?.slice(0, 10);
+  const range = `${from || "..."} → ${until || "..."}`;
+
+  if (until && until < todayStr) return { label: `Expired ${range}`, color: "error" };
+  if (from && from > todayStr) return { label: `Starts ${range}`, color: "warning" };
+  return { label: `Active ${range}`, color: "info" };
 };
 
 const currentGroupRules = computed(() =>
@@ -349,6 +375,8 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
     apply_once: Boolean(Number(rule.apply_once)),
     y_operator: rule.y_operator,
     y_value: rule.y_value,
+    effective_from: rule.effective_from || null,
+    effective_until: rule.effective_until || null,
     group_ids: groupIds,
   };
 
@@ -634,6 +662,12 @@ const editRules = (rules) => {
   rulesState.apply_once = rules.apply_once === 1 ? "Apply Once" : "Each Time";
   rulesState.y_operator = rules.y_operator ?? "";
   rulesState.y_value = rules.y_value ?? "";
+  rulesState.effective_from = rules.effective_from
+    ? rules.effective_from.slice(0, 10)
+    : "";
+  rulesState.effective_until = rules.effective_until
+    ? rules.effective_until.slice(0, 10)
+    : "";
 
   // Set group_ids if they exist
   if (rules.group_ids && Array.isArray(rules.group_ids)) {
@@ -724,6 +758,8 @@ const onSubmit = async (event) => {
       apply_once: applyOnce,
       y_operator: applyOnce ? event.data.y_operator || null : null,
       y_value: applyOnce ? event.data.y_value || null : null,
+      effective_from: event.data.effective_from || null,
+      effective_until: event.data.effective_until || null,
       group_ids: groupIds,
     };
     const response = await api(endpoint, {
@@ -1414,9 +1450,20 @@ watch(activeTab, (newTab) => {
               <div
                 class="flex justify-between items-baseline text-end gap-6 text-gray-500"
               >
-                <p class="text-xs mt-2">
-                  {{ rule.description }}
-                </p>
+                <div>
+                  <p class="text-xs mt-2">
+                    {{ rule.description }}
+                  </p>
+                  <UBadge
+                    v-if="rule.effective_from || rule.effective_until"
+                    :color="effectiveStatus(rule).color"
+                    variant="soft"
+                    size="sm"
+                    class="mt-2"
+                  >
+                    {{ effectiveStatus(rule).label }}
+                  </UBadge>
+                </div>
                 <UButton
                   icon="i-lucide-x"
                   size="md"
@@ -1751,6 +1798,30 @@ watch(activeTab, (newTab) => {
                 />
               </UFormField>
             </template>
+            <UFormField
+              label="Effective From"
+              name="effective_from"
+              hint="Optional"
+            >
+              <UInput
+                v-model="rulesState.effective_from"
+                type="date"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField
+              label="Effective Until"
+              name="effective_until"
+              hint="Optional"
+            >
+              <UInput
+                v-model="rulesState.effective_until"
+                type="date"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
             <div
               class="col-span-2 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600"
             >
