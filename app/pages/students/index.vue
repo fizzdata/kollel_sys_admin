@@ -254,6 +254,7 @@ const exportStudents = () => {
     "phone",
     "address",
     "wage_group",
+    "group_names",
     "old_id",
     "active",
   ];

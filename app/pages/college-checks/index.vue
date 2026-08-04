@@ -53,6 +53,15 @@ const handleDateRangeSelect = (value) => {
 
 const defaultDate = today(getLocalTimeZone());
 
+// School year runs September to September: before September the current
+// school year is the one that started last September.
+const currentSchoolYear = () => {
+  const now = new Date();
+  const startYear =
+    now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  return `${startYear}/${startYear + 1}`;
+};
+
 // Form state
 const form = ref({
   id: null,
@@ -61,10 +70,7 @@ const form = ref({
   amount: null,
   memo: "",
   date: defaultDate,
-  year:
-    new Date().getFullYear().toString() +
-    "/" +
-    (new Date().getFullYear() + 1).toString(),
+  year: currentSchoolYear(),
 });
 
 // Users list for dropdown
@@ -150,10 +156,7 @@ const resetForm = () => {
     amount: null,
     memo: "",
     date: defaultDate,
-    year:
-      new Date().getFullYear().toString() +
-      "/" +
-      (new Date().getFullYear() + 1).toString(),
+    year: currentSchoolYear(),
   });
   Object.assign(state, form.value);
 };
@@ -800,9 +803,7 @@ const fetchList = async (showLoading = true) => {
               <USelect
                 v-model="state.year"
                 :items="yearOptions"
-                :default-value="`${new Date().getFullYear()}/${
-                  new Date().getFullYear() + 1
-                }`"
+                :default-value="currentSchoolYear()"
                 placeholder="Select school year"
                 class="w-full"
               />
