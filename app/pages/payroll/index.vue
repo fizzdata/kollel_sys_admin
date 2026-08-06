@@ -60,6 +60,7 @@ const activeTab = ref(route?.query?.tab || "0");
 const fetchingPayroll = ref(false);
 const fetchingSettings = ref(false);
 const recentPayroll = ref([]);
+const pendingRequestsCount = ref(0);
 
 const settings = ref(null);
 
@@ -957,6 +958,20 @@ const fetchRules = async () => {
   }
 };
 
+const fetchPendingRequestsCount = async () => {
+  try {
+    const response = await api(`/api/requests/count`, {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      pendingRequestsCount.value = response?.request_amount || 0;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchPendingRequestsCount ~ err:", err);
+  }
+};
+
 const fetchRecentPayroll = async () => {
   try {
     fetchingPayroll.value = true;
@@ -1696,6 +1711,10 @@ const handleTabUpdate = (newValue) => {
   });
 };
 
+onMounted(async () => {
+  await fetchPendingRequestsCount();
+});
+
 watch(
   activeTab,
   (newTab) => {
@@ -1757,6 +1776,19 @@ watch(
           icon="i-lucide-wallet"
           label="Process Deposit"
         />
+        <UChip
+          :show="pendingRequestsCount > 0"
+          :text="pendingRequestsCount"
+          color="error"
+          :ui="{ base: 'h-5 min-w-5 px-1 text-[11px] font-bold ring-2' }"
+        >
+          <UButton
+            to="/clockings/requests"
+            icon="i-lucide-list-checks"
+            label="Requests"
+            variant="outline"
+          />
+        </UChip>
       </div>
     </div>
   </UCard>

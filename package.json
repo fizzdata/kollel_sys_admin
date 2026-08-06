@@ -12,6 +12,7 @@
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
     "@headlessui/vue": "^1.7.23",
+    "@iconify-json/la": "^1.2.1",
     "@iconify-json/lucide": "^1.2.113",
     "@nuxt/ui": "^4.3.0",
     "nuxt": "^4.2.2",
