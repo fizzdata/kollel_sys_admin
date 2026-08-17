@@ -14,6 +14,9 @@ const students = ref([]);
 const loading = ref(false);
 const isActive = ref(false);
 const searchTerm = ref("");
+const isDeactivateOldModalOpen = ref(false);
+const isDeactivatingOld = ref(false);
+const deactivateOldDays = ref(180);
 
 const selectedStudent = ref(null);
 
@@ -234,6 +237,52 @@ const openImportStudentModal = async () => {
   importStudentModal.value = true;
 };
 
+const openDeactivateOldModal = () => {
+  deactivateOldDays.value = 180;
+  isDeactivateOldModalOpen.value = true;
+};
+
+const confirmDeactivateOldStudents = async () => {
+  try {
+    isDeactivatingOld.value = true;
+    const response = await api(`/api/students/deactivate-old`, {
+      method: "POST",
+      body: {
+        days: deactivateOldDays.value,
+      },
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Inactive students deactivated.",
+        color: "success",
+        duration: 2000,
+      });
+      isDeactivateOldModalOpen.value = false;
+      await fetchStudents();
+    } else {
+      toast.add({
+        title: "No Changes",
+        description: response?.message || "No students deactivated.",
+        color: "warning",
+        duration: 2000,
+      });
+      isDeactivateOldModalOpen.value = false;
+    }
+  } catch (error) {
+    console.error("Error deactivating old students:", error);
+    toast.add({
+      title: "Error",
+      description: "Unable to deactivate students. Please try again later.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    isDeactivatingOld.value = false;
+  }
+};
+
 const exportStudents = () => {
   if (!filteredStudents.value?.length) {
     toast.add({
@@ -405,6 +454,13 @@ const toggleSwitch = async () => {
           icon="i-lucide-file-text"
           label="Export Students"
         />
+        <UButton
+          @click="openDeactivateOldModal"
+          icon="i-lucide-user-x"
+          color="error"
+          variant="soft"
+          label="Deactivate Inactive Students"
+        />
       </div>
     </div>
   </UCard>
@@ -539,6 +595,48 @@ const toggleSwitch = async () => {
         class="w-full flex justify-center items-center mt-4"
         @click="handleFileSubmit"
       />
+    </template>
+  </UModal>
+
+  <!-- Modal for Deactivate Inactive Students -->
+  <UModal
+    v-model:open="isDeactivateOldModalOpen"
+    title="Deactivate Inactive Students"
+    :close="{ color: 'primary', variant: 'outline', class: 'rounded-full' }"
+  >
+    <template #body>
+      <p>
+        This will deactivate all active students who have not clocked in
+        within the given number of days.
+      </p>
+      <UFormField label="Days since last clock-in" class="mt-4">
+        <UInput
+          v-model.number="deactivateOldDays"
+          type="number"
+          :min="1"
+        />
+      </UFormField>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          class="mt-4"
+          label="Cancel"
+          @click="isDeactivateOldModalOpen = false"
+        />
+
+        <UButton
+          color="error"
+          variant="solid"
+          class="mt-4"
+          label="Deactivate"
+          :loading="isDeactivatingOld"
+          :disabled="isDeactivatingOld || !deactivateOldDays || deactivateOldDays < 1"
+          @click="confirmDeactivateOldStudents()"
+        />
+      </div>
     </template>
   </UModal>
 </template>
