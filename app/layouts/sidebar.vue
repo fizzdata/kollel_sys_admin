@@ -34,11 +34,15 @@ const navigation = [
   { name: "Reports", href: "/reports", key: "reports" },
   { name: "Files", href: "/files", key: "files" },
   { name: "College Checks", href: "/college-checks", key: "college-checks" },
+  { name: "Audit Log", href: "/audit", key: "audit" },
 ];
 
 const filteredNavigation = computed(() =>
   navigation.filter(
-    (item) => item.key === "dashboard" || hasAccess.value.includes(item.key),
+    (item) =>
+      item.key === "dashboard" ||
+      item.key === "audit" ||
+      hasAccess.value.includes(item.key),
   ),
 );
 

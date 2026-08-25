@@ -78,9 +78,8 @@ const columns = [
 
         // Toggle Active/Inactive Status Button
         h(resolveComponent("USwitch"), {
-          modelValue: row.original.active,
-          "onUpdate:modelValue": (val) =>
-            toggleStudentStatus(row.original, val),
+          modelValue: !!row.original.active,
+          "onUpdate:modelValue": () => toggleStudentStatus(row.original),
           color: "primary",
           size: "md",
           ui: {
@@ -143,9 +142,7 @@ const editStudent = async (student) => {
 };
 
 const toggleStudentStatus = async (student) => {
-  // toggle locally
   const newStatus = !student.active;
-  student.active = newStatus;
 
   try {
     const response = await api(`/api/students/${student.id}/status`, {
@@ -164,8 +161,6 @@ const toggleStudentStatus = async (student) => {
         color: "success",
         duration: 2000,
       });
-
-      await fetchStudents();
     } else {
       toast.add({
         title: "Failed",
@@ -173,8 +168,6 @@ const toggleStudentStatus = async (student) => {
         color: "error",
         duration: 2000,
       });
-
-      await fetchStudents();
     }
   } catch (error) {
     console.error("Submission error:", error);
@@ -183,6 +176,10 @@ const toggleStudentStatus = async (student) => {
       description: "An unexpected error occurred. Please try again later.",
       color: "error",
     });
+  } finally {
+    // No local/optimistic mutation - the switch only ever reflects
+    // whatever the backend actually has after this refetch.
+    await fetchStudents();
   }
 };
 
