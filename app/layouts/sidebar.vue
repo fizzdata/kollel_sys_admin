@@ -28,16 +28,21 @@ const navigation = [
   { name: "Clockings", href: "/clockings", key: "clockings" },
   { name: "Devices", href: "/devices", key: "devices" },
   { name: "Transaction", href: "/transactions", key: "transactions" },
+  { name: "Payees", href: "/payees", key: "payees" },
   { name: "Payroll", href: "/payroll", key: "payroll" },
   { name: "Checks", href: "/checks", key: "checks" },
   { name: "Reports", href: "/reports", key: "reports" },
   { name: "Files", href: "/files", key: "files" },
   { name: "College Checks", href: "/college-checks", key: "college-checks" },
+  { name: "Audit Log", href: "/audit", key: "audit" },
 ];
 
 const filteredNavigation = computed(() =>
   navigation.filter(
-    (item) => item.key === "dashboard" || hasAccess.value.includes(item.key),
+    (item) =>
+      item.key === "dashboard" ||
+      item.key === "audit" ||
+      hasAccess.value.includes(item.key),
   ),
 );
 

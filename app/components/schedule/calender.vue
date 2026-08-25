@@ -272,14 +272,17 @@ watch(
         <tbody>
           <tr v-for="week in weeks" :key="week[0]?.date">
             <td
-              v-for="day in week"
+              v-for="(day, di) in week"
               :key="day?.date"
               class="p-2 border border-gray-300 whitespace-normal"
             >
               <div class="h-16 flex flex-col items-center text-sm">
-                <span v-if="day?.date" class="flex flex-col">
+                <span v-if="day?.date" class="flex flex-col items-center">
                   {{ g2h(day.date.string) }}
                   <small>({{ day.date.string }})</small>
+                  <small v-if="di === 6" class="text-primary-600 font-bold">
+                    {{ hParsha(day.date.string) }}
+                  </small>
                 </span>
               </div>
 

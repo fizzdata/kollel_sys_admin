@@ -60,6 +60,7 @@ const activeTab = ref(route?.query?.tab || "0");
 const fetchingPayroll = ref(false);
 const fetchingSettings = ref(false);
 const recentPayroll = ref([]);
+const pendingRequestsCount = ref(0);
 
 const settings = ref(null);
 
@@ -122,6 +123,17 @@ const rulesSchema = object({
   apply_once: string().required("Apply Rules is required"),
   y_operator: string().nullable(),
   y_value: string().nullable(),
+  effective_from: string().nullable(),
+  effective_until: string()
+    .nullable()
+    .test(
+      "after-from",
+      "Must be on or after Effective From",
+      function (value) {
+        const from = this.parent.effective_from;
+        return !value || !from || value >= from;
+      }
+    ),
 });
 
 const blankCondition = () => ({
@@ -146,6 +158,8 @@ const ruleState = reactive({
   apply_once: "Apply Once",
   y_operator: "",
   y_value: "",
+  effective_from: "",
+  effective_until: "",
   group_ids: [],
 });
 
@@ -600,6 +614,17 @@ const getRuleSummary = (rule) => {
   return `#${rule.id} - ${rule.description || `If ${metricLabel}${extraText} is ${operatorLabel} ${first.x_value}`}`;
 };
 
+const effectiveStatus = (rule) => {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const from = rule.effective_from?.slice(0, 10);
+  const until = rule.effective_until?.slice(0, 10);
+  const range = `${from || "..."} → ${until || "..."}`;
+
+  if (until && until < todayStr) return { label: `Expired ${range}`, color: "error" };
+  if (from && from > todayStr) return { label: `Starts ${range}`, color: "warning" };
+  return { label: `Active ${range}`, color: "info" };
+};
+
 const getAssignedRulesForGroup = (group) =>
   rules.value.filter((rule) => normalizeGroupIds(rule.group_ids).includes(group.id));
 
@@ -668,6 +693,8 @@ const resetRuleForm = () => {
     apply_once: "Apply Once",
     y_operator: "",
     y_value: "",
+    effective_from: "",
+    effective_until: "",
     group_ids: [],
   });
 };
@@ -711,6 +738,12 @@ const editRule = async (rule) => {
   ruleState.apply_once = rule.apply_once === 1 ? "Apply Once" : "Each Time";
   ruleState.y_operator = rule.y_operator ?? "";
   ruleState.y_value = rule.y_value ?? "";
+  ruleState.effective_from = rule.effective_from
+    ? rule.effective_from.slice(0, 10)
+    : "";
+  ruleState.effective_until = rule.effective_until
+    ? rule.effective_until.slice(0, 10)
+    : "";
   ruleState.group_ids = normalizeGroupIds(rule.group_ids);
 };
 
@@ -925,6 +958,20 @@ const fetchRules = async () => {
   }
 };
 
+const fetchPendingRequestsCount = async () => {
+  try {
+    const response = await api(`/api/requests/count`, {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      pendingRequestsCount.value = response?.request_amount || 0;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchPendingRequestsCount ~ err:", err);
+  }
+};
+
 const fetchRecentPayroll = async () => {
   try {
     fetchingPayroll.value = true;
@@ -1089,6 +1136,8 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
     apply_once: Boolean(Number(rule.apply_once)),
     y_operator: rule.y_operator,
     y_value: rule.y_value,
+    effective_from: rule.effective_from || null,
+    effective_until: rule.effective_until || null,
     group_ids: groupIds,
   };
 
@@ -1151,6 +1200,8 @@ const onRuleSubmit = async (event) => {
       apply_once: applyOnce,
       y_operator: applyOnce ? event.data.y_operator || null : null,
       y_value: applyOnce ? event.data.y_value || null : null,
+      effective_from: event.data.effective_from || null,
+      effective_until: event.data.effective_until || null,
       group_ids: groupIds,
     };
 
@@ -1660,6 +1711,10 @@ const handleTabUpdate = (newValue) => {
   });
 };
 
+onMounted(async () => {
+  await fetchPendingRequestsCount();
+});
+
 watch(
   activeTab,
   (newTab) => {
@@ -1721,6 +1776,19 @@ watch(
           icon="i-lucide-wallet"
           label="Process Deposit"
         />
+        <UChip
+          :show="pendingRequestsCount > 0"
+          :text="pendingRequestsCount"
+          color="error"
+          :ui="{ base: 'h-5 min-w-5 px-1 text-[11px] font-bold ring-2' }"
+        >
+          <UButton
+            to="/clockings/requests"
+            icon="i-lucide-list-checks"
+            label="Requests"
+            variant="outline"
+          />
+        </UChip>
       </div>
     </div>
   </UCard>
@@ -1833,6 +1901,14 @@ watch(
           <div>
             <p class="text-xs">{{ rule.description }}</p>
             <div class="flex flex-wrap gap-1 mt-2">
+              <UBadge
+                v-if="rule.effective_from || rule.effective_until"
+                :color="effectiveStatus(rule).color"
+                variant="soft"
+                size="sm"
+              >
+                {{ effectiveStatus(rule).label }}
+              </UBadge>
               <UBadge
                 v-for="gid in rule.group_ids || []"
                 :key="`${rule.id}-${gid}`"
@@ -2124,6 +2200,30 @@ watch(
                 />
               </UFormField>
             </template>
+            <UFormField
+              label="Effective From"
+              name="effective_from"
+              hint="Optional"
+            >
+              <UInput
+                v-model="ruleState.effective_from"
+                type="date"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField
+              label="Effective Until"
+              name="effective_until"
+              hint="Optional"
+            >
+              <UInput
+                v-model="ruleState.effective_until"
+                type="date"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
             <UFormField label="Groups" name="group_ids" class="col-span-2">
               <USelectMenu
                 v-model="ruleState.group_ids"

@@ -38,6 +38,7 @@ const isImporting = ref(false);
 const loading = ref(false);
 const ImportClockingModal = ref(false);
 const file = ref(null);
+const pendingRequestsCount = ref(0);
 
 const api = useApi();
 // Get today's date
@@ -237,6 +238,20 @@ const formatClockings = (clockings = []) => {
 
     return row;
   });
+};
+
+const fetchPendingRequestsCount = async () => {
+  try {
+    const response = await api(`/api/requests/count`, {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      pendingRequestsCount.value = response?.request_amount || 0;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchPendingRequestsCount ~ err:", err);
+  }
 };
 
 const fetchStudents = async () => {
@@ -467,6 +482,7 @@ const exportToPDF = async () => {
 
 onMounted(async () => {
   await fetchStudents();
+  await fetchPendingRequestsCount();
   await fetchClockings(
     {
       date_from: calendarRange.value.start?.toString(),
@@ -581,13 +597,19 @@ watch(
         :ui="{ base: 'cursor-pointer' }"
       />
     </div>
-    <UButton
-      to="/clockings/requests"
-      icon=""
-      label="Requests"
-      variant="outline"
-      hidden
-    />
+    <UChip
+      :show="pendingRequestsCount > 0"
+      :text="pendingRequestsCount"
+      color="error"
+      :ui="{ base: 'h-5 min-w-5 px-1 text-[11px] font-bold ring-2' }"
+    >
+      <UButton
+        to="/clockings/requests"
+        icon="i-lucide-list-checks"
+        label="Requests"
+        variant="outline"
+      />
+    </UChip>
   </div>
   <!-- Clockings Table -->
   <UCard class="rounded-2xl shadow-sm mt-6">

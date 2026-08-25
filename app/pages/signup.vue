@@ -10,21 +10,20 @@ const toast = useToast();
 const api = useApi();
 const isSubmitting = ref(false);
 const router = useRouter();
+const route = useRoute();
 const token = useCookie("kollel_sys_token");
 const org = useCookie("kollel_sys_org");
 const user = useCookie("kollel_sys_user");
 const hasAccess = useCookie("kollel_sys_has_access");
+const inviteToken = computed(() => route.query.invite_token);
+const inviteLoading = ref(false);
+const inviteOrgName = ref("");
 
 const schema = yup.object({
   name: yup
     .string()
     .matches(/^[a-zA-Z\s]+$/, "Invalid name")
     .required("Name is required"),
-  email: yup.string().email("Invalid email").required("Email is required"),
-  phone: yup
-    .string()
-    .matches(/^\+?[0-9]{7,15}$/, "Invalid phone number")
-    .required("Phone is required"),
   password: yup
     .string()
     .min(6, "Password must be at least 6 characters")
@@ -33,24 +32,76 @@ const schema = yup.object({
     .string()
     .oneOf([yup.ref("password")], "Passwords must match")
     .required("Confirm Password is required"),
-  org_pin: yup.string().required("Org Pin is required"),
 });
 
 const state = reactive({
   name: undefined,
   email: undefined,
-  phone: undefined,
   password: undefined,
   password_confirmation: undefined,
-  org_pin: undefined,
+  invite_token: undefined,
+});
+
+onMounted(async () => {
+  if (!inviteToken.value) {
+    toast.add({
+      title: "Invite required",
+      description: "Please use the invite link from your email.",
+      color: "error",
+      duration: 3000,
+    });
+    router.push("/login");
+    return;
+  }
+
+  inviteLoading.value = true;
+
+  try {
+    const response = await api(`/api/invites/${inviteToken.value}`, {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      state.email = response.email;
+      state.invite_token = inviteToken.value;
+      inviteOrgName.value = response.org?.org_name || "";
+    } else {
+      toast.add({
+        title: "Invalid Invite",
+        description:
+          response?.message ||
+          response?._data?.message ||
+          "Invite link is invalid or has already been used",
+        color: "error",
+        duration: 3000,
+      });
+      router.push("/login");
+    }
+  } catch (error) {
+    console.error("Error loading invite:", error);
+    toast.add({
+      title: "Error",
+      description: "Unable to load invite",
+      color: "error",
+      duration: 3000,
+    });
+  } finally {
+    inviteLoading.value = false;
+  }
 });
 
 async function onSubmit(event) {
   try {
     isSubmitting.value = true;
+    const body = {
+      invite_token: inviteToken.value,
+      name: event.data.name,
+      password: event.data.password,
+      password_confirmation: event.data.password_confirmation,
+    };
     const response = await api("/api/register", {
       method: "POST",
-      body: event.data,
+      body,
     });
 
     if (response?.success) {
@@ -58,7 +109,7 @@ async function onSubmit(event) {
       org.value = response?.org || null;
       user.value = response?.user || null;
       hasAccess.value = response?.has_access || [];
-      router.push(`/${response?.has_access[0]}`);
+      router.push(`/${response?.has_access?.[0] || "dashboard"}`);
 
       toast.add({
         title: "Success",
@@ -70,18 +121,19 @@ async function onSubmit(event) {
       toast.add({
         title: "Failed",
         description:
-          response?._data.errors ||
-          response?._data.message ||
-          "Failed to Login",
+          response?._data?.errors ||
+          response?._data?.message ||
+          response?.message ||
+          "Failed to complete account",
         color: "error",
         duration: 2000,
       });
     }
   } catch (error) {
-    console.error("Error Login:", error);
+    console.error("Error completing signup:", error);
     toast.add({
       title: "Error",
-      description: "An error occurred while singup. Please try again later.",
+      description: "An error occurred while completing signup. Please try again later.",
       color: "error",
       duration: 2000,
     });
@@ -104,7 +156,7 @@ async function onSubmit(event) {
         class="absolute -bottom-40 -right-40 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse-slow animation-delay-2000"
       ></div>
     </div>
-    <UCard class="w-full max-w-xl rounded-2xl shadow-xl py-6 sm:py-8">
+    <UCard class="w-full max-w-lg rounded-2xl shadow-xl py-6 sm:py-8">
       <!-- Brand -->
       <div class="mb-6 text-center">
         <ULink to="/">
@@ -117,7 +169,13 @@ async function onSubmit(event) {
 
       <!-- Title -->
       <p class="my-6 text-center text-lg font-medium text-gray-800">
-        Sign Up your account
+        Complete your account
+      </p>
+      <p
+        v-if="inviteOrgName"
+        class="mb-6 text-center text-sm text-gray-500"
+      >
+        {{ state.email }} was invited to {{ inviteOrgName }}
       </p>
 
       <!-- Form -->
@@ -127,98 +185,78 @@ async function onSubmit(event) {
         class="space-y-4"
         @submit="onSubmit"
       >
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-4">
           <UFormField label="Name" name="name" required>
             <UInput
               v-model="state.name"
               placeholder="Enter your name"
               size="lg"
               class="w-full"
+              :disabled="inviteLoading"
             />
           </UFormField>
-          <UFormField label="Email" name="email" required>
-            <UInput
-              v-model="state.email"
-              placeholder="Enter your email"
-              size="lg"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Phone" name="phone" required>
-            <UInput
-              v-model="state.phone"
-              placeholder="Enter your phone"
-              size="lg"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Org Pin" name="org_pin" required>
-            <UInput
-              v-model="state.org_pin"
-              placeholder="Enter your org pin"
-              size="lg"
-              class="w-full"
-              type="number"
-            />
-          </UFormField>
-          <UFormField label="Password" name="password" required>
-            <UInput
-              v-model="state.password"
-              placeholder="Password"
-              :type="show ? 'text' : 'password'"
-              :ui="{ trailing: 'pe-1' }"
-              class="w-full"
-              size="lg"
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UFormField label="Password" name="password" required>
+              <UInput
+                v-model="state.password"
+                placeholder="Password"
+                :type="show ? 'text' : 'password'"
+                :ui="{ trailing: 'pe-1' }"
+                class="w-full"
+                size="lg"
+                :disabled="inviteLoading"
+              >
+                <template #trailing>
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    size="sm"
+                    :icon="show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                    :aria-label="show ? 'Hide password' : 'Show password'"
+                    :aria-pressed="show"
+                    aria-controls="password"
+                    @click="show = !show"
+                  />
+                </template>
+              </UInput>
+            </UFormField>
+            <UFormField
+              label="Confirm Password"
+              name="password_confirmation"
+              required
             >
-              <template #trailing>
-                <UButton
-                  color="neutral"
-                  variant="link"
-                  size="sm"
-                  :icon="show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                  :aria-label="show ? 'Hide password' : 'Show password'"
-                  :aria-pressed="show"
-                  aria-controls="password"
-                  @click="show = !show"
-                />
-              </template>
-            </UInput>
-          </UFormField>
-          <UFormField
-            label="Password Confirmation"
-            name="password_confirmation"
-            required
-          >
-            <UInput
-              v-model="state.password_confirmation"
-              placeholder="Password Confirmation"
-              :type="confirmshow ? 'text' : 'password'"
-              :ui="{ trailing: 'pe-1' }"
-              class="w-full"
-              size="lg"
-            >
-              <template #trailing>
-                <UButton
-                  color="neutral"
-                  variant="link"
-                  size="sm"
-                  :icon="confirmshow ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-                  :aria-label="confirmshow ? 'Hide password' : 'Show password'"
-                  :aria-pressed="confirmshow"
-                  aria-controls="password"
-                  @click="confirmshow = !confirmshow"
-                />
-              </template>
-            </UInput>
-          </UFormField>
+              <UInput
+                v-model="state.password_confirmation"
+                placeholder="Confirm password"
+                :type="confirmshow ? 'text' : 'password'"
+                :ui="{ trailing: 'pe-1' }"
+                class="w-full"
+                size="lg"
+                :disabled="inviteLoading"
+              >
+                <template #trailing>
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    size="sm"
+                    :icon="confirmshow ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                    :aria-label="confirmshow ? 'Hide password' : 'Show password'"
+                    :aria-pressed="confirmshow"
+                    aria-controls="password"
+                    @click="confirmshow = !confirmshow"
+                  />
+                </template>
+              </UInput>
+            </UFormField>
+          </div>
         </div>
         <UButton
           type="submit"
           :loading="isSubmitting"
-          :disabled="isSubmitting"
+          :disabled="isSubmitting || inviteLoading"
           block
           size="lg"
-          label="Submit"
+          label="Complete Account"
         />
       </UForm>
 

@@ -1,5 +1,6 @@
 <script setup>
 import { h } from "vue";
+import * as yup from "yup";
 
 definePageMeta({
   layout: "sidebar",
@@ -13,6 +14,14 @@ const org_id = useCookie("org_id");
 // Reactive state
 const loading = ref(false);
 const usersData = ref([]);
+const inviteModalOpen = ref(false);
+const inviteLoading = ref(false);
+const inviteState = reactive({
+  email: undefined,
+});
+const inviteSchema = yup.object({
+  email: yup.string().email("Invalid email").required("Email is required"),
+});
 
 // Fetch users and departments on mount
 onMounted(async () => {
@@ -48,6 +57,52 @@ const fetchData = async () => {
     });
   } finally {
     loading.value = false;
+  }
+};
+
+const inviteUser = async (event) => {
+  inviteLoading.value = true;
+
+  try {
+    const response = await api("/api/users/invite", {
+      method: "POST",
+      body: {
+        email: event.data.email,
+        org_id: org_id.value,
+      },
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response.message || "Invite sent successfully",
+        color: "success",
+        timeout: 2000,
+      });
+      inviteState.email = undefined;
+      inviteModalOpen.value = false;
+      await fetchData();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data?.message ||
+          "Failed to send invite",
+        color: "error",
+        timeout: 3000,
+      });
+    }
+  } catch (error) {
+    console.error("Error inviting user:", error);
+    toast.add({
+      title: "Error",
+      description: "Error sending invite",
+      color: "error",
+      timeout: 3000,
+    });
+  } finally {
+    inviteLoading.value = false;
   }
 };
 
@@ -122,7 +177,7 @@ const userColumns = [
             {
               class: "font-medium text-gray-900 ",
             },
-            row.original.user_name,
+            row.original.user_name || "Invited user",
           ),
           h(
             "div",
@@ -156,6 +211,24 @@ const userColumns = [
             },
             "No email provided",
           );
+    },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const isInvited = row.original.status === "invited";
+      return h(
+        resolveComponent("UBadge"),
+        {
+          color: isInvited ? "warning" : "success",
+          variant: "soft",
+          size: "xs",
+        },
+        {
+          default: () => (isInvited ? "Invited" : "Active"),
+        },
+      );
     },
   },
   {
@@ -274,6 +347,13 @@ const userColumns = [
           {{ usersData.length }} Users
         </UBadge>
         <UButton
+          label="Invite User"
+          icon="i-lucide-mail-plus"
+          color="primary"
+          variant="solid"
+          @click="inviteModalOpen = true"
+        />
+        <UButton
           label="Refresh"
           icon="i-heroicons-arrow-path"
           :loading="loading"
@@ -301,6 +381,44 @@ const userColumns = [
       class="flex-1 md:mt-6 mt-2 max-h-160"
     />
   </UCard>
+
+  <UModal v-model:open="inviteModalOpen" title="Invite User">
+    <template #body>
+      <UForm
+        :schema="inviteSchema"
+        :state="inviteState"
+        class="space-y-4"
+        @submit="inviteUser"
+      >
+        <UFormField label="Email" name="email" required>
+          <UInput
+            v-model="inviteState.email"
+            placeholder="user@example.com"
+            type="email"
+            class="w-full"
+            size="lg"
+          />
+        </UFormField>
+
+        <div class="flex justify-end gap-2 border-t border-gray-200 pt-4">
+          <UButton
+            label="Cancel"
+            color="neutral"
+            variant="outline"
+            :disabled="inviteLoading"
+            @click="inviteModalOpen = false"
+          />
+          <UButton
+            type="submit"
+            label="Send Invite"
+            icon="i-lucide-send"
+            :loading="inviteLoading"
+            :disabled="inviteLoading"
+          />
+        </div>
+      </UForm>
+    </template>
+  </UModal>
 </template>
 
 <style scoped>
