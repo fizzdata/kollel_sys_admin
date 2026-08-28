@@ -20,10 +20,6 @@ const commandLoadingDeviceId = ref(null);
 const commandLoadingName = ref("");
 const orgDisplayMessage = ref("");
 const orgDisplayMessageSaving = ref(false);
-const deviceMessageTitle = ref("Support");
-const deviceMessageBody = ref("");
-const deviceMessageModalOpen = ref(false);
-const messageTargetDevice = ref(null);
 
 const commandOptions = [
 	{
@@ -322,13 +318,9 @@ const saveOrgDisplayMessage = async () => {
 	}
 };
 
-const queueCommand = async (
-	commandName = selectedCommand.value,
-	payloadOverride = null,
-	targetDevice = selectedDevice.value,
-) => {
-	if (!targetDevice) {
-		return false;
+const queueCommand = async (commandName = selectedCommand.value) => {
+	if (!selectedDevice.value) {
+		return;
 	}
 
 	const selectedOption = commandOptions.find((option) => option.value === commandName);
@@ -337,9 +329,7 @@ const queueCommand = async (
 		: undefined;
 	const rawPayload = payloadText.value.trim();
 
-	if (payloadOverride) {
-		payload = payloadOverride;
-	} else if (rawPayload) {
+	if (rawPayload) {
 		try {
 			payload = JSON.parse(rawPayload);
 		} catch {
@@ -348,17 +338,17 @@ const queueCommand = async (
 				color: "error",
 				timeout: 3000,
 			});
-			return false;
+			return;
 		}
 	}
 
-	commandLoadingDeviceId.value = targetDevice.id;
+	commandLoadingDeviceId.value = selectedDevice.value.id;
 	commandLoadingName.value = commandName;
 	selectedCommand.value = commandName;
 
 	try {
 		const response = await api(
-			`/api/devices/${targetDevice.id}/command`,
+			`/api/devices/${selectedDevice.value.id}/command`,
 			{
 				method: "POST",
 				body: {
@@ -377,7 +367,7 @@ const queueCommand = async (
 			});
 			applySelectedCommandPayload();
 			await fetchDevices();
-			return true;
+			return;
 		}
 
 		toast.add({
@@ -396,41 +386,6 @@ const queueCommand = async (
 		commandLoadingDeviceId.value = null;
 		commandLoadingName.value = "";
 	}
-
-	return false;
-};
-
-const openDeviceMessageModal = (device) => {
-	messageTargetDevice.value = device;
-	deviceMessageTitle.value = "Support";
-	deviceMessageBody.value = "";
-	deviceMessageModalOpen.value = true;
-};
-
-const queueShowMessage = async (targetDevice = messageTargetDevice.value || selectedDevice.value) => {
-	const message = deviceMessageBody.value.trim();
-
-	if (!message) {
-		toast.add({
-			description: "Message is required.",
-			color: "error",
-			timeout: 3000,
-		});
-		return false;
-	}
-
-	const queued = await queueCommand("show_message", {
-		title: deviceMessageTitle.value.trim() || "Support",
-		message,
-	}, targetDevice);
-
-	if (queued) {
-		deviceMessageBody.value = "";
-		deviceMessageModalOpen.value = false;
-		messageTargetDevice.value = null;
-	}
-
-	return queued;
 };
 
 const isCommandLoading = (deviceId, commandName) => {
@@ -536,13 +491,13 @@ onMounted(async () => {
 			</div>
 		</UCard>
 
-		<div class="space-y-6">
+		<div class="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(340px,1fr)]">
 			<UCard class="rounded-2xl shadow-sm">
 				<div class="mb-4 flex items-center justify-between gap-3">
 					<div>
 						<h2 class="text-base font-semibold text-gray-900">Registered Devices</h2>
 						<p class="text-sm text-gray-500">
-							Use the action buttons to queue common commands.
+							Select a device to inspect details and queue a command.
 						</p>
 					</div>
 					<UBadge color="primary" variant="outline">
@@ -594,7 +549,6 @@ onMounted(async () => {
 									<th class="px-4 py-3 font-semibold">Connection</th>
 									<th class="px-4 py-3 font-semibold">Last Seen</th>
 									<th class="px-4 py-3 font-semibold">Command State</th>
-									<th class="px-4 py-3 font-semibold">Actions</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-200 bg-white">
@@ -671,81 +625,227 @@ onMounted(async () => {
 											No commands yet
 										</span>
 									</td>
-									<td class="px-4 py-4 align-top">
-										<div class="flex flex-col gap-2 min-w-44">
-											<UButton
-												color="primary"
-												size="xs"
-												:loading="isCommandLoading(device.id, 'enable_remote_support')"
-												:disabled="commandLoadingDeviceId === device.id"
-												@click.stop="queueCommand('enable_remote_support', null, device)"
-											>
-												Enable Remote Support
-											</UButton>
-											<UButton
-												color="primary"
-												variant="outline"
-												size="xs"
-												:loading="isCommandLoading(device.id, 'show_message')"
-												:disabled="commandLoadingDeviceId === device.id"
-												@click.stop="openDeviceMessageModal(device)"
-											>
-												Show Message
-											</UButton>
-										</div>
-									</td>
 								</tr>
 							</tbody>
 						</table>
 					</div>
 				</div>
 			</UCard>
+
+			<UCard class="rounded-2xl shadow-sm xl:sticky xl:top-6 xl:self-start">
+				<div v-if="selectedDevice" class="space-y-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<h2 class="text-base font-semibold text-gray-900">
+								{{ selectedDevice.machine_name || "Unnamed device" }}
+							</h2>
+							<p class="mt-1 break-all text-xs text-gray-500">
+								{{ selectedDevice.device_unique_id }}
+							</p>
+						</div>
+						<UBadge
+							:color="selectedDevice.is_online ? 'success' : 'error'"
+							variant="soft"
+						>
+							{{ selectedDevice.is_online ? "Online" : "Offline" }}
+						</UBadge>
+					</div>
+
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div class="rounded-xl border border-gray-200 p-3">
+							<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+								Application
+							</div>
+							<div class="mt-1 text-sm font-medium text-gray-900">
+								{{ selectedDevice.app_name || "Unknown app" }}
+							</div>
+							<div class="text-xs text-gray-500">
+								Version {{ selectedDevice.app_version || "n/a" }}
+							</div>
+						</div>
+
+						<div class="rounded-xl border border-gray-200 p-3">
+							<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+								Last Connection
+							</div>
+							<div class="mt-1 text-sm font-medium text-gray-900">
+								{{ selectedDevice.last_ip || "No IP reported" }}
+							</div>
+							<div class="text-xs text-gray-500">
+								Seen {{ formatDateTime(selectedDevice.last_seen_at) }}
+							</div>
+						</div>
+
+						<div class="rounded-xl border border-gray-200 p-3 sm:col-span-2">
+							<div class="flex items-start justify-between gap-3">
+								<div>
+									<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+										AnyDesk ID
+									</div>
+									<div class="mt-1 text-sm font-medium text-gray-900">
+										{{ selectedDevice.anydesk_id || "Not reported" }}
+									</div>
+								</div>
+								<UButton
+									v-if="selectedDevice.anydesk_id"
+									color="primary"
+									variant="outline"
+									size="xs"
+									@click="copyValue(selectedDevice.anydesk_id, 'AnyDesk ID')"
+								>
+									Copy
+								</UButton>
+							</div>
+						</div>
+					</div>
+
+					<div
+						v-if="selectedDevice.pending_command"
+						class="rounded-xl border border-primary-200 bg-primary-50 p-4"
+					>
+						<div class="flex items-center justify-between gap-3">
+							<div>
+								<div class="text-xs font-semibold uppercase tracking-wide text-primary-700">
+									Pending Command
+								</div>
+								<div class="mt-1 text-sm font-semibold text-primary-900">
+									{{ formatCommandName(selectedDevice.pending_command.name) }}
+								</div>
+							</div>
+							<UBadge color="primary" variant="soft">Queued</UBadge>
+						</div>
+						<p class="mt-2 text-xs text-primary-800">
+							Requested {{ formatDateTime(selectedDevice.pending_command.requested_at) }}
+						</p>
+						<p
+							v-if="selectedDevice.pending_command.sent_at"
+							class="mt-1 text-xs text-primary-800"
+						>
+							Delivered {{ formatDateTime(selectedDevice.pending_command.sent_at) }}
+						</p>
+					</div>
+
+					<div
+						v-if="selectedDevice.last_command"
+						class="rounded-xl border border-gray-200 bg-gray-50 p-4"
+					>
+						<div class="flex items-center justify-between gap-3">
+							<div>
+								<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+									Last Command Result
+								</div>
+								<div class="mt-1 text-sm font-semibold text-gray-900">
+									{{ formatCommandName(selectedDevice.last_command.name) }}
+								</div>
+							</div>
+							<UBadge
+								:color="commandStatusColor(selectedDevice.last_command.status)"
+								variant="soft"
+							>
+								{{ selectedDevice.last_command.status || "reported" }}
+							</UBadge>
+						</div>
+						<p class="mt-2 text-xs text-gray-600">
+							Completed {{ formatDateTime(selectedDevice.last_command.completed_at) }}
+						</p>
+						<p
+							v-if="selectedDevice.last_command.message"
+							class="mt-2 max-h-80 overflow-auto rounded-lg bg-white px-3 py-2 text-xs whitespace-pre-wrap text-gray-700"
+						>
+							{{ selectedDevice.last_command.message }}
+						</p>
+					</div>
+
+					<div class="rounded-xl border border-gray-200 p-5 space-y-4">
+	<div>
+		<h3 class="text-sm font-semibold text-gray-900">
+			Command Payload
+		</h3>
+
+		<p class="mt-1 text-xs leading-5 text-gray-500">
+			Select a command and optionally customize the JSON payload before queueing it to the device.
+		</p>
+	</div>
+
+	<div class="space-y-2">
+		<label
+			class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+		>
+			Command
+		</label>
+
+		<select
+			v-model="selectedCommand"
+			class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+		>
+			<option
+				v-for="option in commandOptions"
+				:key="option.value"
+				:value="option.value"
+			>
+				{{ option.label }}
+			</option>
+		</select>
+	</div>
+
+	<div
+		class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs leading-5 text-gray-600"
+	>
+		{{ selectedCommandOption?.description }}
+	</div>
+
+	<div class="space-y-2">
+		<div class="flex items-center justify-between">
+			<label
+				class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+			>
+				JSON Payload
+			</label>
+
+			<UButton
+				color="neutral"
+				variant="ghost"
+				size="xs"
+				@click="applySelectedCommandPayload"
+			>
+				Reset Sample
+			</UButton>
 		</div>
 
-		<UModal v-model:open="deviceMessageModalOpen" title="Show Message">
-			<template #body>
-				<div class="space-y-4">
-					<p class="text-sm text-gray-600">
-						{{ messageTargetDevice?.machine_name || "Selected device" }}
-					</p>
+		<UTextarea
+			v-model="payloadText"
+			:rows="10"
+			:ui="{
+				base: 'font-mono text-xs leading-5 resize-y'
+			}"
+			placeholder="{}"
+		/>
+	</div>
 
-					<UFormField label="Message Title">
-						<UInput
-							v-model="deviceMessageTitle"
-							placeholder="Support"
-							class="w-full"
-						/>
-					</UFormField>
-
-					<UFormField label="Message">
-						<UTextarea
-							v-model="deviceMessageBody"
-							:rows="4"
-							placeholder="Type a message for this device"
-							class="w-full"
-						/>
-					</UFormField>
-
-					<div class="flex justify-end gap-2 border-t border-gray-200 pt-4">
-						<UButton
-							color="neutral"
-							variant="outline"
-							:disabled="isCommandLoading(messageTargetDevice?.id, 'show_message')"
-							@click="deviceMessageModalOpen = false"
-						>
-							Cancel
-						</UButton>
-						<UButton
-							color="primary"
-							:loading="isCommandLoading(messageTargetDevice?.id, 'show_message')"
-							:disabled="isCommandLoading(messageTargetDevice?.id, 'show_message')"
-							@click="queueShowMessage()"
-						>
-							Show Message
-						</UButton>
-					</div>
+	<UButton
+		color="primary"
+		block
+		size="lg"
+		:loading="isCommandLoading(selectedDevice.id, selectedCommand)"
+		:disabled="commandLoadingDeviceId === selectedDevice.id"
+		@click="queueCommand()"
+	>
+		Queue Selected Command
+	</UButton>
+</div>
 				</div>
-			</template>
-		</UModal>
+
+				<div v-else class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center">
+					<UIcon
+						name="i-heroicons-cursor-arrow-rays"
+						class="mx-auto mb-3 size-10 text-gray-400"
+					/>
+					<h3 class="text-sm font-semibold text-gray-900">Select a device</h3>
+					<p class="mt-1 text-sm text-gray-500">
+						Choose a device from the list to inspect it and queue commands.
+					</p>
+				</div>
+			</UCard>
+		</div>
 	</div>
 </template>

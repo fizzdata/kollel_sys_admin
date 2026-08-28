@@ -18,10 +18,23 @@ const inviteModalOpen = ref(false);
 const inviteLoading = ref(false);
 const inviteState = reactive({
   email: undefined,
+  role: "admin",
 });
+const roleOptions = [
+  { label: "Admin", value: "admin" },
+  { label: "Super Admin", value: "super_admin" },
+];
 const inviteSchema = yup.object({
   email: yup.string().email("Invalid email").required("Email is required"),
+  role: yup
+    .string()
+    .oneOf(roleOptions.map((role) => role.value))
+    .required("Role is required"),
 });
+
+const formatRole = (role) => {
+  return role === "super_admin" ? "Super Admin" : "Admin";
+};
 
 // Fetch users and departments on mount
 onMounted(async () => {
@@ -68,6 +81,7 @@ const inviteUser = async (event) => {
       method: "POST",
       body: {
         email: event.data.email,
+        role: event.data.role,
         org_id: org_id.value,
       },
     });
@@ -80,6 +94,7 @@ const inviteUser = async (event) => {
         timeout: 2000,
       });
       inviteState.email = undefined;
+      inviteState.role = "admin";
       inviteModalOpen.value = false;
       await fetchData();
     } else {
@@ -227,6 +242,25 @@ const userColumns = [
         },
         {
           default: () => (isInvited ? "Invited" : "Active"),
+        },
+      );
+    },
+  },
+  {
+    accessorKey: "role",
+    header: "Role",
+    cell: ({ row }) => {
+      const isSuperAdmin = row.original.role === "super_admin";
+
+      return h(
+        resolveComponent("UBadge"),
+        {
+          color: isSuperAdmin ? "primary" : "neutral",
+          variant: "soft",
+          size: "xs",
+        },
+        {
+          default: () => formatRole(row.original.role),
         },
       );
     },
@@ -395,6 +429,14 @@ const userColumns = [
             v-model="inviteState.email"
             placeholder="user@example.com"
             type="email"
+            class="w-full"
+            size="lg"
+          />
+        </UFormField>
+        <UFormField label="Role" name="role" required>
+          <USelect
+            v-model="inviteState.role"
+            :items="roleOptions"
             class="w-full"
             size="lg"
           />
