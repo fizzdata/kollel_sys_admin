@@ -290,23 +290,35 @@ watch(
                 v-if="day?.data"
                 v-for="s in day.data.schedule"
                 :key="s.id"
-                class="my-2 flex items-center px-2 text-sm bg-yellow-200 p-1 rounded w-fit mx-auto text-center"
+                class="mx-auto my-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-1.5 rounded-md border border-primary-200/70 bg-primary-50/80 px-2.5 py-1.5 text-center text-xs font-medium text-gray-800 shadow-sm ring-1 ring-inset ring-white/70"
               >
-                Seder <span v-text="s.session"></span>:
-                <span v-html="sec_to_time(s.start)"></span> -
-                <span v-html="sec_to_time(s.end)"></span>
+                <span
+                  class="rounded border border-primary-200 bg-primary-100 px-1.5 py-0.5 text-[11px] font-semibold text-primary-900"
+                >
+                  Seder <span v-text="s.session"></span>
+                </span>
+                <span class="whitespace-nowrap text-gray-700">
+                  <span v-html="sec_to_time(s.start)"></span> -
+                  <span v-html="sec_to_time(s.end)"></span>
+                </span>
 
-                <div class="flex items-center gap-1 ml-2">
-                  <UTooltip v-if="s.question_in" text="Question on Clock-In">
+                <div class="flex items-center gap-1">
+                  <UTooltip
+                    v-if="s.question_in"
+                    :text="s.question_in_text || 'Question on Clock-In'"
+                  >
                     <UIcon
                       name="i-lucide-log-in"
-                      class="text-emerald-700 size-4"
+                      class="size-4 text-emerald-600"
                     />
                   </UTooltip>
-                  <UTooltip v-if="s.question_out" text="Question on Clock-Out">
+                  <UTooltip
+                    v-if="s.question_out"
+                    :text="s.question_out_text || 'Question on Clock-Out'"
+                  >
                     <UIcon
                       name="i-lucide-log-out"
-                      class="text-amber-700 size-4"
+                      class="size-4 text-primary-700"
                     />
                   </UTooltip>
                 </div>
@@ -314,6 +326,7 @@ watch(
                 <UButton
                   color="success"
                   variant="soft"
+                  size="xs"
                   icon="i-lucide-square-pen"
                   @click="edit(s)"
                 />
@@ -321,6 +334,7 @@ watch(
                 <UButton
                   color="error"
                   variant="soft"
+                  size="xs"
                   icon="i-lucide-trash-2"
                   :disabled="isDeletingSchedule"
                   @click="deleteSchedule(s.id)"
