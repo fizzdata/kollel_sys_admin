@@ -46,6 +46,7 @@ const matchModeItems = ref([
 const route = useRoute();
 const api = useApi();
 const toast = useToast();
+const jobTracker = useJobTracker();
 
 const applyOnceItems = ref(["Apply Once", "Each Time"]);
 const activeTab = ref("0");
@@ -123,13 +124,12 @@ const conditionSchema = object({
   metric: string().required("Metric is required"),
   x_operator: string().required("X Operator is required"),
   x_value: string().required("X Value is required"),
-  y_operator: string().nullable(),
-  y_value: string().nullable(),
   reference_id: string().nullable(),
   session: array()
     .of(number())
     .min(1, "Session is required")
     .required("Session is required"),
+  days_of_week: array().of(number()).nullable(),
 });
 
 const schema = object({
@@ -164,10 +164,9 @@ const blankCondition = () => ({
   metric: "",
   x_operator: "",
   x_value: "",
-  y_operator: "",
-  y_value: "",
   reference_id: "",
   session: [],
+  days_of_week: [],
 });
 
 const rulesform = ref({ id: null });
@@ -200,6 +199,16 @@ const removeCondition = (index) => {
 const sessionOptions = [
   { label: "Session 1", value: 1 },
   { label: "Session 2", value: 2 },
+];
+
+const daysOfWeekOptions = [
+  { label: "Sunday", value: 0 },
+  { label: "Monday", value: 1 },
+  { label: "Tuesday", value: 2 },
+  { label: "Wednesday", value: 3 },
+  { label: "Thursday", value: 4 },
+  { label: "Friday", value: 5 },
+  { label: "Saturday", value: 6 },
 ];
 
 // Backend stores a single integer where 0 means "all sessions"
@@ -364,9 +373,8 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
       metric: condition.metric,
       x_operator: condition.x_operator,
       x_value: condition.x_value,
-      y_operator: condition.y_operator,
-      y_value: condition.y_value,
       session: condition.session,
+      days_of_week: condition.days_of_week?.length ? condition.days_of_week : null,
       reference_id: condition.reference_id,
     })),
     is_deduction: Boolean(Number(rule.is_deduction)),
@@ -601,6 +609,7 @@ const fetchProcessDeposit = async (data) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Processing Direct Deposit");
       processDepositModal.value = false;
     } else {
       toast.add({
@@ -646,10 +655,9 @@ const editRules = (rules) => {
       condition.metric === "answered_question"
         ? Number(condition.x_value)
         : condition.x_value,
-    y_operator: condition.y_operator ?? "",
-    y_value: condition.y_value ?? "",
     reference_id: condition.reference_id ?? "",
     session: sessionsFromBackend(condition.session),
+    days_of_week: condition.days_of_week ?? [],
   }));
 
   if (!rulesState.conditions.length) {
@@ -743,9 +751,8 @@ const onSubmit = async (event) => {
         metric: condition.metric,
         x_operator: condition.x_operator,
         x_value: condition.x_value,
-        y_operator: condition.y_operator || null,
-        y_value: condition.y_value || null,
         session: sessionsToBackend(condition.session),
+        days_of_week: condition.days_of_week?.length ? condition.days_of_week : null,
         reference_id:
           condition.metric === "answered_question"
             ? condition.reference_id || null
@@ -756,8 +763,8 @@ const onSubmit = async (event) => {
       amount_type: event.data.amount_type,
       amount: event.data.amount,
       apply_once: applyOnce,
-      y_operator: applyOnce ? event.data.y_operator || null : null,
-      y_value: applyOnce ? event.data.y_value || null : null,
+      y_operator: event.data.y_operator || null,
+      y_value: event.data.y_value || null,
       effective_from: event.data.effective_from || null,
       effective_until: event.data.effective_until || null,
       group_ids: groupIds,
@@ -913,10 +920,6 @@ const fetchGroupStudents = async () => {
 
     if (response?.success) {
       groupStudents.value = response?.students;
-      studentState.student_ids = response?.students?.map((item) => ({
-        label: item?.first_yiddish_name + " " + item?.last_yiddish_name,
-        value: item?.id,
-      }));
     }
   } catch (err) {
     console.log("🚀 ~ fetchGroups ~ err:", err);
@@ -932,7 +935,58 @@ const fetchGroupStudents = async () => {
   }
 };
 
+const studentSearch = ref("");
+const studentRowSelection = ref({});
+
+const studentPickerColumns = [
+  {
+    id: "select",
+    header: ({ table }) =>
+      h(resolveComponent("UCheckbox"), {
+        modelValue: table.getIsAllRowsSelected()
+          ? true
+          : table.getIsSomeRowsSelected()
+            ? "indeterminate"
+            : false,
+        "onUpdate:modelValue": (value) => table.toggleAllRowsSelected(!!value),
+      }),
+    cell: ({ row }) =>
+      h(resolveComponent("UCheckbox"), {
+        modelValue: row.getIsSelected(),
+        "onUpdate:modelValue": (value) => row.toggleSelected(!!value),
+      }),
+  },
+  {
+    accessorKey: "label",
+    header: "Name",
+  },
+];
+
+// allStudents minus whoever is already in this group — re-adding them is
+// pointless (and just clutters the list at scale)
+const pickableStudents = computed(() => {
+  const memberIds = new Set((groupStudents.value || []).map((s) => s.id));
+  return allStudents.value.filter((s) => !memberIds.has(s.value));
+});
+
+const filteredStudents = computed(() => {
+  const search = studentSearch.value.trim().toLowerCase();
+  if (!search) return pickableStudents.value;
+  return pickableStudents.value.filter((s) =>
+    s.label.toLowerCase().includes(search),
+  );
+});
+
+watch(studentRowSelection, (selection) => {
+  studentState.student_ids = Object.keys(selection)
+    .filter((id) => selection[id])
+    .map(Number);
+});
+
 const handleAddStudent = () => {
+  studentSearch.value = "";
+  studentRowSelection.value = {};
+  studentState.student_ids = [];
   addStudentModal.value = true;
   fetchAllStudents();
 };
@@ -991,7 +1045,7 @@ const onAddStudentSubmit = async (event) => {
   isStudentFormSubmiting.value = true;
   try {
     const payload = {
-      student_ids: event.data.student_ids.map((item) => item.value),
+      student_ids: event.data.student_ids,
     };
 
     const response = await api(`/api/payroll/students/group/${groupId}`, {
@@ -1011,6 +1065,8 @@ const onAddStudentSubmit = async (event) => {
       await fetchGroupStudents();
       // Reset form state after submission
       studentState.student_ids = [];
+      studentRowSelection.value = {};
+      studentSearch.value = "";
     } else {
       toast.add({
         title: "Failed",
@@ -1675,30 +1731,6 @@ watch(activeTab, (newTab) => {
                     size="lg"
                   />
                 </UFormField>
-                <UFormField
-                  label="Y Operator"
-                  :name="`conditions[${index}].y_operator`"
-                >
-                  <USelect
-                    v-model="condition.y_operator"
-                    :items="operatorOptions"
-                    placeholder="Please Select"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Y Value"
-                  :name="`conditions[${index}].y_value`"
-                >
-                  <UInput
-                    v-model="condition.y_value"
-                    placeholder="Enter Y value"
-                    class="w-full"
-                    type="number"
-                    size="lg"
-                  />
-                </UFormField>
               </template>
               <UFormField
                 label="Sessions"
@@ -1711,6 +1743,22 @@ watch(activeTab, (newTab) => {
                   :items="sessionOptions"
                   multiple
                   placeholder="Select sessions"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+              <UFormField
+                v-if="condition.metric !== 'session_time_percentage'"
+                label="Days of Week"
+                :name="`conditions[${index}].days_of_week`"
+                hint="Optional — leave empty to match any day"
+                class="col-span-2"
+              >
+                <USelect
+                  v-model="condition.days_of_week"
+                  :items="daysOfWeekOptions"
+                  multiple
+                  placeholder="Any day"
                   class="w-full"
                   size="lg"
                 />
@@ -1746,12 +1794,10 @@ watch(activeTab, (newTab) => {
             class="border-t border-gray-200 dark:border-gray-800 pt-4 grid grid-cols-2 gap-4"
           >
             <UFormField label="Amount Type" name="amount_type" required>
-              <USelect
+              <URadioGroup
                 v-model="rulesState.amount_type"
                 :items="amountTypeItems"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
+                orientation="horizontal"
               />
             </UFormField>
             <UFormField label="Amount" name="amount" required>
@@ -1764,40 +1810,37 @@ watch(activeTab, (newTab) => {
               />
             </UFormField>
             <UFormField label="Is Deduction" name="is_deduction" required>
-              <USelect
+              <URadioGroup
                 v-model="rulesState.is_deduction"
                 :items="deductionItems"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
+                orientation="horizontal"
               />
             </UFormField>
             <UFormField label="Apply Rules" name="apply_once" required>
               <URadioGroup
                 v-model="rulesState.apply_once"
                 :items="applyOnceItems"
+                orientation="horizontal"
               />
             </UFormField>
-            <template v-if="rulesState.apply_once === 'Apply Once'">
-              <UFormField label="Apply Once When Count" name="y_operator">
-                <USelect
-                  v-model="rulesState.y_operator"
-                  :items="operatorOptions"
-                  placeholder="Matched at least once"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-              <UFormField label="Threshold Value" name="y_value">
-                <UInput
-                  v-model="rulesState.y_value"
-                  placeholder="Enter threshold"
-                  class="w-full"
-                  type="number"
-                  size="lg"
-                />
-              </UFormField>
-            </template>
+            <UFormField label="Minimum Occurrences" name="y_operator">
+              <USelect
+                v-model="rulesState.y_operator"
+                :items="operatorOptions"
+                placeholder="Matched at least once"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Minimum Count" name="y_value">
+              <UInput
+                v-model="rulesState.y_value"
+                placeholder="Enter threshold"
+                class="w-full"
+                type="number"
+                size="lg"
+              />
+            </UFormField>
             <UFormField
               label="Effective From"
               name="effective_from"
@@ -1942,18 +1985,35 @@ watch(activeTab, (newTab) => {
       <UForm v-else :state="studentState" @submit="onAddStudentSubmit">
         <div class="">
           <UFormField
-            label="Select Student to add in Group"
-            name="studentState"
+            label="Select Students to add to Group"
+            name="student_ids"
           >
-            <USelectMenu
-              v-model="studentState.student_ids"
-              :items="allStudents"
-              placeholder="Please Select"
-              class="w-full"
-              size="lg"
-              multiple
-              required
-            />
+            <div class="flex items-center justify-between gap-4 mb-2">
+              <UInput
+                v-model="studentSearch"
+                placeholder="Search students…"
+                icon="i-lucide-search"
+                class="flex-1"
+              />
+              <span class="text-sm text-gray-500 whitespace-nowrap">
+                {{ studentState.student_ids.length }} selected
+              </span>
+            </div>
+            <div class="max-h-96 overflow-y-auto border rounded-lg">
+              <UTable
+                v-model:row-selection="studentRowSelection"
+                :data="filteredStudents"
+                :columns="studentPickerColumns"
+                :get-row-id="(row) => String(row.value)"
+                :ui="{ tr: 'data-[selected=true]:bg-primary/10' }"
+              >
+                <template #empty>
+                  <div class="text-center text-gray-500 py-6">
+                    No students found.
+                  </div>
+                </template>
+              </UTable>
+            </div>
           </UFormField>
         </div>
         <div class="mt-8 flex gap-2 justify-end">

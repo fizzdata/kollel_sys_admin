@@ -43,6 +43,7 @@ const processDepositLoading = ref(false);
 const newGroup = ref(false);
 const isSubmitting = ref(false);
 const toast = useToast();
+const jobTracker = useJobTracker();
 const groups = ref([]);
 const rules = ref([]);
 const deleteModal = ref(false);
@@ -99,13 +100,12 @@ const conditionSchema = object({
   metric: string().required("Metric is required"),
   x_operator: string().required("X Operator is required"),
   x_value: string().required("X Value is required"),
-  y_operator: string().nullable(),
-  y_value: string().nullable(),
   reference_id: string().nullable(),
   session: array()
     .of(number())
     .min(1, "Session is required")
     .required("Session is required"),
+  days_of_week: array().of(number()).nullable(),
 });
 
 const rulesSchema = object({
@@ -140,10 +140,9 @@ const blankCondition = () => ({
   metric: "",
   x_operator: "",
   x_value: "",
-  y_operator: "",
-  y_value: "",
   reference_id: "",
   session: [],
+  days_of_week: [],
 });
 
 const ruleForm = ref({ id: null });
@@ -176,6 +175,16 @@ const removeCondition = (index) => {
 const sessionOptions = [
   { label: "Session 1", value: 1 },
   { label: "Session 2", value: 2 },
+];
+
+const daysOfWeekOptions = [
+  { label: "Sunday", value: 0 },
+  { label: "Monday", value: 1 },
+  { label: "Tuesday", value: 2 },
+  { label: "Wednesday", value: 3 },
+  { label: "Thursday", value: 4 },
+  { label: "Friday", value: 5 },
+  { label: "Saturday", value: 6 },
 ];
 
 // Backend stores a single integer where 0 means "all sessions"
@@ -326,6 +335,7 @@ const fetchProcessRules = async (date) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Exporting Processed Rules");
       showModal.value = false;
     } else {
       toast.add({
@@ -722,10 +732,9 @@ const editRule = async (rule) => {
       condition.metric === "answered_question"
         ? Number(condition.x_value)
         : condition.x_value,
-    y_operator: condition.y_operator ?? "",
-    y_value: condition.y_value ?? "",
     reference_id: condition.reference_id ?? "",
     session: sessionsFromBackend(condition.session),
+    days_of_week: condition.days_of_week ?? [],
   }));
 
   if (!ruleState.conditions.length) {
@@ -840,6 +849,7 @@ const fetchProcessChecks = async (data) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Processing Payroll Checks");
       processChecksModal.value = false;
       fetchRecentPayroll();
     } else {
@@ -885,6 +895,7 @@ const fetchProcessDeposit = async (data) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Processing Direct Deposit");
       processDepositModal.value = false;
       fetchRecentPayroll();
     } else {
@@ -1125,9 +1136,8 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
       metric: condition.metric,
       x_operator: condition.x_operator,
       x_value: condition.x_value,
-      y_operator: condition.y_operator,
-      y_value: condition.y_value,
       session: condition.session,
+      days_of_week: condition.days_of_week?.length ? condition.days_of_week : null,
       reference_id: condition.reference_id,
     })),
     is_deduction: Boolean(Number(rule.is_deduction)),
@@ -1185,9 +1195,8 @@ const onRuleSubmit = async (event) => {
         metric: condition.metric,
         x_operator: condition.x_operator,
         x_value: condition.x_value,
-        y_operator: condition.y_operator || null,
-        y_value: condition.y_value || null,
         session: sessionsToBackend(condition.session),
+        days_of_week: condition.days_of_week?.length ? condition.days_of_week : null,
         reference_id:
           condition.metric === "answered_question"
             ? condition.reference_id || null
@@ -1198,8 +1207,8 @@ const onRuleSubmit = async (event) => {
       amount_type: event.data.amount_type,
       amount: event.data.amount,
       apply_once: applyOnce,
-      y_operator: applyOnce ? event.data.y_operator || null : null,
-      y_value: applyOnce ? event.data.y_value || null : null,
+      y_operator: event.data.y_operator || null,
+      y_value: event.data.y_value || null,
       effective_from: event.data.effective_from || null,
       effective_until: event.data.effective_until || null,
       group_ids: groupIds,
@@ -2077,30 +2086,6 @@ watch(
                     size="lg"
                   />
                 </UFormField>
-                <UFormField
-                  label="Y Operator"
-                  :name="`conditions[${index}].y_operator`"
-                >
-                  <USelect
-                    v-model="condition.y_operator"
-                    :items="operatorOptions"
-                    placeholder="Please Select"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Y Value"
-                  :name="`conditions[${index}].y_value`"
-                >
-                  <UInput
-                    v-model="condition.y_value"
-                    placeholder="Enter Y value"
-                    class="w-full"
-                    type="number"
-                    size="lg"
-                  />
-                </UFormField>
               </template>
               <UFormField
                 label="Sessions"
@@ -2113,6 +2098,22 @@ watch(
                   :items="sessionOptions"
                   multiple
                   placeholder="Select sessions"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+              <UFormField
+                v-if="condition.metric !== 'session_time_percentage'"
+                label="Days of Week"
+                :name="`conditions[${index}].days_of_week`"
+                hint="Optional — leave empty to match any day"
+                class="col-span-2"
+              >
+                <USelect
+                  v-model="condition.days_of_week"
+                  :items="daysOfWeekOptions"
+                  multiple
+                  placeholder="Any day"
                   class="w-full"
                   size="lg"
                 />
@@ -2148,12 +2149,10 @@ watch(
             class="border-t border-gray-200 dark:border-gray-800 pt-4 grid grid-cols-2 gap-4"
           >
             <UFormField label="Amount Type" name="amount_type" required>
-              <USelect
+              <URadioGroup
                 v-model="ruleState.amount_type"
                 :items="amountTypeItems"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
+                orientation="horizontal"
               />
             </UFormField>
             <UFormField label="Amount" name="amount" required>
@@ -2166,40 +2165,37 @@ watch(
               />
             </UFormField>
             <UFormField label="Is Deduction" name="is_deduction" required>
-              <USelect
+              <URadioGroup
                 v-model="ruleState.is_deduction"
                 :items="deductionItems"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
+                orientation="horizontal"
               />
             </UFormField>
             <UFormField label="Apply Rules" name="apply_once" required>
               <URadioGroup
                 v-model="ruleState.apply_once"
                 :items="applyOnceItems"
+                orientation="horizontal"
               />
             </UFormField>
-            <template v-if="ruleState.apply_once === 'Apply Once'">
-              <UFormField label="Apply Once When Count" name="y_operator">
-                <USelect
-                  v-model="ruleState.y_operator"
-                  :items="operatorOptions"
-                  placeholder="Matched at least once"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-              <UFormField label="Threshold Value" name="y_value">
-                <UInput
-                  v-model="ruleState.y_value"
-                  placeholder="Enter threshold"
-                  class="w-full"
-                  type="number"
-                  size="lg"
-                />
-              </UFormField>
-            </template>
+            <UFormField label="Minimum Occurrences" name="y_operator">
+              <USelect
+                v-model="ruleState.y_operator"
+                :items="operatorOptions"
+                placeholder="Matched at least once"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Minimum Count" name="y_value">
+              <UInput
+                v-model="ruleState.y_value"
+                placeholder="Enter threshold"
+                class="w-full"
+                type="number"
+                size="lg"
+              />
+            </UFormField>
             <UFormField
               label="Effective From"
               name="effective_from"
