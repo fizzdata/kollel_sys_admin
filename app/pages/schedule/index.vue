@@ -12,7 +12,16 @@ const activeTab = ref("0");
 const tabs = [
   { label: "Schedule Calendar", key: "schedule-calendar" },
   { label: "Schedule Questions", key: "schedule-questions" },
+  { label: "Settings", key: "schedule-settings" },
 ];
+
+// Clocking grace period settings (early check-in / late checkout)
+const fetchingClockingSettings = ref(false);
+const isSavingClockingSettings = ref(false);
+const clockingSettingsForm = reactive({
+  early_checkin: 5,
+  late_checkout: 5,
+});
 
 // Schedule Management
 const editScheduleModal = ref(false);
@@ -491,6 +500,70 @@ const scheduleColumns = [
   },
 ];
 
+// Clocking grace period settings
+async function fetchClockingSettings() {
+  fetchingClockingSettings.value = true;
+  try {
+    const response = await api("/api/schedules/settings", {
+      method: "GET",
+    });
+
+    if (response?.success) {
+      clockingSettingsForm.early_checkin = response?.settings?.early_checkin ?? 5;
+      clockingSettingsForm.late_checkout = response?.settings?.late_checkout ?? 5;
+    }
+  } catch (err) {
+    console.log("Error fetching clocking settings:", err);
+    toast.add({
+      title: "Error",
+      description: "Failed to load clocking settings",
+      color: "error",
+    });
+  } finally {
+    fetchingClockingSettings.value = false;
+  }
+}
+
+async function submitClockingSettings() {
+  isSavingClockingSettings.value = true;
+  try {
+    const response = await api("/api/schedules/settings", {
+      method: "POST",
+      body: {
+        early_checkin: Number(clockingSettingsForm.early_checkin),
+        late_checkout: Number(clockingSettingsForm.late_checkout),
+      },
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Clocking settings updated",
+        color: "success",
+        duration: 2000,
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data?.message ||
+          "Failed to update clocking settings",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating clocking settings:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred. Please try again later.",
+      color: "error",
+    });
+  } finally {
+    isSavingClockingSettings.value = false;
+  }
+}
+
 // watch for tab changes
 watch(
   activeTab,
@@ -500,6 +573,8 @@ watch(
     } else if (newTab === "1") {
       fetchScheduleQuestions();
       fetchGroups();
+    } else if (newTab === "2") {
+      fetchClockingSettings();
     }
   },
   { immediate: true },
@@ -567,6 +642,67 @@ watch(
             </div>
           </template>
         </UTable>
+      </div>
+
+      <!-- Tab 3: Settings -->
+      <div v-if="activeTab === '2'">
+        <UCard class="rounded-2xl shadow-sm max-w-2xl">
+          <div
+            v-if="fetchingClockingSettings"
+            class="flex items-center justify-center py-10 w-full"
+          >
+            <BaseSpinner :show-loader="fetchingClockingSettings" size="md" />
+          </div>
+          <UForm
+            v-else
+            :state="clockingSettingsForm"
+            class="space-y-6"
+            @submit="submitClockingSettings"
+          >
+            <h3 class="text-base font-semibold text-gray-700">
+              Clocking Grace Period
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <UFormField
+                label="Early Check-in (minutes)"
+                description="How many minutes before a session starts a student is allowed to clock in"
+              >
+                <UInput
+                  v-model="clockingSettingsForm.early_checkin"
+                  type="number"
+                  min="0"
+                  max="120"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+
+              <UFormField
+                label="Late Checkout (minutes)"
+                description="How many minutes after a session ends a student is allowed to clock out"
+              >
+                <UInput
+                  v-model="clockingSettingsForm.late_checkout"
+                  type="number"
+                  min="0"
+                  max="120"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+            </div>
+
+            <UButton
+              type="submit"
+              color="primary"
+              size="lg"
+              :loading="isSavingClockingSettings"
+              :disabled="isSavingClockingSettings"
+            >
+              Update Settings
+            </UButton>
+          </UForm>
+        </UCard>
       </div>
     </div>
 
