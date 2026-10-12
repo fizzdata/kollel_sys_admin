@@ -143,10 +143,11 @@ const handleSubmit = async (event) => {
         color: "success",
         duration: 2000,
       });
-      state.id = null;
       isOpen.value = false;
+      resetForm();
       emit("submit");
     } else {
+      // Keep the form filled in so the user can fix the error and resubmit
       toast.add({
         title: "Failed",
         description:
@@ -164,7 +165,6 @@ const handleSubmit = async (event) => {
       color: "error",
     });
   } finally {
-    resetForm();
     isSubmitting.value = false;
   }
 };
@@ -198,7 +198,7 @@ onMounted(async () => {
 });
 </script>
 <template>
-  <UModal v-model:open="isOpen">
+  <UModal v-model:open="isOpen" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">

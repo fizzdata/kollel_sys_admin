@@ -665,7 +665,7 @@ watch(
     </div>
   </UCard>
   <!-- Modal for Create New User -->
-  <UModal v-model:open="CreateClockingModal">
+  <UModal v-model:open="CreateClockingModal" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">

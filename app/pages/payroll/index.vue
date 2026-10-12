@@ -1,6 +1,6 @@
 <script setup>
 import { today, getLocalTimeZone } from "@internationalized/date";
-import { object, string, number, array } from "yup";
+import { object, string, number } from "yup";
 import { base64ToPdfUrl } from "~/common/common";
 
 definePageMeta({
@@ -19,20 +19,6 @@ const calendarRange = ref({
   end: todayDate,
 });
 
-const deductionItems = ref([
-  { label: "Deduction", value: true },
-  { label: "Bonus", value: false },
-]);
-const amountTypeItems = ref([
-  { label: "Fixed", value: "fixed" },
-  { label: "Percentage", value: "percentage" },
-]);
-const matchModeItems = ref([
-  { label: "ALL metrics must match", value: "all" },
-  { label: "ANY metric can match", value: "any" },
-]);
-const applyOnceItems = ref(["Apply Once", "Each Time"]);
-
 const api = useApi();
 const route = useRoute();
 const router = useRouter();
@@ -43,6 +29,7 @@ const processDepositLoading = ref(false);
 const newGroup = ref(false);
 const isSubmitting = ref(false);
 const toast = useToast();
+const jobTracker = useJobTracker();
 const groups = ref([]);
 const rules = ref([]);
 const deleteModal = ref(false);
@@ -95,120 +82,13 @@ const tabs = [
   { label: "Rules", key: "rules" },
 ];
 
-const conditionSchema = object({
-  metric: string().required("Metric is required"),
-  x_operator: string().required("X Operator is required"),
-  x_value: string().required("X Value is required"),
-  y_operator: string().nullable(),
-  y_value: string().nullable(),
-  reference_id: string().nullable(),
-  session: array()
-    .of(number())
-    .min(1, "Session is required")
-    .required("Session is required"),
-});
-
-const rulesSchema = object({
-  description: string().required("Description is required"),
-  match_mode: string().required("Match mode is required"),
-  conditions: array()
-    .of(conditionSchema)
-    .min(1, "At least one metric is required"),
-  is_deduction: string().required("Is Deduction is required"),
-  amount_type: string().required("Amount Type is required"),
-  amount: number()
-    .typeError("Amount must be a number")
-    .required("Amount is required")
-    .min(0, "Amount cannot be negative"),
-  apply_once: string().required("Apply Rules is required"),
-  y_operator: string().nullable(),
-  y_value: string().nullable(),
-  effective_from: string().nullable(),
-  effective_until: string()
-    .nullable()
-    .test(
-      "after-from",
-      "Must be on or after Effective From",
-      function (value) {
-        const from = this.parent.effective_from;
-        return !value || !from || value >= from;
-      }
-    ),
-});
-
-const blankCondition = () => ({
-  metric: "",
-  x_operator: "",
-  x_value: "",
-  y_operator: "",
-  y_value: "",
-  reference_id: "",
-  session: [],
-});
-
-const ruleForm = ref({ id: null });
-
-const ruleState = reactive({
-  description: "",
-  match_mode: "all",
-  conditions: [blankCondition()],
-  is_deduction: "",
-  amount_type: "",
-  amount: "",
-  apply_once: "Apply Once",
-  y_operator: "",
-  y_value: "",
-  effective_from: "",
-  effective_until: "",
-  group_ids: [],
-});
-
-const addCondition = () => {
-  ruleState.conditions.push(blankCondition());
-};
-
-const removeCondition = (index) => {
-  if (ruleState.conditions.length > 1) {
-    ruleState.conditions.splice(index, 1);
-  }
-};
-
-const sessionOptions = [
-  { label: "Session 1", value: 1 },
-  { label: "Session 2", value: 2 },
-];
-
-// Backend stores a single integer where 0 means "all sessions"
-const sessionsToBackend = (sessions = []) =>
-  sessions.length === 1 ? Number(sessions[0]) : 0;
-
-const sessionsFromBackend = (session) =>
-  session == null || Number(session) === 0 ? [1, 2] : [Number(session)];
+// The create/edit form itself lives in CommonPayRuleFormModal; this page just
+// tracks which rule (if any) is being edited/deleted and fetches shared options.
+const editingRule = ref(null);
+const deleteRuleId = ref(null);
 
 // Questions for the "answered_question" metric
 const scheduleQuestions = ref([]);
-
-const questionOptions = computed(() =>
-  scheduleQuestions.value.map((question) => ({
-    label: question.question_text,
-    value: question.id,
-  })),
-);
-
-const answerOptionsFor = (condition) => {
-  const question = scheduleQuestions.value.find(
-    (q) => q.id === condition.reference_id,
-  );
-
-  if (!question) return [];
-
-  return [1, 2, 3]
-    .filter((n) => question[`button_text_${n}`])
-    .map((n) => ({
-      label: question[`button_text_${n}`],
-      value: n,
-    }));
-};
 
 async function fetchScheduleQuestions() {
   try {
@@ -226,21 +106,6 @@ async function fetchScheduleQuestions() {
     });
   }
 }
-
-// Operator/value have no meaning for answered_question; keep validation happy
-watch(
-  () => ruleState.conditions.map((condition) => condition.metric),
-  () => {
-    ruleState.conditions.forEach((condition) => {
-      if (
-        condition.metric === "answered_question" &&
-        condition.x_operator !== "="
-      ) {
-        condition.x_operator = "=";
-      }
-    });
-  },
-);
 
 const isGroupModalOpen = async () => {
   newGroup.value = true;
@@ -326,6 +191,7 @@ const fetchProcessRules = async (date) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Exporting Processed Rules");
       showModal.value = false;
     } else {
       toast.add({
@@ -599,31 +465,168 @@ const normalizeGroupIds = (groupIds = []) =>
     : [];
 
 const getRuleSummary = (rule) => {
-  const conditions = rule.conditions || [];
-  const first = conditions[0] || {};
-  const metricLabel = metricLabels.value[first.metric] || first.metric || "";
-  const operatorLabel =
-    operaterLabels.value[first.x_operator] || first.x_operator || "";
-  const joiner = rule.match_mode === "any" ? " OR " : " AND ";
-
-  const extraText = conditions
-    .slice(1)
-    .map((condition) => `${joiner}${metricLabels.value[condition.metric] || condition.metric}`)
-    .join("");
-
-  return `#${rule.id} - ${rule.description || `If ${metricLabel}${extraText} is ${operatorLabel} ${first.x_value}`}`;
+  const label = rule.reference_number ? `#${rule.reference_number} - ` : "";
+  return `${label}${rule.description || conditionsSummary(rule)}`;
 };
 
 const effectiveStatus = (rule) => {
   const todayStr = new Date().toISOString().slice(0, 10);
   const from = rule.effective_from?.slice(0, 10);
   const until = rule.effective_until?.slice(0, 10);
+
+  if (!from && !until) return { label: "Always Active", color: "info" };
+
   const range = `${from || "..."} → ${until || "..."}`;
 
   if (until && until < todayStr) return { label: `Expired ${range}`, color: "error" };
   if (from && from > todayStr) return { label: `Starts ${range}`, color: "warning" };
   return { label: `Active ${range}`, color: "info" };
 };
+
+// Metric descriptions use a literal "X" placeholder for the comparison/value
+// the user picked, e.g. "Came in X minutes relative to session start"
+const conditionText = (condition) => {
+  const metricLabel = metricLabels.value[condition.metric] || condition.metric || "";
+
+  if (condition.metric === "answered_question") {
+    return metricLabel;
+  }
+
+  const operatorLabel =
+    operaterLabels.value[condition.x_operator] || condition.x_operator || "";
+  const comparisonPhrase = `${operatorLabel} ${condition.x_value ?? ""}`.trim();
+
+  if (/\bX\b/.test(metricLabel)) {
+    return metricLabel.replace(/\bX\b/, comparisonPhrase);
+  }
+
+  return `${metricLabel} ${comparisonPhrase}`.trim();
+};
+
+const conditionsSummary = (rule) => {
+  const conditions = rule.conditions || [];
+  if (!conditions.length) return "—";
+
+  const joiner = rule.match_mode === "any" ? " OR " : " AND ";
+  return conditions.map(conditionText).join(joiner);
+};
+
+const paymentSummary = (rule) => {
+  const kind = Number(rule.is_deduction) ? "Deduction" : "Bonus";
+  const amountText =
+    rule.amount_type === "fixed" ? `$${rule.amount}` : `${rule.amount}%`;
+  const cadence = Number(rule.apply_once) ? "once" : "each time";
+  return `${kind} ${amountText} (${cadence})`;
+};
+
+// Fixed widths (adding to 100%) so the table stays within the screen width
+// and wraps long text instead of forcing a horizontal scrollbar
+const ruleColumns = [
+  {
+    header: "Ref #",
+    cell: ({ row }) => row.original.reference_number || "—",
+    meta: { class: { th: "w-[7%]", td: "whitespace-normal break-words align-top" } },
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+    meta: { class: { th: "w-[18%]", td: "whitespace-normal break-words align-top" } },
+  },
+  {
+    header: "Trigger",
+    cell: ({ row }) => conditionsSummary(row.original),
+    meta: { class: { th: "w-[24%]", td: "whitespace-normal break-words align-top" } },
+  },
+  {
+    header: "Payment",
+    cell: ({ row }) => paymentSummary(row.original),
+    meta: { class: { th: "w-[14%]", td: "whitespace-normal break-words align-top" } },
+  },
+  {
+    header: "Groups",
+    cell: ({ row }) => {
+      const groupIds = normalizeGroupIds(row.original.group_ids);
+
+      if (!groupIds.length) {
+        return h("span", { class: "text-gray-400 text-sm" }, "Unassigned");
+      }
+
+      return h(
+        "div",
+        { class: "flex flex-wrap gap-1" },
+        groupIds.map((gid) =>
+          h(
+            resolveComponent("UBadge"),
+            { key: gid, color: "primary", variant: "soft", size: "sm" },
+            () => groups.value.find((group) => group.id === gid)?.name || `Group ${gid}`,
+          ),
+        ),
+      );
+    },
+    meta: { class: { th: "w-[13%]", td: "whitespace-normal break-words align-top" } },
+  },
+  {
+    header: "Status",
+    cell: ({ row }) => {
+      const status = effectiveStatus(row.original);
+      return h(
+        resolveComponent("UBadge"),
+        { color: status.color, variant: "soft", size: "sm" },
+        () => status.label,
+      );
+    },
+    meta: { class: { th: "w-[10%]", td: "whitespace-normal break-words align-top" } },
+  },
+  {
+    header: "Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center justify-end" }, [
+        h(
+          resolveComponent("UTooltip"),
+          { text: "View Rule Details" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-eye",
+                size: "md",
+                color: "neutral",
+                variant: "soft",
+                onClick: () => viewRule(row.original),
+              }),
+          },
+        ),
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Edit Rule" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-square-pen",
+                size: "md",
+                color: "success",
+                variant: "soft",
+                onClick: () => editRule(row.original),
+              }),
+          },
+        ),
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Delete Rule" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-trash-2",
+                size: "md",
+                color: "error",
+                variant: "soft",
+                onClick: () => askDeleteRule(row.original),
+              }),
+          },
+        ),
+      ]),
+    meta: { class: { th: "w-[14%]", td: "align-top" } },
+  },
+];
 
 const getAssignedRulesForGroup = (group) =>
   rules.value.filter((rule) => normalizeGroupIds(rule.group_ids).includes(group.id));
@@ -680,27 +683,8 @@ const handleClose = () => {
   resetGroupForm();
 };
 
-const resetRuleForm = () => {
-  ruleForm.value.id = null;
-
-  Object.assign(ruleState, {
-    description: "",
-    match_mode: "all",
-    conditions: [blankCondition()],
-    is_deduction: "",
-    amount_type: "",
-    amount: "",
-    apply_once: "Apply Once",
-    y_operator: "",
-    y_value: "",
-    effective_from: "",
-    effective_until: "",
-    group_ids: [],
-  });
-};
-
 const openCreateRuleModal = async () => {
-  resetRuleForm();
+  editingRule.value = null;
   rulesModalOpen.value = true;
   await rulesOptionsFetch();
   await fetchGroups();
@@ -711,44 +695,28 @@ const editRule = async (rule) => {
   await rulesOptionsFetch();
   await fetchGroups();
   await fetchScheduleQuestions();
+  editingRule.value = rule;
   rulesModalOpen.value = true;
-  ruleForm.value.id = rule.id;
-  ruleState.description = rule.description;
-  ruleState.match_mode = rule.match_mode || "all";
-  ruleState.conditions = (rule.conditions || []).map((condition) => ({
-    metric: condition.metric,
-    x_operator: condition.x_operator,
-    x_value:
-      condition.metric === "answered_question"
-        ? Number(condition.x_value)
-        : condition.x_value,
-    y_operator: condition.y_operator ?? "",
-    y_value: condition.y_value ?? "",
-    reference_id: condition.reference_id ?? "",
-    session: sessionsFromBackend(condition.session),
-  }));
+};
 
-  if (!ruleState.conditions.length) {
-    ruleState.conditions = [blankCondition()];
-  }
+const viewingRule = ref(null);
+const ruleDetailModalOpen = ref(false);
 
-  ruleState.is_deduction = rule.is_deduction === 1 ? true : false;
-  ruleState.amount_type = rule.amount_type;
-  ruleState.amount = rule.amount;
-  ruleState.apply_once = rule.apply_once === 1 ? "Apply Once" : "Each Time";
-  ruleState.y_operator = rule.y_operator ?? "";
-  ruleState.y_value = rule.y_value ?? "";
-  ruleState.effective_from = rule.effective_from
-    ? rule.effective_from.slice(0, 10)
-    : "";
-  ruleState.effective_until = rule.effective_until
-    ? rule.effective_until.slice(0, 10)
-    : "";
-  ruleState.group_ids = normalizeGroupIds(rule.group_ids);
+const viewRule = async (rule) => {
+  viewingRule.value = rule;
+  ruleDetailModalOpen.value = true;
+  await rulesOptionsFetch();
+  await fetchGroups();
+  await fetchScheduleQuestions();
+};
+
+const handleEditFromDetail = (rule) => {
+  ruleDetailModalOpen.value = false;
+  editRule(rule);
 };
 
 const askDeleteRule = (rule) => {
-  ruleForm.value.id = rule.id;
+  deleteRuleId.value = rule.id;
   rulesDeleteModal.value = true;
 };
 
@@ -840,6 +808,7 @@ const fetchProcessChecks = async (data) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Processing Payroll Checks");
       processChecksModal.value = false;
       fetchRecentPayroll();
     } else {
@@ -885,6 +854,7 @@ const fetchProcessDeposit = async (data) => {
         color: "success",
         duration: 2000,
       });
+      jobTracker.track(response?.job_id, "Processing Direct Deposit");
       processDepositModal.value = false;
       fetchRecentPayroll();
     } else {
@@ -1125,9 +1095,8 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
       metric: condition.metric,
       x_operator: condition.x_operator,
       x_value: condition.x_value,
-      y_operator: condition.y_operator,
-      y_value: condition.y_value,
       session: condition.session,
+      days_of_week: condition.days_of_week?.length ? condition.days_of_week : null,
       reference_id: condition.reference_id,
     })),
     is_deduction: Boolean(Number(rule.is_deduction)),
@@ -1165,48 +1134,19 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
   });
 };
 
-const onRuleSubmit = async (event) => {
+const onRuleSubmit = async (payload) => {
   try {
     isRuleSubmitting.value = true;
 
-    const groupIds = normalizeGroupIds(event.data.group_ids);
+    const ruleId = editingRule.value?.id;
+    const groupIds = payload.group_ids;
     const targetGroupId = groupIds[0] || groups.value[0]?.id || 0;
-    const endpoint = ruleForm.value.id
-      ? `/api/payroll/group/${targetGroupId}/rules/${ruleForm.value.id}`
+    const endpoint = ruleId
+      ? `/api/payroll/group/${targetGroupId}/rules/${ruleId}`
       : `/api/payroll/group/${targetGroupId}/rules`;
 
-    const applyOnce = event.data.apply_once === "Apply Once";
-
-    const payload = {
-      description: event.data.description,
-      match_mode:
-        event.data.conditions.length > 1 ? event.data.match_mode || "all" : "all",
-      conditions: event.data.conditions.map((condition) => ({
-        metric: condition.metric,
-        x_operator: condition.x_operator,
-        x_value: condition.x_value,
-        y_operator: condition.y_operator || null,
-        y_value: condition.y_value || null,
-        session: sessionsToBackend(condition.session),
-        reference_id:
-          condition.metric === "answered_question"
-            ? condition.reference_id || null
-            : null,
-      })),
-      is_deduction:
-        event.data.is_deduction === true || event.data.is_deduction === "true",
-      amount_type: event.data.amount_type,
-      amount: event.data.amount,
-      apply_once: applyOnce,
-      y_operator: applyOnce ? event.data.y_operator || null : null,
-      y_value: applyOnce ? event.data.y_value || null : null,
-      effective_from: event.data.effective_from || null,
-      effective_until: event.data.effective_until || null,
-      group_ids: groupIds,
-    };
-
     const response = await api(endpoint, {
-      method: ruleForm.value.id ? "PUT" : "POST",
+      method: ruleId ? "PUT" : "POST",
       body: payload,
     });
 
@@ -1215,7 +1155,7 @@ const onRuleSubmit = async (event) => {
         title: "Success",
         description:
           response?.message ||
-          (ruleForm.value.id
+          (ruleId
             ? "Pay rule updated successfully"
             : "Pay rule created successfully"),
         color: "success",
@@ -1223,7 +1163,7 @@ const onRuleSubmit = async (event) => {
       });
 
       rulesModalOpen.value = false;
-      resetRuleForm();
+      editingRule.value = null;
       await fetchRules();
     } else {
       toast.add({
@@ -1253,12 +1193,12 @@ const confirmDeleteRule = async () => {
   try {
     isRuleSubmitting.value = true;
     const targetGroupId =
-      rules.value.find((rule) => rule.id === ruleForm.value.id)?.group_ids?.[0] ||
+      rules.value.find((rule) => rule.id === deleteRuleId.value)?.group_ids?.[0] ||
       groups.value[0]?.id ||
       0;
 
     const response = await api(
-      `/api/payroll/group/${targetGroupId}/rules/${ruleForm.value.id}`,
+      `/api/payroll/group/${targetGroupId}/rules/${deleteRuleId.value}`,
       {
         method: "DELETE",
       },
@@ -1272,7 +1212,7 @@ const confirmDeleteRule = async () => {
         duration: 2000,
       });
       rulesDeleteModal.value = false;
-      resetRuleForm();
+      deleteRuleId.value = null;
       await fetchRules();
     } else {
       toast.add({
@@ -1883,380 +1823,42 @@ watch(
       <BaseSpinner :show-loader="fetchingRules" size="md" />
     </div>
 
-    <div
+    <UTable
       v-else-if="rules.length"
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-    >
-      <UCard
-        v-for="rule in rules"
-        :key="rule.id"
-        class="rounded-2xl shadow hover:shadow-xl transition-shadow duration-300"
-      >
-        <div>
-          <label>{{ getRuleSummary(rule) }}</label>
-        </div>
-        <div
-          class="flex justify-between items-baseline text-end gap-6 text-gray-500 mt-3"
-        >
-          <div>
-            <p class="text-xs">{{ rule.description }}</p>
-            <div class="flex flex-wrap gap-1 mt-2">
-              <UBadge
-                v-if="rule.effective_from || rule.effective_until"
-                :color="effectiveStatus(rule).color"
-                variant="soft"
-                size="sm"
-              >
-                {{ effectiveStatus(rule).label }}
-              </UBadge>
-              <UBadge
-                v-for="gid in rule.group_ids || []"
-                :key="`${rule.id}-${gid}`"
-                color="primary"
-                variant="soft"
-                size="sm"
-              >
-                {{ groups.find((group) => group.id === gid)?.name || `Group ${gid}` }}
-              </UBadge>
-            </div>
-          </div>
-          <div class="flex gap-2 items-center">
-            <UButton
-              icon="i-lucide-square-pen"
-              size="md"
-              color="success"
-              variant="soft"
-              @click="editRule(rule)"
-            />
-            <UButton
-              icon="i-lucide-trash-2"
-              size="md"
-              color="error"
-              variant="soft"
-              @click="askDeleteRule(rule)"
-            />
-          </div>
-        </div>
-      </UCard>
-    </div>
+      :columns="ruleColumns"
+      :data="rules"
+      class="flex-1"
+      :ui="{ base: 'table-fixed min-w-full' }"
+    />
     <div v-else class="text-center text-gray-500 mt-10">
       No rules found. Click <strong>Create Rule</strong> to add one.
     </div>
   </UCard>
 
-  <UModal v-model:open="rulesModalOpen">
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">
-          {{ ruleForm.id ? "Edit Rule" : "Create New Rule" }}
-        </h2>
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              rulesModalOpen = false;
-              resetRuleForm();
-            }
-          "
-        />
-      </div>
-    </template>
-    <template #body>
-      <div
-        v-if="fetchingRulesOptions"
-        class="flex items-center justify-center pt-10 w-full"
-      >
-        <BaseSpinner :show-loader="fetchingRulesOptions" size="md" />
-      </div>
+  <CommonPayRuleFormModal
+    v-model="rulesModalOpen"
+    :rule="editingRule"
+    :all-groups="groups"
+    :metric-options="metricOptions"
+    :operator-options="operatorOptions"
+    :metric-labels="metricLabels"
+    :operater-labels="operaterLabels"
+    :schedule-questions="scheduleQuestions"
+    :loading-options="fetchingRulesOptions"
+    :submitting="isRuleSubmitting"
+    @submit="onRuleSubmit"
+  />
 
-      <UForm
-        v-else
-        :state="ruleState"
-        :schema="rulesSchema"
-        @submit="onRuleSubmit"
-      >
-        <div class="space-y-6">
-          <UFormField label="Description" name="description" required>
-            <UInput
-              v-model="ruleState.description"
-              placeholder="Enter description"
-              class="w-full"
-              size="lg"
-            />
-          </UFormField>
-
-          <!-- Metric conditions -->
-          <div
-            v-for="(condition, index) in ruleState.conditions"
-            :key="index"
-            class="border border-gray-200 dark:border-gray-800 rounded-xl p-4"
-          >
-            <div class="flex items-center justify-between mb-4">
-              <span class="font-semibold">Metric {{ index + 1 }}</span>
-              <UButton
-                v-if="ruleState.conditions.length > 1"
-                size="xs"
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                @click="removeCondition(index)"
-              />
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <UFormField
-                label="Metric"
-                :name="`conditions[${index}].metric`"
-                required
-                class="col-span-2"
-              >
-                <USelect
-                  v-model="condition.metric"
-                  :items="metricOptions"
-                  placeholder="Please Select"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-              <template v-if="condition.metric === 'answered_question'">
-                <UFormField
-                  label="Question"
-                  :name="`conditions[${index}].reference_id`"
-                  required
-                >
-                  <USelect
-                    v-model="condition.reference_id"
-                    :items="questionOptions"
-                    placeholder="Select question"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Answer"
-                  :name="`conditions[${index}].x_value`"
-                  required
-                >
-                  <USelect
-                    v-model="condition.x_value"
-                    :items="answerOptionsFor(condition)"
-                    :disabled="!condition.reference_id"
-                    placeholder="Select answer"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-              </template>
-              <template v-else>
-                <UFormField
-                  label="X Operator"
-                  :name="`conditions[${index}].x_operator`"
-                  required
-                >
-                  <USelect
-                    v-model="condition.x_operator"
-                    :items="operatorOptions"
-                    placeholder="Please Select"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField
-                  label="X Value"
-                  :name="`conditions[${index}].x_value`"
-                  required
-                >
-                  <UInput
-                    v-model="condition.x_value"
-                    placeholder="Enter value"
-                    class="w-full"
-                    type="number"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Y Operator"
-                  :name="`conditions[${index}].y_operator`"
-                >
-                  <USelect
-                    v-model="condition.y_operator"
-                    :items="operatorOptions"
-                    placeholder="Please Select"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField
-                  label="Y Value"
-                  :name="`conditions[${index}].y_value`"
-                >
-                  <UInput
-                    v-model="condition.y_value"
-                    placeholder="Enter Y value"
-                    class="w-full"
-                    type="number"
-                    size="lg"
-                  />
-                </UFormField>
-              </template>
-              <UFormField
-                label="Sessions"
-                :name="`conditions[${index}].session`"
-                required
-                class="col-span-2"
-              >
-                <USelect
-                  v-model="condition.session"
-                  :items="sessionOptions"
-                  multiple
-                  placeholder="Select sessions"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-            </div>
-          </div>
-
-          <div class="flex items-end justify-between gap-4">
-            <UButton
-              icon="i-lucide-plus"
-              variant="outline"
-              label="Add Metric"
-              @click="addCondition"
-            />
-            <UFormField
-              v-if="ruleState.conditions.length > 1"
-              label="Match"
-              name="match_mode"
-              required
-              class="w-64"
-            >
-              <USelect
-                v-model="ruleState.match_mode"
-                :items="matchModeItems"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-          </div>
-
-          <!-- Payment -->
-          <div
-            class="border-t border-gray-200 dark:border-gray-800 pt-4 grid grid-cols-2 gap-4"
-          >
-            <UFormField label="Amount Type" name="amount_type" required>
-              <USelect
-                v-model="ruleState.amount_type"
-                :items="amountTypeItems"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Amount" name="amount" required>
-              <UInput
-                v-model="ruleState.amount"
-                placeholder="Enter amount"
-                class="w-full"
-                type="number"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Is Deduction" name="is_deduction" required>
-              <USelect
-                v-model="ruleState.is_deduction"
-                :items="deductionItems"
-                placeholder="Please Select"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Apply Rules" name="apply_once" required>
-              <URadioGroup
-                v-model="ruleState.apply_once"
-                :items="applyOnceItems"
-              />
-            </UFormField>
-            <template v-if="ruleState.apply_once === 'Apply Once'">
-              <UFormField label="Apply Once When Count" name="y_operator">
-                <USelect
-                  v-model="ruleState.y_operator"
-                  :items="operatorOptions"
-                  placeholder="Matched at least once"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
-              <UFormField label="Threshold Value" name="y_value">
-                <UInput
-                  v-model="ruleState.y_value"
-                  placeholder="Enter threshold"
-                  class="w-full"
-                  type="number"
-                  size="lg"
-                />
-              </UFormField>
-            </template>
-            <UFormField
-              label="Effective From"
-              name="effective_from"
-              hint="Optional"
-            >
-              <UInput
-                v-model="ruleState.effective_from"
-                type="date"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField
-              label="Effective Until"
-              name="effective_until"
-              hint="Optional"
-            >
-              <UInput
-                v-model="ruleState.effective_until"
-                type="date"
-                class="w-full"
-                size="lg"
-              />
-            </UFormField>
-            <UFormField label="Groups" name="group_ids" class="col-span-2">
-              <USelectMenu
-                v-model="ruleState.group_ids"
-                :items="
-                  groups.map((group) => ({
-                    label: group.name,
-                    value: group.id,
-                  }))
-                "
-                placeholder="Select groups"
-                class="w-full"
-                size="lg"
-                multiple
-              />
-            </UFormField>
-          </div>
-        </div>
-        <div class="mt-8 flex gap-2 justify-end">
-          <UButton
-            @click="rulesModalOpen = false"
-            color="neutral"
-            label="Cancel"
-          />
-          <UButton
-            type="submit"
-            :loading="isRuleSubmitting"
-            :disabled="isRuleSubmitting"
-            :label="ruleForm.id ? 'Update' : 'Submit'"
-          />
-        </div>
-      </UForm>
-    </template>
-  </UModal>
+  <CommonPayRuleDetailModal
+    v-model="ruleDetailModalOpen"
+    :rule="viewingRule"
+    :all-groups="groups"
+    :metric-labels="metricLabels"
+    :operater-labels="operaterLabels"
+    :schedule-questions="scheduleQuestions"
+    :loading-options="fetchingRulesOptions"
+    @edit="handleEditFromDetail"
+  />
 
   <UModal
     v-model:open="rulesDeleteModal"
@@ -2295,7 +1897,7 @@ watch(
   </UModal>
 
   <!-- Create Group Modal -->
-  <UModal v-model:open="newGroup">
+  <UModal v-model:open="newGroup" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">

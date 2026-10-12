@@ -15,6 +15,12 @@ const selectedPayee = ref(null);
 const isDeletePayeeModalOpen = ref(false);
 const isPayeeDeleting = ref(false);
 
+const fetchingSettings = ref(false);
+const isSavingSettings = ref(false);
+const settingsForm = reactive({
+  min_check_amount: 5,
+});
+
 const columns = [
   { accessorKey: "name", header: "Name" },
   { accessorKey: "default_memo", header: "Default Memo" },
@@ -145,8 +151,69 @@ const confirmDeletePayee = async () => {
   }
 };
 
+const fetchSettings = async () => {
+  try {
+    fetchingSettings.value = true;
+    const response = await api(`/api/payees/settings`, { method: "GET" });
+
+    if (response?.success) {
+      settingsForm.min_check_amount = response?.settings?.min_check_amount ?? 5;
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchSettings ~ err:", err);
+    toast.add({
+      title: "Error",
+      description: "Failed to load payee settings",
+      color: "error",
+    });
+  } finally {
+    fetchingSettings.value = false;
+  }
+};
+
+const submitSettings = async () => {
+  isSavingSettings.value = true;
+
+  try {
+    const response = await api(`/api/payees/settings`, {
+      method: "POST",
+      body: {
+        min_check_amount: Number(settingsForm.min_check_amount),
+      },
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Settings updated",
+        color: "success",
+        duration: 2000,
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?.message ||
+          response?._data?.message ||
+          "Failed to update settings",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating payee settings:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred. Please try again later.",
+      color: "error",
+    });
+  } finally {
+    isSavingSettings.value = false;
+  }
+};
+
 onMounted(async () => {
   await fetchPayees();
+  await fetchSettings();
 });
 </script>
 
@@ -165,6 +232,45 @@ onMounted(async () => {
       </div>
     </div>
   </UCard>
+  <UCard class="rounded-2xl shadow-sm mt-6 max-w-2xl">
+    <div
+      v-if="fetchingSettings"
+      class="flex items-center justify-center py-6 w-full"
+    >
+      <BaseSpinner :show-loader="fetchingSettings" size="md" />
+    </div>
+    <UForm
+      v-else
+      :state="settingsForm"
+      class="space-y-4"
+      @submit="submitSettings"
+    >
+      <h3 class="text-base font-semibold text-gray-700">Request Settings</h3>
+      <UFormField
+        label="Minimum Request Amount ($)"
+        description="Smallest amount a student can request from their balance"
+      >
+        <UInput
+          v-model="settingsForm.min_check_amount"
+          type="number"
+          min="0"
+          class="w-full max-w-xs"
+          size="lg"
+        />
+      </UFormField>
+
+      <UButton
+        type="submit"
+        color="primary"
+        size="lg"
+        :loading="isSavingSettings"
+        :disabled="isSavingSettings"
+      >
+        Update Settings
+      </UButton>
+    </UForm>
+  </UCard>
+
   <div class="flex gap-4 items-center my-6">
     <UInput
       v-model="searchTerm"

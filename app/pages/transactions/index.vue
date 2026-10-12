@@ -491,7 +491,7 @@ watch(
       </div>
     </div>
   </UCard>
-  <UModal v-model:open="newTransactionModal">
+  <UModal v-model:open="newTransactionModal" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">

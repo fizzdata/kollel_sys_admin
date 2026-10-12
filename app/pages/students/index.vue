@@ -114,7 +114,12 @@ const editStudent = async (student) => {
       };
 
       detailedStudent.wage_group =
-        response?.wage_group || detailedStudent?.wage_group || [];
+        response?.wage_group ||
+        detailedStudent?.wage_group ||
+        detailedStudent?.wages_group ||
+        detailedStudent?.wages_groups ||
+        detailedStudent?.wage ||
+        [];
 
       selectedStudent.value = detailedStudent;
     } else {
@@ -511,7 +516,7 @@ const toggleSwitch = async () => {
   />
 
   <!-- Modal for Export Students -->
-  <UModal v-model:open="importStudentModal">
+  <UModal v-model:open="importStudentModal" :dismissible="false">
     <template #header>
       <div class="flex justify-between w-full">
         <h2 class="text-xl font-bold text-primary">Import Students</h2>

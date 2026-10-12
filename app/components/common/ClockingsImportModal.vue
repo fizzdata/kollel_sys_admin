@@ -117,7 +117,7 @@ const resetModal = () => {
 </script>
 
 <template>
-  <UModal v-model:open="isOpen">
+  <UModal v-model:open="isOpen" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
