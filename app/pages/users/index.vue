@@ -416,7 +416,7 @@ const userColumns = [
     />
   </UCard>
 
-  <UModal v-model:open="inviteModalOpen" title="Invite User">
+  <UModal v-model:open="inviteModalOpen" title="Invite User" :dismissible="false">
     <template #body>
       <UForm
         :schema="inviteSchema"

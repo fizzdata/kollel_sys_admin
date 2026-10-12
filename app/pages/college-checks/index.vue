@@ -739,6 +739,7 @@ const fetchList = async (showLoading = true) => {
   <UModal
     v-model:open="showModal"
     :title="form.id ? 'Edit Check' : 'Add New Check'"
+    :dismissible="false"
   >
     <template #body>
       <UForm :schema="schema" :state="state" @submit="onSubmit">

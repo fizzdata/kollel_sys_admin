@@ -713,7 +713,7 @@ watch(
     </div>
   </div>
   <!-- Modal for Edit Schedule -->
-  <UModal v-model:open="editScheduleModal">
+  <UModal v-model:open="editScheduleModal" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
@@ -808,7 +808,7 @@ watch(
   </UModal>
 
   <!-- Modal for Create Question -->
-  <UModal v-model:open="createQuestionModal">
+  <UModal v-model:open="createQuestionModal" :dismissible="false">
     <template #header>
       <div class="flex justify-between w-full">
         <h2 class="text-xl font-bold text-primary">

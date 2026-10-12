@@ -100,7 +100,7 @@ const handleSubmit = async (event) => {
 };
 </script>
 <template>
-  <UModal v-model:open="isOpen">
+  <UModal v-model:open="isOpen" :dismissible="false">
     <template #header>
       <div class="flex justify-between w-full">
         <h2 class="text-xl font-bold text-primary">

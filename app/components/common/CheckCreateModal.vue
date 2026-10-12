@@ -119,7 +119,7 @@ if (!state.student_id) {
 </script>
 
 <template>
-  <UModal v-model:open="isOpen">
+  <UModal v-model:open="isOpen" :dismissible="false">
     <template #header>
       <div class="flex justify-between w-full items-center">
         <div class="flex items-center gap-3">

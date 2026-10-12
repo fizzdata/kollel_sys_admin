@@ -597,7 +597,7 @@ onMounted(async () => {
     />
   </UCard>
   <!-- Modal for Create Default Schedule -->
-  <UModal v-model:open="defaultScheduleModal">
+  <UModal v-model:open="defaultScheduleModal" :dismissible="false">
     <!-- Custom Header -->
     <template #header>
       <div class="flex justify-between w-full">
