@@ -19,9 +19,14 @@ const isOpen = computed({
 
 const ANY_GROUP = "any";
 
+// Only 'months_in_group' is implemented end-to-end today. More metrics
+// (e.g. 'check_count') get added here once their backend logic exists.
+const METRIC_OPTIONS = [{ label: "Months in Group", value: "months_in_group" }];
+
 const getInitialState = (rule) => ({
   from_group_id: rule?.from_group_id ? String(rule.from_group_id) : ANY_GROUP,
   to_group_id: rule?.to_group_id ? String(rule.to_group_id) : "",
+  metric: rule?.metric || METRIC_OPTIONS[0].value,
   months_in_group: rule?.months_in_group ?? null,
   description: rule?.description || "",
   active: rule?.id ? Boolean(rule.active) : true,
@@ -38,6 +43,7 @@ watch(
 
 const schema = object({
   to_group_id: string().required("Target group is required"),
+  metric: string().required("Metric is required"),
   months_in_group: number()
     .typeError("Months must be a number")
     .required("Months in group is required")
@@ -60,6 +66,7 @@ const handleSubmit = (event) => {
         ? null
         : Number(event.data.from_group_id),
     to_group_id: Number(event.data.to_group_id),
+    metric: event.data.metric,
     months_in_group: Number(event.data.months_in_group),
     description: event.data.description || null,
     active: event.data.active,
@@ -106,6 +113,15 @@ const handleSubmit = (event) => {
             />
           </UFormField>
         </div>
+
+        <UFormField label="Metric" name="metric" required>
+          <USelect
+            v-model="state.metric"
+            :items="METRIC_OPTIONS"
+            class="w-full"
+            size="lg"
+          />
+        </UFormField>
 
         <UFormField
           label="Months in Group"
