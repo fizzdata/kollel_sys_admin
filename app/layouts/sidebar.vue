@@ -12,7 +12,14 @@ import {
 } from "@headlessui/vue";
 
 const sidebarOpen = ref(false);
+const searchModalOpen = ref(false);
 const route = useRoute();
+
+defineShortcuts({
+  meta_k: () => {
+    searchModalOpen.value = true;
+  },
+});
 const api = useApi();
 const router = useRouter();
 const user = useCookie("kollel_sys_user");
@@ -38,12 +45,17 @@ const navigation = [
 ];
 
 const filteredNavigation = computed(() =>
-  navigation.filter(
-    (item) =>
+  navigation.filter((item) => {
+    if (item.key === "users") {
+      return user.value?.role === "super_admin";
+    }
+
+    return (
       item.key === "dashboard" ||
       item.key === "audit" ||
-      hasAccess.value.includes(item.key),
-  ),
+      hasAccess.value.includes(item.key)
+    );
+  }),
 );
 
 const isActive = (href) => route.path.startsWith(href);
@@ -231,6 +243,21 @@ const userNavigation = [
         <!-- Spacer -->
         <div class="flex-1"></div>
 
+        <!-- Global Search -->
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-search"
+          class="mr-3 cursor-pointer"
+          @click="searchModalOpen = true"
+        >
+          <span class="hidden sm:inline">Search</span>
+          <span class="hidden sm:inline-flex items-center gap-0.5">
+            <UKbd value="meta" />
+            <UKbd value="K" />
+          </span>
+        </UButton>
+
         <!-- Profile dropdown -->
         <Menu as="div" class="relative">
           <template #default="{ open }">
@@ -288,5 +315,9 @@ const userNavigation = [
         </div>
       </main>
     </div>
+
+    <JobProgressOverlay />
+
+    <CommonGlobalSearchModal v-model="searchModalOpen" />
   </div>
 </template>
