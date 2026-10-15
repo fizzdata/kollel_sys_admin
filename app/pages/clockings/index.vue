@@ -35,6 +35,7 @@ const df = new DateFormatter("en-US", {
 
 const isSubmitting = ref(false);
 const isImporting = ref(false);
+const exporting = ref(false);
 const loading = ref(false);
 const ImportClockingModal = ref(false);
 const file = ref(null);
@@ -480,6 +481,54 @@ const exportToPDF = async () => {
   }
 };
 
+const exportToExcel = async () => {
+  const fromDateStr = calendarRange.value.start?.toString();
+  const toDateStr = calendarRange.value.end?.toString();
+
+  if (!fromDateStr || !toDateStr) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range for export",
+      color: "error",
+    });
+    return;
+  }
+
+  exporting.value = true;
+  try {
+    const response = await api(
+      `/api/clockings/export?from_date=${fromDateStr}&to_date=${toDateStr}`,
+    );
+
+    const blob = new Blob([response], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clockings_export_${fromDateStr}_to_${toDateStr}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.add({
+      title: "Success",
+      description: "Export completed successfully",
+      color: "success",
+    });
+  } catch (error) {
+    console.error("Export to Excel error:", error);
+    toast.add({
+      title: "Error",
+      description: "Failed to export clockings",
+      color: "error",
+    });
+  } finally {
+    exporting.value = false;
+  }
+};
+
 onMounted(async () => {
   await fetchStudents();
   await fetchPendingRequestsCount();
@@ -554,6 +603,13 @@ watch(
           icon="i-lucide-file-text"
           label="Export to PDF"
           @click="exportToPDF"
+        />
+
+        <UButton
+          icon="i-lucide-file-spreadsheet"
+          label="Export to Excel"
+          :loading="exporting"
+          @click="exportToExcel"
         />
       </div>
     </div>

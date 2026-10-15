@@ -74,12 +74,25 @@ const metricOptions = ref([]);
 const fetchingRulesOptions = ref(false);
 const isRuleSubmitting = ref(false);
 
+// Auto Group Moves tab
+const transitionRules = ref([]);
+const fetchingTransitionRules = ref(false);
+const transitionLogs = ref([]);
+const fetchingTransitionLogs = ref(false);
+const editingTransitionRule = ref(null);
+const transitionRuleModalOpen = ref(false);
+const isTransitionRuleSubmitting = ref(false);
+const transitionRuleDeleteModal = ref(false);
+const deleteTransitionRuleId = ref(null);
+const runningAutoMoveNow = ref(false);
+
 const tabs = [
   { label: "Recent Payroll", key: "recent-payroll" },
   { label: "Groups", key: "groups" },
   { label: "All Students", key: "all-students" },
   { label: "Settings", key: "setting" },
   { label: "Rules", key: "rules" },
+  { label: "Auto Group Moves", key: "group-transitions" },
 ];
 
 // The create/edit form itself lives in CommonPayRuleFormModal; this page just
@@ -1238,6 +1251,285 @@ const confirmDeleteRule = async () => {
   }
 };
 
+const fetchTransitionRules = async () => {
+  try {
+    fetchingTransitionRules.value = true;
+    const response = await api(`/api/payroll/group-transition-rules`);
+
+    if (response?.success) {
+      transitionRules.value = response?.rules || [];
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchTransitionRules ~ err:", err);
+    toast.add({
+      description: "Error fetching auto-move rules. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
+  } finally {
+    fetchingTransitionRules.value = false;
+  }
+};
+
+const fetchTransitionLogs = async () => {
+  try {
+    fetchingTransitionLogs.value = true;
+    const response = await api(`/api/payroll/group-transition-rules/logs`);
+
+    if (response?.success) {
+      transitionLogs.value = response?.logs?.data || [];
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchTransitionLogs ~ err:", err);
+    toast.add({
+      description: "Error fetching auto-move history. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
+  } finally {
+    fetchingTransitionLogs.value = false;
+  }
+};
+
+const openCreateTransitionRuleModal = async () => {
+  editingTransitionRule.value = null;
+  await fetchGroups();
+  transitionRuleModalOpen.value = true;
+};
+
+const editTransitionRule = async (rule) => {
+  await fetchGroups();
+  editingTransitionRule.value = rule;
+  transitionRuleModalOpen.value = true;
+};
+
+const onTransitionRuleSubmit = async (payload) => {
+  try {
+    isTransitionRuleSubmitting.value = true;
+
+    const ruleId = editingTransitionRule.value?.id;
+    const endpoint = ruleId
+      ? `/api/payroll/group-transition-rules/${ruleId}`
+      : `/api/payroll/group-transition-rules`;
+
+    const response = await api(endpoint, {
+      method: ruleId ? "PUT" : "POST",
+      body: payload,
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description:
+          response?.message ||
+          (ruleId
+            ? "Auto-move rule updated successfully"
+            : "Auto-move rule created successfully"),
+        color: "success",
+        duration: 2000,
+      });
+
+      transitionRuleModalOpen.value = false;
+      editingTransitionRule.value = null;
+      await fetchTransitionRules();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?._data?.errors ||
+          response?._data?.message ||
+          "Failed to save auto-move rule",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Error saving auto-move rule:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while saving the rule.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    isTransitionRuleSubmitting.value = false;
+  }
+};
+
+const askDeleteTransitionRule = (rule) => {
+  deleteTransitionRuleId.value = rule.id;
+  transitionRuleDeleteModal.value = true;
+};
+
+const confirmDeleteTransitionRule = async () => {
+  try {
+    isTransitionRuleSubmitting.value = true;
+
+    const response = await api(
+      `/api/payroll/group-transition-rules/${deleteTransitionRuleId.value}`,
+      { method: "DELETE" },
+    );
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Auto-move rule deleted successfully",
+        color: "success",
+        duration: 2000,
+      });
+      transitionRuleDeleteModal.value = false;
+      deleteTransitionRuleId.value = null;
+      await fetchTransitionRules();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?._data?.errors ||
+          response?._data?.message ||
+          "Failed to delete auto-move rule",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting auto-move rule:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while deleting the rule.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    isTransitionRuleSubmitting.value = false;
+  }
+};
+
+const runAutoMoveNow = async () => {
+  try {
+    runningAutoMoveNow.value = true;
+    const response = await api(`/api/payroll/group-transition-rules/run-now`, {
+      method: "POST",
+    });
+
+    if (response?.success) {
+      const moved = response?.summary?.students_moved ?? 0;
+      toast.add({
+        title: "Success",
+        description: `Auto-move check complete — ${moved} student(s) moved`,
+        color: "success",
+        duration: 3000,
+      });
+      await fetchTransitionLogs();
+    } else {
+      toast.add({
+        title: "Failed",
+        description: response?.message || "Failed to run auto-move check",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Error running auto-move check:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while running the auto-move check.",
+      color: "error",
+    });
+  } finally {
+    runningAutoMoveNow.value = false;
+  }
+};
+
+const transitionRuleColumns = [
+  {
+    header: "From Group",
+    cell: ({ row }) => row.original.from_group_name || "Any",
+  },
+  {
+    header: "To Group",
+    cell: ({ row }) => row.original.to_group_name,
+  },
+  {
+    header: "After",
+    cell: ({ row }) => `${row.original.months_in_group} month(s)`,
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+    cell: ({ row }) => row.original.description || "—",
+  },
+  {
+    header: "Status",
+    cell: ({ row }) =>
+      h(
+        resolveComponent("UBadge"),
+        {
+          color: row.original.active ? "success" : "neutral",
+          variant: "soft",
+          size: "sm",
+        },
+        () => (row.original.active ? "Active" : "Inactive"),
+      ),
+  },
+  {
+    header: "Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center justify-end" }, [
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Edit Rule" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-square-pen",
+                size: "md",
+                color: "success",
+                variant: "soft",
+                onClick: () => editTransitionRule(row.original),
+              }),
+          },
+        ),
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Delete Rule" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-trash-2",
+                size: "md",
+                color: "error",
+                variant: "soft",
+                onClick: () => askDeleteTransitionRule(row.original),
+              }),
+          },
+        ),
+      ]),
+  },
+];
+
+const transitionLogColumns = [
+  {
+    header: "Student",
+    cell: ({ row }) =>
+      `${row.original.first_yiddish_name} ${row.original.last_yiddish_name}`,
+  },
+  {
+    header: "From Group",
+    cell: ({ row }) => row.original.from_group_name || "—",
+  },
+  {
+    header: "To Group",
+    cell: ({ row }) => row.original.to_group_name || "—",
+  },
+  {
+    header: "Months in Group",
+    cell: ({ row }) => row.original.months_in_group_at_move ?? "—",
+  },
+  {
+    header: "Moved At",
+    cell: ({ row }) => new Date(row.original.moved_at).toLocaleString(),
+  },
+];
+
 const handleAssignRuleToGroup = async (group, rule) => {
   const existingGroupIds = normalizeGroupIds(rule.group_ids);
 
@@ -1670,6 +1962,10 @@ watch(
       fetchGroups();
       fetchRules();
       rulesOptionsFetch();
+    } else if (newTab === "5") {
+      fetchGroups();
+      fetchTransitionRules();
+      fetchTransitionLogs();
     }
   },
   { immediate: true },
@@ -1691,7 +1987,9 @@ watch(
                 ? "All Students"
                 : activeTab === "3"
                   ? "Payroll Settings"
-                  : "Rules"
+                  : activeTab === "4"
+                    ? "Rules"
+                    : "Auto Group Moves"
         }}
       </h2>
 
@@ -1834,6 +2132,103 @@ watch(
       No rules found. Click <strong>Create Rule</strong> to add one.
     </div>
   </UCard>
+
+  <!-- Auto Group Moves Tab 6 -->
+  <UCard v-if="activeTab === '5'" class="rounded-2xl shadow-sm my-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"
+    >
+      <h2 class="md:text-lg text-base font-bold">
+        Automatically move students between groups by tenure
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        <UButton
+          icon="i-lucide-play"
+          label="Run Now"
+          color="neutral"
+          variant="outline"
+          :loading="runningAutoMoveNow"
+          @click="runAutoMoveNow"
+        />
+        <UButton
+          icon="i-lucide-plus"
+          label="Create Rule"
+          color="primary"
+          @click="openCreateTransitionRuleModal"
+        />
+      </div>
+    </div>
+
+    <div
+      v-if="fetchingTransitionRules"
+      class="flex items-center justify-center py-10 w-full"
+    >
+      <BaseSpinner :show-loader="fetchingTransitionRules" size="md" />
+    </div>
+    <UTable
+      v-else-if="transitionRules.length"
+      :columns="transitionRuleColumns"
+      :data="transitionRules"
+      class="flex-1"
+    />
+    <div v-else class="text-center text-gray-500 mt-10">
+      No auto-move rules found. Click <strong>Create Rule</strong> to add one.
+    </div>
+
+    <h3 class="md:text-base text-sm font-bold mt-8 mb-4">Recent Auto-Moves</h3>
+    <div
+      v-if="fetchingTransitionLogs"
+      class="flex items-center justify-center py-10 w-full"
+    >
+      <BaseSpinner :show-loader="fetchingTransitionLogs" size="md" />
+    </div>
+    <UTable
+      v-else
+      :columns="transitionLogColumns"
+      :data="transitionLogs"
+      class="flex-1"
+    />
+  </UCard>
+
+  <CommonGroupTransitionRuleFormModal
+    v-model="transitionRuleModalOpen"
+    :rule="editingTransitionRule"
+    :all-groups="groups"
+    :submitting="isTransitionRuleSubmitting"
+    @submit="onTransitionRuleSubmit"
+  />
+
+  <UModal
+    v-model:open="transitionRuleDeleteModal"
+    title="Confirm Delete Rule"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <p>Are you sure you want to delete this auto-move rule?</p>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4 pt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          label="Cancel"
+          @click="transitionRuleDeleteModal = false"
+        />
+        <UButton
+          color="error"
+          variant="solid"
+          label="Delete"
+          :loading="isTransitionRuleSubmitting"
+          :disabled="isTransitionRuleSubmitting"
+          @click="confirmDeleteTransitionRule()"
+        />
+      </div>
+    </template>
+  </UModal>
 
   <CommonPayRuleFormModal
     v-model="rulesModalOpen"

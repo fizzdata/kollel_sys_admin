@@ -15,7 +15,7 @@ const isOpen = computed({
 });
 
 // Must match MAX_FINGERPRINTS_LIMIT in the backend StudentsController
-const MAX_FINGERPRINTS = 5;
+const MAX_FINGERPRINTS = 3;
 const fingerprintOptions = Array.from(
   { length: MAX_FINGERPRINTS },
   (_, i) => i + 1,
@@ -23,6 +23,7 @@ const fingerprintOptions = Array.from(
 
 const toast = useToast();
 const api = useApi();
+const { handleInput: handleHebrewInput } = useHebrewKeyboardInput();
 const fetchingWages = ref(false);
 const wageItems = ref([]);
 const isSubmitting = ref(false);
@@ -66,6 +67,8 @@ const getInitialState = (student = {}) => ({
   last_yiddish_name: student?.last_yiddish_name || "",
   phone: student?.phone || "",
   address: student?.address || "",
+  city_state: student?.city_state || "",
+  zip: student?.zip || "",
   wage_groups: mapStudentWageGroups(student),
   max_fingerprints: Math.min(
     Number(student?.max_fingerprints) || 1,
@@ -81,7 +84,9 @@ const schema = object({
   phone: string()
     .required("Phone is required")
     .matches(/^\d{10}$/, "Phone must be exactly 10 digits"),
-  address: string().required("Address is required"),
+  address: string(),
+  city_state: string(),
+  zip: string(),
   wage_groups: array()
     .of(mixed().required())
     .min(1, "At least one wage group is required")
@@ -101,6 +106,12 @@ watch(
 
 const resetForm = () => {
   Object.assign(state, getInitialState({}));
+};
+
+const handleYiddishInput = (event, field, previousValue) => {
+  handleHebrewInput(event, previousValue, (next) => {
+    state[field] = next;
+  });
 };
 
 const handleClose = () => {
@@ -263,10 +274,18 @@ onMounted(async () => {
               required
             >
               <UInput
-                v-model="state.first_yiddish_name"
+                :model-value="state.first_yiddish_name"
                 placeholder="First Name"
                 class="w-full"
                 size="lg"
+                @input="
+                  (e) =>
+                    handleYiddishInput(
+                      e,
+                      'first_yiddish_name',
+                      state.first_yiddish_name,
+                    )
+                "
               />
             </UFormField>
             <UFormField
@@ -275,10 +294,18 @@ onMounted(async () => {
               required
             >
               <UInput
-                v-model="state.last_yiddish_name"
+                :model-value="state.last_yiddish_name"
                 placeholder="Last Name"
                 class="w-full"
                 size="lg"
+                @input="
+                  (e) =>
+                    handleYiddishInput(
+                      e,
+                      'last_yiddish_name',
+                      state.last_yiddish_name,
+                    )
+                "
               />
             </UFormField>
           </div>
@@ -290,14 +317,32 @@ onMounted(async () => {
               size="lg"
             />
           </UFormField>
-          <UFormField label="Address" name="address" required>
+          <UFormField label="Street Address" name="address">
             <UInput
               v-model="state.address"
-              placeholder="Address"
+              placeholder="Street Address"
               class="w-full"
               size="lg"
             />
           </UFormField>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="City & State" name="city_state">
+              <UInput
+                v-model="state.city_state"
+                placeholder="City & State"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+            <UFormField label="Zip" name="zip">
+              <UInput
+                v-model="state.zip"
+                placeholder="Zip"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+          </div>
           <UFormField label="Wage Groups" name="wage_groups" required>
             <USelectMenu
               v-model="state.wage_groups"

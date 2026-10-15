@@ -364,6 +364,14 @@ onMounted(async () => {
                 {{ student?.Student?.address }}
               </p>
               <p>
+                <span class="font-medium">City & State:</span>
+                {{ student?.Student?.city_state }}
+              </p>
+              <p>
+                <span class="font-medium">Zip:</span>
+                {{ student?.Student?.zip }}
+              </p>
+              <p>
                 <span class="font-medium">Wage Group:</span>
                 {{ student?.wage_group?.map((group) => group.name).join(", ") }}
               </p>

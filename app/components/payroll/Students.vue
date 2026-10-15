@@ -21,6 +21,50 @@ const handleRemoveStudent = async (student) => {
   isDeleteStudentModalOpen.value = true;
 };
 
+const savingJoinedAtId = ref(null);
+
+const toDateInputValue = (value) => (value ? value.slice(0, 10) : "");
+
+const handleJoinedAtChange = async (student, newDate) => {
+  if (!newDate) return;
+
+  savingJoinedAtId.value = student.id;
+  try {
+    const response = await api(
+      `/api/payroll/students/${student.id}/group/${route.params.id}/joined-at`,
+      {
+        method: "PUT",
+        body: { joined_at: newDate },
+      },
+    );
+
+    if (response?.success) {
+      student.joined_at = newDate;
+      toast.add({
+        title: "Success",
+        description: "Joined date updated successfully",
+        color: "success",
+        duration: 2000,
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description: response?.message || "Failed to update joined date",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating joined date:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while updating the joined date.",
+      color: "error",
+    });
+  } finally {
+    savingJoinedAtId.value = null;
+  }
+};
+
 const confirmDeleteStudent = async () => {
   try {
     isStudentDeleting.value = true;
@@ -69,6 +113,18 @@ const confirmDeleteStudent = async () => {
 const studentColumns = [
   { accessorKey: "first_yiddish_name", header: "First Yiddish Name" },
   { accessorKey: "last_yiddish_name", header: "Last Yiddish Name" },
+  {
+    header: "Joined On",
+    cell: ({ row }) =>
+      h("input", {
+        type: "date",
+        class:
+          "border border-gray-300 rounded px-2 py-1 text-sm disabled:opacity-50",
+        value: toDateInputValue(row.original.joined_at),
+        disabled: savingJoinedAtId.value === row.original.id,
+        onChange: (e) => handleJoinedAtChange(row.original, e.target.value),
+      }),
+  },
   {
     header: "Quick Actions",
     cell: ({ row }) =>
