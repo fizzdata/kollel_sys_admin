@@ -13,6 +13,8 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(["select-session"]);
+
 const weeks = ref([]);
 const today = new Date();
 
@@ -56,6 +58,18 @@ function findFirstHebrewMonthDay() {
 
 function getDataForDay(day) {
   return props.items.find((i) => i.day === day) || null;
+}
+
+function findSession(dayData, sessionNum) {
+  return (dayData?.sessions || []).find((s) => s.session === sessionNum) || null;
+}
+
+function selectSession(day, sessionNum) {
+  const session = findSession(day.data, sessionNum);
+
+  if (!session) return;
+
+  emit("select-session", { day: day.date, session });
 }
 
 function generateCalendar() {
@@ -201,7 +215,10 @@ watch(() => props.items, generateCalendar, { deep: true });
                 v-if="day.data"
                 class="mt-2 text-[10px] sm:text-xs p-2 space-y-1 flex flex-col items-center justify-center gap-1"
               >
-                <div class="bg-blue-50 rounded">
+                <div
+                  class="bg-blue-50 rounded cursor-pointer hover:bg-blue-100"
+                  @click="selectSession(day, 1)"
+                >
                   <span class="ml-1 text-gray-900">
                     {{ day.data.morning_in }} – {{ day.data.morning_out }} |
                     {{ day.data.retzifus_morning }} |
@@ -209,7 +226,10 @@ watch(() => props.items, generateCalendar, { deep: true });
                   </span>
                 </div>
 
-                <div class="bg-blue-50 rounded">
+                <div
+                  class="bg-blue-50 rounded cursor-pointer hover:bg-blue-100"
+                  @click="selectSession(day, 2)"
+                >
                   <span class="ml-1 text-gray-900">
                     {{ day.data.afternoon_in }} – {{ day.data.afternoon_out }} |
                     {{ day.data.retzifus_evening }} |

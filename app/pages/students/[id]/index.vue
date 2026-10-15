@@ -20,6 +20,13 @@ const clockingsData = ref([]);
 const transactionsData = ref([]);
 const responsesData = ref([]);
 const checksData = ref([]);
+const questionsById = ref({});
+
+const clockingFormModal = ref(null);
+const clockingFormModalOpen = ref(false);
+
+const responseEditModalOpen = ref(false);
+const selectedResponse = ref(null);
 
 const tabs = [
   { label: "Clockings", key: "clockings", icon: "i-lucide-clock" },
@@ -39,6 +46,7 @@ const normalizeClockings = (clockings) => {
 
     const row = {
       day: dayEntry.day,
+      sessions,
 
       morning_in: "-",
       morning_out: "-",
@@ -85,6 +93,9 @@ const fetchStudentDetail = async (refresh = false) => {
       transactionsData.value = response?.transactions;
       responsesData.value = response?.Student_responses;
       checksData.value = response?.checks;
+      questionsById.value = Object.fromEntries(
+        (response?.clocking_questions || []).map((q) => [q.id, q]),
+      );
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudentDetail ~ err:", err);
@@ -101,6 +112,29 @@ const fetchStudentDetail = async (refresh = false) => {
 };
 
 const onSubmit = async () => {
+  await fetchStudentDetail(true);
+};
+
+const openClockingModal = ({ day, session }) => {
+  const name =
+    student.value?.Student?.first_yiddish_name +
+    " " +
+    student.value?.Student?.last_yiddish_name;
+
+  clockingFormModal.value?.open(session, day, `${name} ${day}`);
+};
+
+const onClockingSaved = async () => {
+  await fetchStudentDetail(true);
+};
+
+const openResponseEditModal = (response) => {
+  selectedResponse.value = response;
+  responseEditModalOpen.value = true;
+};
+
+const onResponseSaved = async () => {
+  responseEditModalOpen.value = false;
   await fetchStudentDetail(true);
 };
 
@@ -162,7 +196,26 @@ const checksColumns = [
 const responsesColumns = [
   { accessorKey: "date", header: "Date" },
   { accessorKey: "question", header: "Question" },
-  { accessorKey: "answer", header: "Answer" },
+  { accessorKey: "response", header: "Answer" },
+  {
+    accessorKey: "id",
+    header: "",
+    cell: ({ row }) =>
+      h(
+        resolveComponent("UTooltip"),
+        { text: "Edit response" },
+        {
+          default: () =>
+            h(resolveComponent("UButton"), {
+              icon: "i-lucide-square-pen",
+              size: "md",
+              color: "success",
+              variant: "soft",
+              onClick: () => openResponseEditModal(row.original),
+            }),
+        },
+      ),
+  },
 ];
 
 const handleEditClick = (student) => {
@@ -504,7 +557,10 @@ onMounted(async () => {
       <UTabs v-model="activeTab" :items="tabs" class="mt-6" />
 
       <UCard v-if="activeTab === '0'" class="rounded-2xl shadow-sm mt-6">
-        <StudentCalender :items="clockingsData" />
+        <StudentCalender
+          :items="clockingsData"
+          @select-session="openClockingModal"
+        />
       </UCard>
 
       <UCard v-if="activeTab === '1'" class="rounded-2xl shadow-sm mt-6">
@@ -560,6 +616,20 @@ onMounted(async () => {
       :selectedStudent="selectedStudent"
       @submit="onSubmit"
       @cancel="handleCancel"
+    />
+
+    <CommonClockingFormModal
+      v-model="clockingFormModalOpen"
+      ref="clockingFormModal"
+      :student-id="Number(studentId)"
+      @saved="onClockingSaved"
+    />
+
+    <CommonStudentResponseEditModal
+      v-model="responseEditModalOpen"
+      :response="selectedResponse"
+      :questions-by-id="questionsById"
+      @saved="onResponseSaved"
     />
   </div>
 </template>
