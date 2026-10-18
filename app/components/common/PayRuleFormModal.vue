@@ -1,5 +1,5 @@
 <script setup>
-import { object, string, number, array } from "yup";
+import { object, string, number, array, boolean } from "yup";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -79,6 +79,7 @@ const schema = object({
     .required("Amount is required")
     .min(0, "Amount cannot be negative"),
   apply_once: string().required("Apply Rules is required"),
+  is_weekly: boolean().default(false),
   y_operator: string().nullable(),
   y_value: string().nullable(),
   effective_from: string().nullable(),
@@ -99,6 +100,7 @@ const blankState = () => ({
   amount_type: "",
   amount: "",
   apply_once: "",
+  is_weekly: false,
   y_operator: "",
   y_value: "",
   effective_from: "",
@@ -193,6 +195,7 @@ const populateFromRule = (rule) => {
   state.amount_type = rule.amount_type;
   state.amount = rule.amount;
   state.apply_once = Number(rule.apply_once) ? "Apply Once" : "Each Time";
+  state.is_weekly = Boolean(Number(rule.is_weekly));
   state.y_operator = rule.y_operator ?? "";
   state.y_value = rule.y_value ?? "";
   state.effective_from = rule.effective_from
@@ -312,6 +315,7 @@ const buildPayload = (data) => ({
   amount_type: data.amount_type,
   amount: data.amount,
   apply_once: data.apply_once === "Apply Once",
+  is_weekly: Boolean(data.is_weekly),
   y_operator: data.y_operator || null,
   y_value: data.y_value || null,
   effective_from: data.effective_from || null,
@@ -569,6 +573,14 @@ const close = () => emit("update:modelValue", false);
                   :items="deductionItems"
                   orientation="horizontal"
                 />
+              </UFormField>
+              <UFormField
+                label="Evaluation period"
+                name="is_weekly"
+                description="Weekly rules reset thresholds and Apply Once each Sunday-Saturday week. Partial weeks use only dates in the payroll period."
+                class="col-span-2"
+              >
+                <UCheckbox v-model="state.is_weekly" label="Evaluate weekly" />
               </UFormField>
               <UFormField label="How often to apply" name="apply_once" required>
                 <URadioGroup

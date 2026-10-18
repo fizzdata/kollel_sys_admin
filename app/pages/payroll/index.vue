@@ -1116,6 +1116,7 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
     amount_type: rule.amount_type,
     amount: rule.amount,
     apply_once: Boolean(Number(rule.apply_once)),
+    is_weekly: Boolean(Number(rule.is_weekly)),
     y_operator: rule.y_operator,
     y_value: rule.y_value,
     effective_from: rule.effective_from || null,

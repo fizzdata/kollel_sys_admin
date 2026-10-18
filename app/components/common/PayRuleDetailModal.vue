@@ -186,6 +186,12 @@ const edit = () => emit("edit", props.rule);
               </dd>
             </div>
             <div>
+              <dt class="text-gray-400">Evaluation period</dt>
+              <dd class="font-medium">
+                {{ Number(rule.is_weekly) ? "Weekly (Sunday-Saturday)" : "Full payroll period" }}
+              </dd>
+            </div>
+            <div>
               <dt class="text-gray-400">Applies</dt>
               <dd class="font-medium">
                 {{ Number(rule.apply_once) ? "One time only" : "Every time it matches" }}
