@@ -31,6 +31,9 @@ const requiredColumns = [
   "last_yiddish_name",
   "phone",
   "address",
+  "city_state",
+  "zip",
+  "email",
   "wage_group",
   "old_id",
 ];
@@ -304,6 +307,9 @@ const exportStudents = () => {
     "last_yiddish_name",
     "phone",
     "address",
+    "city_state",
+    "zip",
+    "email",
     "wage_group",
     "group_names",
     "old_id",
@@ -349,7 +355,8 @@ const handleSubmit = () => {
 const downloadTemplate = () => {
   // Create CSV template
   const headers = requiredColumns.join(",");
-  const exampleRow = "Yehudah,Adler,יודל,אדלער,3476757883,0,8,10638";
+  const exampleRow =
+    "Yehudah,Adler,יודל,אדלער,3476757883,123 Main St,Brooklyn NY,11211,yehudah@example.com,8,10638";
   const csvContent = [headers, exampleRow].join("\n");
 
   // Create blob and download

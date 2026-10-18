@@ -425,6 +425,10 @@ onMounted(async () => {
                 {{ student?.Student?.zip }}
               </p>
               <p>
+                <span class="font-medium">Email:</span>
+                {{ student?.Student?.email }}
+              </p>
+              <p>
                 <span class="font-medium">Wage Group:</span>
                 {{ student?.wage_group?.map((group) => group.name).join(", ") }}
               </p>

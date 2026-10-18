@@ -69,6 +69,7 @@ const getInitialState = (student = {}) => ({
   address: student?.address || "",
   city_state: student?.city_state || "",
   zip: student?.zip || "",
+  email: student?.email || "",
   wage_groups: mapStudentWageGroups(student),
   max_fingerprints: Math.min(
     Number(student?.max_fingerprints) || 1,
@@ -87,6 +88,7 @@ const schema = object({
   address: string(),
   city_state: string(),
   zip: string(),
+  email: string().email("Must be a valid email"),
   wage_groups: array()
     .of(mixed().required())
     .min(1, "At least one wage group is required")
@@ -343,6 +345,14 @@ onMounted(async () => {
               />
             </UFormField>
           </div>
+          <UFormField label="Email" name="email">
+            <UInput
+              v-model="state.email"
+              placeholder="Email"
+              class="w-full"
+              size="lg"
+            />
+          </UFormField>
           <UFormField label="Wage Groups" name="wage_groups" required>
             <USelectMenu
               v-model="state.wage_groups"
