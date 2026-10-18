@@ -131,11 +131,28 @@ const alerts = computed(() => {
   if (!dashboardData.value?.alerts) return [];
 
   return dashboardData.value.alerts.map((alert) => ({
+    id: alert.id,
     title: alert.title,
     message: alert.message,
     timestamp: alert.created_at,
   }));
 });
+
+const dismissAlert = async (alert) => {
+  try {
+    await api(`/api/alerts/${alert.id}/dismiss`, { method: "POST" });
+    dashboardData.value.alerts = dashboardData.value.alerts.filter(
+      (a) => a.id !== alert.id,
+    );
+  } catch (error) {
+    console.error("Error dismissing alert:", error);
+    toast.add({
+      title: "Error",
+      description: "Couldn't dismiss alert.",
+      color: "error",
+    });
+  }
+};
 
 // Fetch data on mount
 onMounted(() => {
@@ -224,9 +241,18 @@ onMounted(() => {
             <ul v-if="alerts.length > 0" class="space-y-4">
               <li
                 v-for="alert in alerts"
-                :key="alert.title"
-                class="rounded-xl bg-amber-50 p-3 border-l-4 border-amber-400"
+                :key="alert.id"
+                class="relative rounded-xl bg-amber-50 p-3 pr-8 border-l-4 border-amber-400"
               >
+                <UButton
+                  icon="i-lucide-x"
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                  class="absolute top-2 right-2"
+                  aria-label="Dismiss alert"
+                  @click="dismissAlert(alert)"
+                />
                 <p class="text-sm font-semibold text-amber-900">
                   {{ alert.title }}
                 </p>
