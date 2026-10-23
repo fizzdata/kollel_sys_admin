@@ -21,6 +21,9 @@ const isSavingClockingSettings = ref(false);
 const clockingSettingsForm = reactive({
   early_checkin: 5,
   late_checkout: 5,
+  percent_threshold_low: 30,
+  percent_threshold_high: 80,
+  late_grace_minutes: 6,
 });
 
 // Schedule Management
@@ -511,6 +514,12 @@ async function fetchClockingSettings() {
     if (response?.success) {
       clockingSettingsForm.early_checkin = response?.settings?.early_checkin ?? 5;
       clockingSettingsForm.late_checkout = response?.settings?.late_checkout ?? 5;
+      clockingSettingsForm.percent_threshold_low =
+        response?.settings?.percent_threshold_low ?? 30;
+      clockingSettingsForm.percent_threshold_high =
+        response?.settings?.percent_threshold_high ?? 80;
+      clockingSettingsForm.late_grace_minutes =
+        response?.settings?.late_grace_minutes ?? 6;
     }
   } catch (err) {
     console.log("Error fetching clocking settings:", err);
@@ -532,6 +541,9 @@ async function submitClockingSettings() {
       body: {
         early_checkin: Number(clockingSettingsForm.early_checkin),
         late_checkout: Number(clockingSettingsForm.late_checkout),
+        percent_threshold_low: Number(clockingSettingsForm.percent_threshold_low),
+        percent_threshold_high: Number(clockingSettingsForm.percent_threshold_high),
+        late_grace_minutes: Number(clockingSettingsForm.late_grace_minutes),
       },
     });
 
@@ -686,6 +698,53 @@ watch(
                   type="number"
                   min="0"
                   max="120"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+
+              <UFormField
+                label="Late Grace Period (minutes)"
+                description="Minutes after session start a student can still clock in and count as 'first half hour', if they have no individual exception set"
+              >
+                <UInput
+                  v-model="clockingSettingsForm.late_grace_minutes"
+                  type="number"
+                  min="0"
+                  max="120"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+            </div>
+
+            <h3 class="text-base font-semibold text-gray-700">
+              Attendance Percent Bar
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <UFormField
+                label="Low Threshold (%)"
+                description="Below this percent, a student's attendance bar shows red"
+              >
+                <UInput
+                  v-model="clockingSettingsForm.percent_threshold_low"
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="w-full"
+                  size="lg"
+                />
+              </UFormField>
+
+              <UFormField
+                label="High Threshold (%)"
+                description="Above this percent, a student's attendance bar shows blue; in between it shows orange"
+              >
+                <UInput
+                  v-model="clockingSettingsForm.percent_threshold_high"
+                  type="number"
+                  min="0"
+                  max="100"
                   class="w-full"
                   size="lg"
                 />
