@@ -48,19 +48,25 @@ const normalizeClockings = (clockings) => {
       day: dayEntry.day,
       sessions,
 
+      has_morning: false,
       morning_in: "-",
       morning_out: "-",
       retzifus_morning: "-",
       total_morning: "-",
 
+      has_afternoon: false,
       afternoon_in: "-",
       afternoon_out: "-",
       retzifus_evening: "-",
       total_afternoon: "-",
     };
 
+    // No entry for a session number means daily_session had nothing scheduled
+    // that day for it, so the calendar should render no row at all (vs. a
+    // scheduled-but-unpunched session, which still comes back as an entry).
     sessions.forEach((s) => {
       if (s.session === 1) {
+        row.has_morning = true;
         row.morning_in = secondsToAmPm(s.in);
         row.morning_out = secondsToAmPm(s.out);
         row.retzifus_morning = s.retzifus === 0 ? "NO" : "-";
@@ -68,6 +74,7 @@ const normalizeClockings = (clockings) => {
       }
 
       if (s.session === 2) {
+        row.has_afternoon = true;
         row.afternoon_in = secondsToAmPm(s.in);
         row.afternoon_out = secondsToAmPm(s.out);
         row.retzifus_evening = s.retzifus === 0 ? "NO" : "-";
@@ -79,13 +86,27 @@ const normalizeClockings = (clockings) => {
   });
 };
 
-const fetchStudentDetail = async (refresh = false) => {
+const clockingRange = ref(null);
+const calendarYear = ref(null);
+const calendarMonth = ref(null);
+
+const fetchStudentDetail = async (refresh = false, range = null) => {
   try {
     if (refresh) {
       loading.value = true;
     }
 
-    const response = await api(`/api/students/${studentId}`);
+    const activeRange = range || clockingRange.value;
+    if (activeRange?.from && activeRange?.to) {
+      clockingRange.value = activeRange;
+    }
+
+    const response = await api(`/api/students/${studentId}`, {
+      query:
+        activeRange?.from && activeRange?.to
+          ? { from: activeRange.from, to: activeRange.to }
+          : {},
+    });
 
     if (response) {
       student.value = response;
@@ -126,6 +147,16 @@ const openClockingModal = ({ day, session }) => {
 
 const onClockingSaved = async () => {
   await fetchStudentDetail(true);
+};
+
+const onClockingRangeChange = async (range) => {
+  if (range?.year != null) calendarYear.value = range.year;
+  if (range?.month != null) calendarMonth.value = range.month;
+
+  // Don't pass refresh=true here: that drives the page's top-level
+  // v-if="loading" / v-else-if="student" switch, which unmounts
+  // <StudentCalender> and loses its in-progress hYear/hMonth navigation.
+  await fetchStudentDetail(false, range);
 };
 
 const openResponseEditModal = (response) => {
@@ -563,7 +594,10 @@ onMounted(async () => {
       <UCard v-if="activeTab === '0'" class="rounded-2xl shadow-sm mt-6">
         <StudentCalender
           :items="clockingsData"
+          :initial-year="calendarYear"
+          :initial-month="calendarMonth"
           @select-session="openClockingModal"
+          @reload="onClockingRangeChange"
         />
       </UCard>
 

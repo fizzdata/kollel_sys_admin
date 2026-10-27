@@ -1,6 +1,6 @@
 <script setup>
 import { object, string, number } from "yup";
-import { sec_to_time } from "~/common/common";
+import { sec_to_time, formatActualTime } from "~/common/common";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -22,6 +22,8 @@ const state = reactive({
   in: undefined,
   out: undefined,
   user: undefined,
+  actual_in: undefined,
+  actual_out: undefined,
 });
 
 const resetForm = () => {
@@ -31,7 +33,37 @@ const resetForm = () => {
   state.in = undefined;
   state.out = undefined;
   state.user = undefined;
+  state.actual_in = undefined;
+  state.actual_out = undefined;
 };
+
+function timestampToHms(timestamp) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp.replace(" ", "T"));
+  if (isNaN(date.getTime())) return null;
+
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
+
+// Only worth showing when it differs from the currently-saved in/out
+// (i.e. the record has since been edited away from the original punch).
+const originalPunchLabel = computed(() => {
+  if (!state.id) return null;
+
+  const inEdited = state.actual_in && timestampToHms(state.actual_in) !== state.in;
+  const outEdited = state.actual_out && timestampToHms(state.actual_out) !== state.out;
+
+  if (!inEdited && !outEdited) return null;
+
+  const parts = [];
+  if (inEdited) parts.push(`In: ${formatActualTime(state.actual_in)}`);
+  if (outEdited) parts.push(`Out: ${formatActualTime(state.actual_out)}`);
+
+  return parts.join(", ");
+});
 
 const schema = object({
   student_id: number()
@@ -63,6 +95,8 @@ const open = (session = null, day = null, label = "") => {
   state.out =
     session?.out != null ? sec_to_time(session.out, false) : undefined;
   state.user = label;
+  state.actual_in = session?.actual_in ?? undefined;
+  state.actual_out = session?.actual_out ?? undefined;
 
   emit("update:modelValue", true);
 };
@@ -223,6 +257,10 @@ const onSubmit = async (event) => {
               required
             />
           </UFormField>
+        </div>
+
+        <div v-if="originalPunchLabel" class="text-xs text-amber-600 -mt-4 mb-4">
+          Originally recorded: {{ originalPunchLabel }}
         </div>
 
         <div

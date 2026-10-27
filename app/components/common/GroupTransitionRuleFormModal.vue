@@ -59,6 +59,19 @@ const toGroupOptions = computed(() =>
   props.allGroups.map((g) => ({ label: g.name, value: String(g.id) })),
 );
 
+// Live example illustrating the calendar-month math behind "months in
+// group": it's full elapsed calendar months anchored to the join day-of-
+// month, not a fixed day count (e.g. not 60/61/62 days).
+const monthsExample = computed(() => {
+  const n = Number(state.months_in_group) || 1;
+  const joined = new Date();
+  joined.setDate(15); // illustrative join day-of-month
+  const eligible = new Date(joined);
+  eligible.setMonth(eligible.getMonth() + n);
+  const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `e.g. a student who joined this group on ${fmt(joined)} becomes eligible on ${fmt(eligible)} — ${n} full calendar month${n === 1 ? "" : "s"} later, not a fixed day count.`;
+});
+
 const handleSubmit = (event) => {
   emit("submit", {
     from_group_id:
@@ -127,7 +140,7 @@ const handleSubmit = (event) => {
           label="Months in Group"
           name="months_in_group"
           required
-          description="Move the student once they've spent this many months in the from-group"
+          :description="monthsExample"
         >
           <UInput
             v-model="state.months_in_group"

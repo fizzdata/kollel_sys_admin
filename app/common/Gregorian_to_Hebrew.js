@@ -532,6 +532,7 @@ function FormatDate(dDate) {
 export function FormatYear(year) {
   var tYear;
   var sYear;
+  year = String(year);
 
   switch (year.slice(2, 3)) {
     case "0":
