@@ -49,7 +49,11 @@ export const formatActualTime = (timestamp) => {
   const date = new Date(timestamp.replace(" ", "T"));
   if (isNaN(date.getTime())) return null;
 
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 };
 
 export const secondsToPercent = (workedSeconds, scheduledSeconds) => {
