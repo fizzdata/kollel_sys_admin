@@ -40,6 +40,22 @@ export const secondsToAmPm = (seconds) => {
     .padStart(2, "0")}:${secs.toString().padStart(2, "0")} ${ampm}`;
 };
 
+// Formats the time-of-day portion of a MySQL "YYYY-MM-DD HH:mm:ss" timestamp
+// (e.g. actual_in/actual_out), as opposed to sec_to_time/secondsToAmPm which
+// take seconds-since-midnight.
+export const formatActualTime = (timestamp) => {
+  if (!timestamp) return null;
+
+  const date = new Date(timestamp.replace(" ", "T"));
+  if (isNaN(date.getTime())) return null;
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
 export const secondsToPercent = (workedSeconds, scheduledSeconds) => {
   if (!workedSeconds || !scheduledSeconds) return "-";
 

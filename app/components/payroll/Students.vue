@@ -6,7 +6,7 @@ const props = defineProps({
   operaterLabels: Object,
 });
 
-const emit = defineEmits(["refresh", "preview", "check", "deposit"]);
+const emit = defineEmits(["refresh", "process"]);
 const route = useRoute();
 
 const selectedStudent = ref(null);
@@ -19,6 +19,50 @@ const isDeleteStudentModalOpen = ref(false);
 const handleRemoveStudent = async (student) => {
   selectedStudent.value = student;
   isDeleteStudentModalOpen.value = true;
+};
+
+const savingJoinedAtId = ref(null);
+
+const toDateInputValue = (value) => (value ? value.slice(0, 10) : "");
+
+const handleJoinedAtChange = async (student, newDate) => {
+  if (!newDate) return;
+
+  savingJoinedAtId.value = student.id;
+  try {
+    const response = await api(
+      `/api/payroll/students/${student.id}/group/${route.params.id}/joined-at`,
+      {
+        method: "PUT",
+        body: { joined_at: newDate },
+      },
+    );
+
+    if (response?.success) {
+      student.joined_at = newDate;
+      toast.add({
+        title: "Success",
+        description: "Joined date updated successfully",
+        color: "success",
+        duration: 2000,
+      });
+    } else {
+      toast.add({
+        title: "Failed",
+        description: response?.message || "Failed to update joined date",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating joined date:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while updating the joined date.",
+      color: "error",
+    });
+  } finally {
+    savingJoinedAtId.value = null;
+  }
 };
 
 const confirmDeleteStudent = async () => {
@@ -70,53 +114,33 @@ const studentColumns = [
   { accessorKey: "first_yiddish_name", header: "First Yiddish Name" },
   { accessorKey: "last_yiddish_name", header: "Last Yiddish Name" },
   {
+    header: "Joined On",
+    cell: ({ row }) =>
+      h("input", {
+        type: "date",
+        class:
+          "border border-gray-300 rounded px-2 py-1 text-sm disabled:opacity-50",
+        value: toDateInputValue(row.original.joined_at),
+        disabled: savingJoinedAtId.value === row.original.id,
+        onChange: (e) => handleJoinedAtChange(row.original, e.target.value),
+      }),
+  },
+  {
     header: "Quick Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Preview Student Button
+        // Process Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Preview Student" },
+          { text: "Process" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
-                icon: "i-lucide-user-check",
-                size: "md",
-                color: "success",
-                variant: "soft",
-                onClick: () => emit("preview", row.original),
-              }),
-          },
-        ),
-
-        // Process Check Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Check" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-check-square",
+                icon: "i-lucide-play",
                 size: "md",
                 color: "info",
                 variant: "soft",
-                onClick: () => emit("check", row.original),
-              }),
-          },
-        ),
-
-        // Process Depost Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Depost" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-wallet",
-                size: "md",
-                color: "warning",
-                variant: "soft",
-                onClick: () => emit("deposit", row.original),
+                onClick: () => emit("process", row.original),
               }),
           },
         ),

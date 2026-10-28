@@ -35,6 +35,7 @@ const state = reactive({
   account_number: props?.data?.account_number || "",
   routing_number: props?.data?.routing_number || "",
   bank_name: props?.data?.bank_name || "",
+  skip_zero_amount_payroll: !!props?.data?.skip_zero_amount_payroll,
 });
 
 const onSubmit = async (event) => {
@@ -45,6 +46,7 @@ const onSubmit = async (event) => {
     account_number: String(event.data.account_number),
     routing_number: String(event.data.routing_number),
     bank_name: event.data.bank_name,
+    skip_zero_amount_payroll: !!event.data.skip_zero_amount_payroll,
   };
 
   try {
@@ -90,7 +92,9 @@ watch(
   () => props.data,
   (newVal) => {
     if (newVal) {
-      Object.assign(state, newVal);
+      Object.assign(state, newVal, {
+        skip_zero_amount_payroll: !!newVal.skip_zero_amount_payroll,
+      });
     }
   },
   { immediate: true, deep: true },
@@ -154,6 +158,14 @@ watch(
             size="lg"
             type="text"
             class="w-full"
+          />
+        </UFormField>
+
+        <UFormField name="skip_zero_amount_payroll">
+          <UCheckbox
+            v-model="state.skip_zero_amount_payroll"
+            label="Skip students with a $0 payroll amount"
+            description="When enabled, students who don't qualify for any pay in a payroll run are skipped instead of getting a $0 check/deposit."
           />
         </UFormField>
 

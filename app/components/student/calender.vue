@@ -5,16 +5,40 @@ import {
   G2Hnumber,
   H2G,
 } from "~/common/Gregorian_to_Hebrew.js";
+import { formatActualTime } from "~/common/common.js";
 
 const props = defineProps({
   items: {
     type: Array,
     default: () => [],
   },
+  initialYear: {
+    type: [Number, String],
+    default: null,
+  },
+  initialMonth: {
+    type: [Number, String],
+    default: null,
+  },
 });
+
+const emit = defineEmits(["select-session", "reload"]);
 
 const weeks = ref([]);
 const today = new Date();
+const firstDate = ref(null);
+const lastDate = ref(null);
+
+function notifyRange() {
+  if (firstDate.value && lastDate.value) {
+    emit("reload", {
+      from: firstDate.value,
+      to: lastDate.value,
+      year: hYear.value,
+      month: hMonth.value,
+    });
+  }
+}
 
 const hebrewMonthNames = [
   "תשרי",
@@ -43,8 +67,8 @@ function hebrew_date_array(date) {
 }
 
 const hebrewToday = hebrew_date_array(today);
-const hYear = ref(hebrewToday.year);
-const hMonth = ref(hebrewToday.month);
+const hYear = ref(props.initialYear ?? hebrewToday.year);
+const hMonth = ref(props.initialMonth ?? hebrewToday.month);
 
 function month_year() {
   return `${hebrewMonthNames[hMonth.value - 1]} ${FormatYear(hYear.value)}`;
@@ -56,6 +80,45 @@ function findFirstHebrewMonthDay() {
 
 function getDataForDay(day) {
   return props.items.find((i) => i.day === day) || null;
+}
+
+function findSession(dayData, sessionNum) {
+  return (dayData?.sessions || []).find((s) => s.session === sessionNum) || null;
+}
+
+function timestampToSeconds(timestamp) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp.replace(" ", "T"));
+  return isNaN(date.getTime())
+    ? null
+    : date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+}
+
+// When a session's current in/out differs from the actual device-punch time
+// (i.e. it was later edited by an admin or an approved correction request),
+// return the original time to show as a tooltip.
+function editedInfo(dayData, sessionNum) {
+  const s = findSession(dayData, sessionNum);
+  if (!s) return null;
+
+  const inEdited = s.actual_in != null && s.in != null && timestampToSeconds(s.actual_in) !== s.in;
+  const outEdited = s.actual_out != null && s.out != null && timestampToSeconds(s.actual_out) !== s.out;
+
+  if (!inEdited && !outEdited) return null;
+
+  const parts = [];
+  if (inEdited) parts.push(`In: ${formatActualTime(s.actual_in)}`);
+  if (outEdited) parts.push(`Out: ${formatActualTime(s.actual_out)}`);
+
+  return `Originally punched — ${parts.join(", ")}`;
+}
+
+function selectSession(day, sessionNum) {
+  const session = findSession(day.data, sessionNum);
+
+  if (!session) return;
+
+  emit("select-session", { day: day.date, session });
 }
 
 function generateCalendar() {
@@ -106,16 +169,24 @@ function generateCalendar() {
   }
 
   weeks.value = weeksArr;
+
+  // Month-basis range: first day of current Hebrew month to the day before the next Hebrew month
+  firstDate.value = formatDate(firstDay);
+  const lastDay = new Date(currentDate);
+  lastDay.setDate(lastDay.getDate() - 1);
+  lastDate.value = formatDate(lastDay);
 }
 
 function prevMonth() {
   hMonth.value === 1 ? ((hMonth.value = 13), hYear.value--) : hMonth.value--;
   generateCalendar();
+  notifyRange();
 }
 
 function nextMonth() {
   hMonth.value === 13 ? ((hMonth.value = 1), hYear.value++) : hMonth.value++;
   generateCalendar();
+  notifyRange();
 }
 
 function g2h(date) {
@@ -201,19 +272,39 @@ watch(() => props.items, generateCalendar, { deep: true });
                 v-if="day.data"
                 class="mt-2 text-[10px] sm:text-xs p-2 space-y-1 flex flex-col items-center justify-center gap-1"
               >
-                <div class="bg-blue-50 rounded">
+                <div
+                  v-if="day.data.has_morning"
+                  class="bg-blue-50 rounded cursor-pointer hover:bg-blue-100"
+                  @click="selectSession(day, 1)"
+                >
                   <span class="ml-1 text-gray-900">
                     {{ day.data.morning_in }} – {{ day.data.morning_out }} |
                     {{ day.data.retzifus_morning }} |
                     {{ day.data.total_morning }}
+                    <UIcon
+                      v-if="editedInfo(day.data, 1)"
+                      name="i-lucide-pencil"
+                      class="text-amber-600 align-text-top"
+                      :title="editedInfo(day.data, 1)"
+                    />
                   </span>
                 </div>
 
-                <div class="bg-blue-50 rounded">
+                <div
+                  v-if="day.data.has_afternoon"
+                  class="bg-blue-50 rounded cursor-pointer hover:bg-blue-100"
+                  @click="selectSession(day, 2)"
+                >
                   <span class="ml-1 text-gray-900">
                     {{ day.data.afternoon_in }} – {{ day.data.afternoon_out }} |
                     {{ day.data.retzifus_evening }} |
                     {{ day.data.total_afternoon }}
+                    <UIcon
+                      v-if="editedInfo(day.data, 2)"
+                      name="i-lucide-pencil"
+                      class="text-amber-600 align-text-top"
+                      :title="editedInfo(day.data, 2)"
+                    />
                   </span>
                 </div>
               </div>

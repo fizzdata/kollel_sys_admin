@@ -5,23 +5,18 @@ import {
   getLocalTimeZone,
   Time,
 } from "@internationalized/date";
-import { object, string, number } from "yup";
-import {
-  convertTo24Hour,
-  secondsToAmPm,
-  secondsToPercent,
-} from "~/common/common";
+import { secondsToAmPm, secondsToPercent } from "~/common/common";
 
 definePageMeta({
   layout: "sidebar",
   middleware: ["auth"],
 });
 const open = ref(false);
-const datePickerOpen = ref(false);
 const clockingsData = ref([]);
 const studentsData = ref([]);
 const isActive = ref(false);
 const CreateClockingModal = ref(false);
+const clockingFormModal = ref(null);
 const toast = useToast();
 const pagination = ref({
   currentPage: 1,
@@ -33,8 +28,8 @@ const df = new DateFormatter("en-US", {
   dateStyle: "medium",
 });
 
-const isSubmitting = ref(false);
 const isImporting = ref(false);
+const exporting = ref(false);
 const loading = ref(false);
 const ImportClockingModal = ref(false);
 const file = ref(null);
@@ -89,45 +84,6 @@ const goToNextPage = async () => {
     );
   }
 };
-
-const state = reactive({
-  id: undefined,
-  student_id: undefined,
-  day: undefined,
-  in: undefined,
-  out: undefined,
-  user: undefined,
-});
-
-const resetClockingForm = () => {
-  state.id = undefined;
-  state.student_id = undefined;
-  state.day = undefined;
-  state.in = undefined;
-  state.out = undefined;
-  state.user = undefined;
-};
-
-const schema = object({
-  student_id: number()
-    .typeError("User is required") // ensures number, not string
-    .required("User is required"),
-  day: string()
-    .matches(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
-    .required("Date is required"),
-  in: string()
-    .matches(
-      /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/,
-      "In Time must be HH:mm:ss",
-    )
-    .required("In Time is required"),
-  out: string()
-    .matches(
-      /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/,
-      "Out Time must be HH:mm:ss",
-    )
-    .required("Out Time is required"),
-});
 
 const clockingsColumns = [
   { accessorKey: "day", header: "Date" },
@@ -319,90 +275,27 @@ const fetchClockings = async (date, page = 1) => {
   }
 };
 
-const onSubmit = async (event) => {
-  isSubmitting.value = true;
-
-  const endpoint = state?.id ? `/api/clockings/${state.id}` : `/api/clockings`;
-  const method = state?.id ? "PUT" : "POST";
-
-  const payload = state?.id
-    ? {
-        in: event.data.in,
-        out: event.data.out,
-      }
-    : {
-        in: event.data.in,
-        out: event.data.out,
-        student_id: event.data.student_id,
-        day: event.data.day,
-      };
-
-  try {
-    const response = await api(endpoint, {
-      method: method,
-      body: payload,
-    });
-
-    if (response?.success) {
-      toast.add({
-        title: "Success",
-        description: response?.message
-          ? response?.message
-          : state.id
-            ? "Successfully Updated"
-            : "Successfully Created",
-        color: "success",
-        duration: 2000,
-      });
-      state.id = undefined;
-      CreateClockingModal.value = false;
-      await fetchClockings(
-        {
-          date_from: calendarRange.value.start?.toString(),
-          date_to: calendarRange.value.end?.toString(),
-        },
-        1,
-      );
-      resetClockingForm();
-    } else {
-      toast.add({
-        title: "Failed",
-        description:
-          response?.message ||
-          response?._data?.message ||
-          "Something went wrong. Please try again.",
-        color: "error",
-      });
-    }
-  } catch (error) {
-    console.error("Submission error:", error);
-    toast.add({
-      title: "Error",
-      description: "An unexpected error occurred. Please try again later.",
-      color: "error",
-    });
-  } finally {
-    isSubmitting.value = false;
-  }
+const onClockingSaved = async () => {
+  await fetchClockings(
+    {
+      date_from: calendarRange.value.start?.toString(),
+      date_to: calendarRange.value.end?.toString(),
+    },
+    1,
+  );
 };
 
 const editClocking = (clock, type) => {
-  state.id = clock.student_id;
-  state.student_id = clock.student_id;
-  state.day = clock.day;
-
-  const userName =
+  const sessionNum = type === "morning" ? 1 : 2;
+  const session = clock.clocking?.find((s) => s.session === sessionNum) || null;
+  const label =
     clock.first_yiddish_name + " " + clock.last_yiddish_name + " " + clock.day;
-  state.user = userName;
-  if (type === "morning") {
-    state.in = convertTo24Hour(clock.morning_in);
-    state.out = convertTo24Hour(clock.morning_out);
-  } else if (type === "evening") {
-    state.in = convertTo24Hour(clock.afternoon_in);
-    state.out = convertTo24Hour(clock.afternoon_out);
-  }
 
-  CreateClockingModal.value = true;
+  clockingFormModal.value?.open(
+    { ...session, student_id: clock.student_id },
+    clock.day,
+    label,
+  );
 };
 
 const importClockings = async (formData) => {
@@ -480,6 +373,54 @@ const exportToPDF = async () => {
   }
 };
 
+const exportToExcel = async () => {
+  const fromDateStr = calendarRange.value.start?.toString();
+  const toDateStr = calendarRange.value.end?.toString();
+
+  if (!fromDateStr || !toDateStr) {
+    toast.add({
+      title: "Error",
+      description: "Please select a valid date range for export",
+      color: "error",
+    });
+    return;
+  }
+
+  exporting.value = true;
+  try {
+    const response = await api(
+      `/api/clockings/export?from_date=${fromDateStr}&to_date=${toDateStr}`,
+    );
+
+    const blob = new Blob([response], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clockings_export_${fromDateStr}_to_${toDateStr}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.add({
+      title: "Success",
+      description: "Export completed successfully",
+      color: "success",
+    });
+  } catch (error) {
+    console.error("Export to Excel error:", error);
+    toast.add({
+      title: "Error",
+      description: "Failed to export clockings",
+      color: "error",
+    });
+  } finally {
+    exporting.value = false;
+  }
+};
+
 onMounted(async () => {
   await fetchStudents();
   await fetchPendingRequestsCount();
@@ -532,12 +473,7 @@ watch(
 
       <div class="flex flex-wrap gap-2 sm:gap-2 sm:justify-end">
         <UButton
-          @click="
-            () => {
-              CreateClockingModal = true;
-              state.id = undefined;
-            }
-          "
+          @click="clockingFormModal?.open()"
           icon="i-lucide-plus"
           label="Create New Clockings"
           color="primary"
@@ -554,6 +490,13 @@ watch(
           icon="i-lucide-file-text"
           label="Export to PDF"
           @click="exportToPDF"
+        />
+
+        <UButton
+          icon="i-lucide-file-spreadsheet"
+          label="Export to Excel"
+          :loading="exporting"
+          @click="exportToExcel"
         />
       </div>
     </div>
@@ -664,123 +607,13 @@ watch(
       </div>
     </div>
   </UCard>
-  <!-- Modal for Create New User -->
-  <UModal v-model:open="CreateClockingModal" :dismissible="false">
-    <!-- Custom Header -->
-    <template #header>
-      <div class="flex justify-between w-full">
-        <h2 class="text-xl font-bold text-primary">
-          {{ state?.id ? "Edit: " + state.user : "Create New Clockings" }}
-        </h2>
-
-        <!-- Close Button -->
-        <UButton
-          size="sm"
-          variant="outline"
-          color="primary"
-          class="rounded-full p-2"
-          icon="i-lucide-x"
-          @click="
-            () => {
-              CreateClockingModal = false;
-              resetClockingForm();
-            }
-          "
-        />
-      </div>
-    </template>
-    <!-- :schema="schema" -->
-    <template #body>
-      <UForm
-        :schema="schema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-      >
-        <div v-if="!state.id" class="flex flex-col gap-4">
-          <UFormField label="Student" name="student_id" required>
-            <USelect
-              v-model.number="state.student_id"
-              :items="studentsData"
-              class="w-full"
-              size="lg"
-              placeholder="Select Student"
-              required
-            />
-          </UFormField>
-          <UFormField label="Day" name="day">
-            <UPopover class="w-full" v-model:open="datePickerOpen" required>
-              <UButton
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-calendar"
-                size="lg"
-              >
-                {{
-                  state?.day
-                    ? df.format(state?.day.toDate(getLocalTimeZone()))
-                    : "Select a date"
-                }}
-              </UButton>
-
-              <template #content>
-                <UCalendar
-                  v-model="state.day"
-                  class="p-2"
-                  @update:model-value="datePickerOpen = false"
-                />
-              </template>
-            </UPopover>
-          </UFormField>
-        </div>
-        <div class="grid grid-cols-2 mb-6 place-items-center">
-          <UFormField label="In" class="flex gap-4 items-center" required>
-            <UInput
-              v-model="state.in"
-              type="time"
-              step="1"
-              class="w-full"
-              size="lg"
-              required
-            />
-          </UFormField>
-
-          <UFormField label="Out" class="flex gap-4 items-center" required>
-            <UInput
-              v-model="state.out"
-              type="time"
-              step="1"
-              class="w-full"
-              size="lg"
-              required
-            />
-          </UFormField>
-        </div>
-        <div
-          class="flex justify-end items-center gap-2 mt-4 border-t border-gray-200 pt-4"
-        >
-          <UButton
-            color="neutral"
-            variant="solid"
-            label="Cancel"
-            @click="
-              () => {
-                CreateClockingModal = false;
-                resetClockingForm();
-              }
-            "
-          />
-
-          <UButton
-            type="submit"
-            :loading="isSubmitting"
-            :disabled="isSubmitting"
-            :label="state?.id ? 'Edit Clockings' : 'Create Clockings'"
-          />
-        </div>
-      </UForm>
-    </template>
-  </UModal>
+  <!-- Create/Edit Clocking Modal -->
+  <CommonClockingFormModal
+    v-model="CreateClockingModal"
+    ref="clockingFormModal"
+    :students-data="studentsData"
+    @saved="onClockingSaved"
+  />
 
   <!-- Import Clockings Modal -->
   <CommonClockingsImportModal

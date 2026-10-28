@@ -20,6 +20,13 @@ const clockingsData = ref([]);
 const transactionsData = ref([]);
 const responsesData = ref([]);
 const checksData = ref([]);
+const questionsById = ref({});
+
+const clockingFormModal = ref(null);
+const clockingFormModalOpen = ref(false);
+
+const responseEditModalOpen = ref(false);
+const selectedResponse = ref(null);
 
 const tabs = [
   { label: "Clockings", key: "clockings", icon: "i-lucide-clock" },
@@ -39,20 +46,27 @@ const normalizeClockings = (clockings) => {
 
     const row = {
       day: dayEntry.day,
+      sessions,
 
+      has_morning: false,
       morning_in: "-",
       morning_out: "-",
       retzifus_morning: "-",
       total_morning: "-",
 
+      has_afternoon: false,
       afternoon_in: "-",
       afternoon_out: "-",
       retzifus_evening: "-",
       total_afternoon: "-",
     };
 
+    // No entry for a session number means daily_session had nothing scheduled
+    // that day for it, so the calendar should render no row at all (vs. a
+    // scheduled-but-unpunched session, which still comes back as an entry).
     sessions.forEach((s) => {
       if (s.session === 1) {
+        row.has_morning = true;
         row.morning_in = secondsToAmPm(s.in);
         row.morning_out = secondsToAmPm(s.out);
         row.retzifus_morning = s.retzifus === 0 ? "NO" : "-";
@@ -60,6 +74,7 @@ const normalizeClockings = (clockings) => {
       }
 
       if (s.session === 2) {
+        row.has_afternoon = true;
         row.afternoon_in = secondsToAmPm(s.in);
         row.afternoon_out = secondsToAmPm(s.out);
         row.retzifus_evening = s.retzifus === 0 ? "NO" : "-";
@@ -71,13 +86,27 @@ const normalizeClockings = (clockings) => {
   });
 };
 
-const fetchStudentDetail = async (refresh = false) => {
+const clockingRange = ref(null);
+const calendarYear = ref(null);
+const calendarMonth = ref(null);
+
+const fetchStudentDetail = async (refresh = false, range = null) => {
   try {
     if (refresh) {
       loading.value = true;
     }
 
-    const response = await api(`/api/students/${studentId}`);
+    const activeRange = range || clockingRange.value;
+    if (activeRange?.from && activeRange?.to) {
+      clockingRange.value = activeRange;
+    }
+
+    const response = await api(`/api/students/${studentId}`, {
+      query:
+        activeRange?.from && activeRange?.to
+          ? { from: activeRange.from, to: activeRange.to }
+          : {},
+    });
 
     if (response) {
       student.value = response;
@@ -85,6 +114,9 @@ const fetchStudentDetail = async (refresh = false) => {
       transactionsData.value = response?.transactions;
       responsesData.value = response?.Student_responses;
       checksData.value = response?.checks;
+      questionsById.value = Object.fromEntries(
+        (response?.clocking_questions || []).map((q) => [q.id, q]),
+      );
     }
   } catch (err) {
     console.log("🚀 ~ fetchStudentDetail ~ err:", err);
@@ -101,6 +133,39 @@ const fetchStudentDetail = async (refresh = false) => {
 };
 
 const onSubmit = async () => {
+  await fetchStudentDetail(true);
+};
+
+const openClockingModal = ({ day, session }) => {
+  const name =
+    student.value?.Student?.first_yiddish_name +
+    " " +
+    student.value?.Student?.last_yiddish_name;
+
+  clockingFormModal.value?.open(session, day, `${name} ${day}`);
+};
+
+const onClockingSaved = async () => {
+  await fetchStudentDetail(true);
+};
+
+const onClockingRangeChange = async (range) => {
+  if (range?.year != null) calendarYear.value = range.year;
+  if (range?.month != null) calendarMonth.value = range.month;
+
+  // Don't pass refresh=true here: that drives the page's top-level
+  // v-if="loading" / v-else-if="student" switch, which unmounts
+  // <StudentCalender> and loses its in-progress hYear/hMonth navigation.
+  await fetchStudentDetail(false, range);
+};
+
+const openResponseEditModal = (response) => {
+  selectedResponse.value = response;
+  responseEditModalOpen.value = true;
+};
+
+const onResponseSaved = async () => {
+  responseEditModalOpen.value = false;
   await fetchStudentDetail(true);
 };
 
@@ -162,7 +227,26 @@ const checksColumns = [
 const responsesColumns = [
   { accessorKey: "date", header: "Date" },
   { accessorKey: "question", header: "Question" },
-  { accessorKey: "answer", header: "Answer" },
+  { accessorKey: "response", header: "Answer" },
+  {
+    accessorKey: "id",
+    header: "",
+    cell: ({ row }) =>
+      h(
+        resolveComponent("UTooltip"),
+        { text: "Edit response" },
+        {
+          default: () =>
+            h(resolveComponent("UButton"), {
+              icon: "i-lucide-square-pen",
+              size: "md",
+              color: "success",
+              variant: "soft",
+              onClick: () => openResponseEditModal(row.original),
+            }),
+        },
+      ),
+  },
 ];
 
 const handleEditClick = (student) => {
@@ -364,6 +448,18 @@ onMounted(async () => {
                 {{ student?.Student?.address }}
               </p>
               <p>
+                <span class="font-medium">City & State:</span>
+                {{ student?.Student?.city_state }}
+              </p>
+              <p>
+                <span class="font-medium">Zip:</span>
+                {{ student?.Student?.zip }}
+              </p>
+              <p>
+                <span class="font-medium">Email:</span>
+                {{ student?.Student?.email }}
+              </p>
+              <p>
                 <span class="font-medium">Wage Group:</span>
                 {{ student?.wage_group?.map((group) => group.name).join(", ") }}
               </p>
@@ -496,7 +592,13 @@ onMounted(async () => {
       <UTabs v-model="activeTab" :items="tabs" class="mt-6" />
 
       <UCard v-if="activeTab === '0'" class="rounded-2xl shadow-sm mt-6">
-        <StudentCalender :items="clockingsData" />
+        <StudentCalender
+          :items="clockingsData"
+          :initial-year="calendarYear"
+          :initial-month="calendarMonth"
+          @select-session="openClockingModal"
+          @reload="onClockingRangeChange"
+        />
       </UCard>
 
       <UCard v-if="activeTab === '1'" class="rounded-2xl shadow-sm mt-6">
@@ -552,6 +654,20 @@ onMounted(async () => {
       :selectedStudent="selectedStudent"
       @submit="onSubmit"
       @cancel="handleCancel"
+    />
+
+    <CommonClockingFormModal
+      v-model="clockingFormModalOpen"
+      ref="clockingFormModal"
+      :student-id="Number(studentId)"
+      @saved="onClockingSaved"
+    />
+
+    <CommonStudentResponseEditModal
+      v-model="responseEditModalOpen"
+      :response="selectedResponse"
+      :questions-by-id="questionsById"
+      @saved="onResponseSaved"
     />
   </div>
 </template>

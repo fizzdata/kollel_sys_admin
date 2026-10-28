@@ -170,10 +170,10 @@ watch(
                   {{ item.rule.amount_type === "fixed" ? "dollars" : "%" }}
                   ({{ item.rule.apply_once ? "once" : "each time" }})
                   <span
-                    v-if="item.rule.effective_from || item.rule.effective_until"
+                    v-if="item.rule.is_weekly || item.rule.effective_from || item.rule.effective_until"
                     class="text-xs text-gray-400"
                   >
-                    [active {{ item.window?.from }} – {{ item.window?.till }}]
+                    [{{ item.window?.from }} – {{ item.window?.till }}]
                   </span>
                 </li>
               </ul>

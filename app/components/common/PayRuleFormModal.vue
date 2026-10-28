@@ -1,5 +1,5 @@
 <script setup>
-import { object, string, number, array } from "yup";
+import { object, string, number, array, boolean } from "yup";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -51,6 +51,8 @@ const blankCondition = () => ({
   reference_id: "",
   session: [],
   days_of_week: [],
+  y_operator: "",
+  y_value: "",
 });
 
 const conditionSchema = object({
@@ -63,6 +65,8 @@ const conditionSchema = object({
     .min(1, "Session is required")
     .required("Session is required"),
   days_of_week: array().of(number()).nullable(),
+  y_operator: string().nullable(),
+  y_value: string().nullable(),
 });
 
 const schema = object({
@@ -79,6 +83,7 @@ const schema = object({
     .required("Amount is required")
     .min(0, "Amount cannot be negative"),
   apply_once: string().required("Apply Rules is required"),
+  is_weekly: boolean().default(false),
   y_operator: string().nullable(),
   y_value: string().nullable(),
   effective_from: string().nullable(),
@@ -99,6 +104,7 @@ const blankState = () => ({
   amount_type: "",
   amount: "",
   apply_once: "",
+  is_weekly: false,
   y_operator: "",
   y_value: "",
   effective_from: "",
@@ -146,11 +152,17 @@ const answerOptionsFor = (condition) => {
     }));
 };
 
-const addCondition = () => state.conditions.push(blankCondition());
+const conditionAdvancedOpen = ref([false]);
+
+const addCondition = () => {
+  state.conditions.push(blankCondition());
+  conditionAdvancedOpen.value.push(false);
+};
 
 const removeCondition = (index) => {
   if (state.conditions.length > 1) {
     state.conditions.splice(index, 1);
+    conditionAdvancedOpen.value.splice(index, 1);
   }
 };
 
@@ -183,16 +195,23 @@ const populateFromRule = (rule) => {
     reference_id: condition.reference_id ?? "",
     session: sessionsFromBackend(condition.session),
     days_of_week: condition.days_of_week ?? [],
+    y_operator: condition.y_operator ?? "",
+    y_value: condition.y_value ?? "",
   }));
 
   if (!state.conditions.length) {
     state.conditions = [blankCondition()];
   }
 
+  conditionAdvancedOpen.value = state.conditions.map((condition) =>
+    Boolean(condition.days_of_week?.length || condition.y_value),
+  );
+
   state.is_deduction = rule.is_deduction === 1 || rule.is_deduction === true;
   state.amount_type = rule.amount_type;
   state.amount = rule.amount;
   state.apply_once = Number(rule.apply_once) ? "Apply Once" : "Each Time";
+  state.is_weekly = Boolean(Number(rule.is_weekly));
   state.y_operator = rule.y_operator ?? "";
   state.y_value = rule.y_value ?? "";
   state.effective_from = rule.effective_from
@@ -202,14 +221,13 @@ const populateFromRule = (rule) => {
     ? rule.effective_until.slice(0, 10)
     : "";
   state.group_ids = normalizeGroupIds(rule.group_ids);
-  advancedOpen.value = Boolean(
-    state.y_value || state.effective_from || state.effective_until,
-  );
+  advancedOpen.value = Boolean(state.effective_from || state.effective_until);
 };
 
 const resetForm = () => {
   Object.assign(state, blankState());
   advancedOpen.value = false;
+  conditionAdvancedOpen.value = [false];
 };
 
 watch(
@@ -307,11 +325,14 @@ const buildPayload = (data) => ({
       condition.metric === "answered_question"
         ? condition.reference_id || null
         : null,
+    y_operator: condition.y_operator || null,
+    y_value: condition.y_value || null,
   })),
   is_deduction: data.is_deduction === true || data.is_deduction === "true",
   amount_type: data.amount_type,
   amount: data.amount,
   apply_once: data.apply_once === "Apply Once",
+  is_weekly: Boolean(data.is_weekly),
   y_operator: data.y_operator || null,
   y_value: data.y_value || null,
   effective_from: data.effective_from || null,
@@ -498,22 +519,72 @@ const close = () => emit("update:modelValue", false);
                     size="lg"
                   />
                 </UFormField>
-                <UFormField
-                  v-if="condition.metric !== 'session_time_percentage'"
-                  label="Days of Week"
-                  :name="`conditions[${index}].days_of_week`"
-                  hint="Optional — leave empty to match any day"
-                  class="col-span-2"
+                <UCollapsible
+                  v-model:open="conditionAdvancedOpen[index]"
+                  class="col-span-2 border-t border-gray-200 dark:border-gray-800 pt-3 mt-1"
                 >
-                  <USelect
-                    v-model="condition.days_of_week"
-                    :items="daysOfWeekOptions"
-                    multiple
-                    placeholder="Any day"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between text-left"
+                  >
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      Advanced (optional)
+                    </span>
+                    <UIcon
+                      :name="
+                        conditionAdvancedOpen[index]
+                          ? 'i-lucide-chevron-up'
+                          : 'i-lucide-chevron-down'
+                      "
+                      class="size-4 shrink-0"
+                    />
+                  </button>
+                  <template #content>
+                    <div class="grid grid-cols-2 gap-4 pt-3">
+                      <UFormField
+                        v-if="condition.metric !== 'session_time_percentage'"
+                        label="Days of Week"
+                        :name="`conditions[${index}].days_of_week`"
+                        hint="Optional — leave empty to match any day"
+                        class="col-span-2"
+                      >
+                        <USelect
+                          v-model="condition.days_of_week"
+                          :items="daysOfWeekOptions"
+                          multiple
+                          placeholder="Any day"
+                          class="w-full"
+                          size="lg"
+                        />
+                      </UFormField>
+                      <UFormField
+                        label="Only count after it happens"
+                        :name="`conditions[${index}].y_operator`"
+                        help="Leave blank to count every match of this condition"
+                      >
+                        <USelect
+                          v-model="condition.y_operator"
+                          :items="operatorOptions"
+                          placeholder="Matched at least once"
+                          class="w-full"
+                          size="lg"
+                        />
+                      </UFormField>
+                      <UFormField
+                        label="Number of times"
+                        :name="`conditions[${index}].y_value`"
+                      >
+                        <UInput
+                          v-model="condition.y_value"
+                          placeholder="Enter threshold"
+                          class="w-full"
+                          type="number"
+                          size="lg"
+                        />
+                      </UFormField>
+                    </div>
+                  </template>
+                </UCollapsible>
               </div>
             </div>
 
@@ -570,6 +641,14 @@ const close = () => emit("update:modelValue", false);
                   orientation="horizontal"
                 />
               </UFormField>
+              <UFormField
+                label="Evaluation period"
+                name="is_weekly"
+                description="Weekly rules reset thresholds and Apply Once each Sunday-Saturday week. Partial weeks use only dates in the payroll period."
+                class="col-span-2"
+              >
+                <UCheckbox v-model="state.is_weekly" label="Evaluate weekly" />
+              </UFormField>
               <UFormField label="How often to apply" name="apply_once" required>
                 <URadioGroup
                   v-model="state.apply_once"
@@ -614,7 +693,7 @@ const close = () => emit("update:modelValue", false);
                   3. Advanced settings (optional)
                 </span>
                 <span class="text-sm text-gray-500">
-                  Repeat threshold &amp; date range — most rules don't need this
+                  Date range — most rules don't need this
                 </span>
               </span>
               <UIcon
@@ -624,28 +703,6 @@ const close = () => emit("update:modelValue", false);
             </button>
             <template #content>
               <div class="grid grid-cols-2 gap-4 pt-4">
-                <UFormField
-                  label="Only apply after it happens"
-                  name="y_operator"
-                  help="Leave blank to apply every time the condition matches"
-                >
-                  <USelect
-                    v-model="state.y_operator"
-                    :items="operatorOptions"
-                    placeholder="Matched at least once"
-                    class="w-full"
-                    size="lg"
-                  />
-                </UFormField>
-                <UFormField label="Number of times" name="y_value">
-                  <UInput
-                    v-model="state.y_value"
-                    placeholder="Enter threshold"
-                    class="w-full"
-                    type="number"
-                    size="lg"
-                  />
-                </UFormField>
                 <UFormField label="Effective From" name="effective_from" hint="Optional">
                   <UInput
                     v-model="state.effective_from"

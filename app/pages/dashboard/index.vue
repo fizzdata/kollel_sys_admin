@@ -8,6 +8,9 @@ const api = useApi();
 const dashboardData = ref(null);
 const loading = ref(true);
 const toast = useToast();
+const usersInModalOpen = ref(false);
+const usersInList = ref([]);
+const usersInLoading = ref(false);
 // Fetch dashboard data
 const fetchDashboard = async () => {
   try {
@@ -30,6 +33,31 @@ const fetchDashboard = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const fetchUsersIn = async () => {
+  try {
+    usersInLoading.value = true;
+    const response = await api("/api/dashboard/users-in", { method: "GET" });
+
+    if (response?.success) {
+      usersInList.value = response.users || [];
+    }
+  } catch (error) {
+    console.error("Error fetching users in:", error);
+    toast.add({
+      title: "Error",
+      description: "Unable to load currently clocked-in students.",
+      color: "error",
+    });
+  } finally {
+    usersInLoading.value = false;
+  }
+};
+
+const openUsersInModal = () => {
+  usersInModalOpen.value = true;
+  fetchUsersIn();
 };
 
 // Helper to format time from seconds
@@ -103,11 +131,28 @@ const alerts = computed(() => {
   if (!dashboardData.value?.alerts) return [];
 
   return dashboardData.value.alerts.map((alert) => ({
+    id: alert.id,
     title: alert.title,
     message: alert.message,
     timestamp: alert.created_at,
   }));
 });
+
+const dismissAlert = async (alert) => {
+  try {
+    await api(`/api/alerts/${alert.id}/dismiss`, { method: "POST" });
+    dashboardData.value.alerts = dashboardData.value.alerts.filter(
+      (a) => a.id !== alert.id,
+    );
+  } catch (error) {
+    console.error("Error dismissing alert:", error);
+    toast.add({
+      title: "Error",
+      description: "Couldn't dismiss alert.",
+      color: "error",
+    });
+  }
+};
 
 // Fetch data on mount
 onMounted(() => {
@@ -196,9 +241,18 @@ onMounted(() => {
             <ul v-if="alerts.length > 0" class="space-y-4">
               <li
                 v-for="alert in alerts"
-                :key="alert.title"
-                class="rounded-xl bg-amber-50 p-3 border-l-4 border-amber-400"
+                :key="alert.id"
+                class="relative rounded-xl bg-amber-50 p-3 pr-8 border-l-4 border-amber-400"
               >
+                <UButton
+                  icon="i-lucide-x"
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                  class="absolute top-2 right-2"
+                  aria-label="Dismiss alert"
+                  @click="dismissAlert(alert)"
+                />
                 <p class="text-sm font-semibold text-amber-900">
                   {{ alert.title }}
                 </p>
@@ -310,8 +364,10 @@ onMounted(() => {
                   {{ dashboardData?.students_active || 0 }}
                 </p>
               </div>
-              <div
-                class="flex items-center justify-between p-3 rounded-lg bg-green-50"
+              <button
+                type="button"
+                class="flex items-center justify-between p-3 rounded-lg bg-green-50 w-full text-left cursor-pointer hover:bg-green-100 transition-colors"
+                @click="openUsersInModal"
               >
                 <div>
                   <p class="text-sm font-semibold text-green-900">
@@ -322,7 +378,7 @@ onMounted(() => {
                 <p class="text-2xl font-bold text-green-900">
                   {{ dashboardData?.students_in || 0 }}
                 </p>
-              </div>
+              </button>
               <div
                 class="flex items-center justify-between p-3 rounded-lg bg-purple-50"
               >
@@ -341,5 +397,11 @@ onMounted(() => {
         </UCard>
       </div>
     </div>
+
+    <CommonUsersInModal
+      v-model="usersInModalOpen"
+      :users="usersInList"
+      :loading="usersInLoading"
+    />
   </div>
 </template>

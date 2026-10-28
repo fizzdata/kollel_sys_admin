@@ -55,13 +55,7 @@ const settings = ref(null);
 const allStudentsData = ref([]);
 const fetchingAllStudents = ref(false);
 const selectedStudentForAction = ref(null);
-const singleStudentCheckModal = ref(false);
-const singleStudentDepositModal = ref(false);
-const processCheckSingleStudentLoading = ref(false);
-const processDepositSingleStudentLoading = ref(false);
-const studentPreviewModal = ref(false);
-const fetchingStudentPreview = ref(false);
-const studentPreviewData = ref([]);
+const studentProcessModal = ref(false);
 
 const pdfCheckModal = ref(false);
 const pdfChecks = ref([]);
@@ -74,12 +68,25 @@ const metricOptions = ref([]);
 const fetchingRulesOptions = ref(false);
 const isRuleSubmitting = ref(false);
 
+// Auto Group Moves tab
+const transitionRules = ref([]);
+const fetchingTransitionRules = ref(false);
+const transitionLogs = ref([]);
+const fetchingTransitionLogs = ref(false);
+const editingTransitionRule = ref(null);
+const transitionRuleModalOpen = ref(false);
+const isTransitionRuleSubmitting = ref(false);
+const transitionRuleDeleteModal = ref(false);
+const deleteTransitionRuleId = ref(null);
+const runningAutoMoveNow = ref(false);
+
 const tabs = [
   { label: "Recent Payroll", key: "recent-payroll" },
   { label: "Groups", key: "groups" },
   { label: "All Students", key: "all-students" },
   { label: "Settings", key: "setting" },
   { label: "Rules", key: "rules" },
+  { label: "Auto Group Moves", key: "group-transitions" },
 ];
 
 // The create/edit form itself lives in CommonPayRuleFormModal; this page just
@@ -406,50 +413,18 @@ const allStudentsColumns = [
     header: "Quick Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Preview Student Button
+        // Process Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Preview Student" },
+          { text: "Process" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
-                icon: "i-lucide-user-check",
-                size: "md",
-                color: "success",
-                variant: "soft",
-                onClick: () => handleMainPagePreviewStudentClick(row.original),
-              }),
-          },
-        ),
-
-        // Process Check Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Check" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-check-square",
+                icon: "i-lucide-play",
                 size: "md",
                 color: "info",
                 variant: "soft",
-                onClick: () => handleMainPageCheckStudentClick(row.original),
-              }),
-          },
-        ),
-
-        // Process Deposit Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Deposit" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-wallet",
-                size: "md",
-                color: "warning",
-                variant: "soft",
-                onClick: () => handleMainPageDepositStudentClick(row.original),
+                onClick: () => handleMainPageProcessStudentClick(row.original),
               }),
           },
         ),
@@ -1103,6 +1078,7 @@ const updateRuleAssignments = async (rule, groupIds, successMessage) => {
     amount_type: rule.amount_type,
     amount: rule.amount,
     apply_once: Boolean(Number(rule.apply_once)),
+    is_weekly: Boolean(Number(rule.is_weekly)),
     y_operator: rule.y_operator,
     y_value: rule.y_value,
     effective_from: rule.effective_from || null,
@@ -1237,6 +1213,285 @@ const confirmDeleteRule = async () => {
     isRuleSubmitting.value = false;
   }
 };
+
+const fetchTransitionRules = async () => {
+  try {
+    fetchingTransitionRules.value = true;
+    const response = await api(`/api/payroll/group-transition-rules`);
+
+    if (response?.success) {
+      transitionRules.value = response?.rules || [];
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchTransitionRules ~ err:", err);
+    toast.add({
+      description: "Error fetching auto-move rules. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
+  } finally {
+    fetchingTransitionRules.value = false;
+  }
+};
+
+const fetchTransitionLogs = async () => {
+  try {
+    fetchingTransitionLogs.value = true;
+    const response = await api(`/api/payroll/group-transition-rules/logs`);
+
+    if (response?.success) {
+      transitionLogs.value = response?.logs?.data || [];
+    }
+  } catch (err) {
+    console.log("🚀 ~ fetchTransitionLogs ~ err:", err);
+    toast.add({
+      description: "Error fetching auto-move history. Please try again later.",
+      color: "error",
+      timeout: 3000,
+    });
+  } finally {
+    fetchingTransitionLogs.value = false;
+  }
+};
+
+const openCreateTransitionRuleModal = async () => {
+  editingTransitionRule.value = null;
+  await fetchGroups();
+  transitionRuleModalOpen.value = true;
+};
+
+const editTransitionRule = async (rule) => {
+  await fetchGroups();
+  editingTransitionRule.value = rule;
+  transitionRuleModalOpen.value = true;
+};
+
+const onTransitionRuleSubmit = async (payload) => {
+  try {
+    isTransitionRuleSubmitting.value = true;
+
+    const ruleId = editingTransitionRule.value?.id;
+    const endpoint = ruleId
+      ? `/api/payroll/group-transition-rules/${ruleId}`
+      : `/api/payroll/group-transition-rules`;
+
+    const response = await api(endpoint, {
+      method: ruleId ? "PUT" : "POST",
+      body: payload,
+    });
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description:
+          response?.message ||
+          (ruleId
+            ? "Auto-move rule updated successfully"
+            : "Auto-move rule created successfully"),
+        color: "success",
+        duration: 2000,
+      });
+
+      transitionRuleModalOpen.value = false;
+      editingTransitionRule.value = null;
+      await fetchTransitionRules();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?._data?.errors ||
+          response?._data?.message ||
+          "Failed to save auto-move rule",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Error saving auto-move rule:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while saving the rule.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    isTransitionRuleSubmitting.value = false;
+  }
+};
+
+const askDeleteTransitionRule = (rule) => {
+  deleteTransitionRuleId.value = rule.id;
+  transitionRuleDeleteModal.value = true;
+};
+
+const confirmDeleteTransitionRule = async () => {
+  try {
+    isTransitionRuleSubmitting.value = true;
+
+    const response = await api(
+      `/api/payroll/group-transition-rules/${deleteTransitionRuleId.value}`,
+      { method: "DELETE" },
+    );
+
+    if (response?.success) {
+      toast.add({
+        title: "Success",
+        description: response?.message || "Auto-move rule deleted successfully",
+        color: "success",
+        duration: 2000,
+      });
+      transitionRuleDeleteModal.value = false;
+      deleteTransitionRuleId.value = null;
+      await fetchTransitionRules();
+    } else {
+      toast.add({
+        title: "Failed",
+        description:
+          response?._data?.errors ||
+          response?._data?.message ||
+          "Failed to delete auto-move rule",
+        color: "error",
+        duration: 2000,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting auto-move rule:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while deleting the rule.",
+      color: "error",
+      duration: 2000,
+    });
+  } finally {
+    isTransitionRuleSubmitting.value = false;
+  }
+};
+
+const runAutoMoveNow = async () => {
+  try {
+    runningAutoMoveNow.value = true;
+    const response = await api(`/api/payroll/group-transition-rules/run-now`, {
+      method: "POST",
+    });
+
+    if (response?.success) {
+      const moved = response?.summary?.students_moved ?? 0;
+      toast.add({
+        title: "Success",
+        description: `Auto-move check complete — ${moved} student(s) moved`,
+        color: "success",
+        duration: 3000,
+      });
+      await fetchTransitionLogs();
+    } else {
+      toast.add({
+        title: "Failed",
+        description: response?.message || "Failed to run auto-move check",
+        color: "error",
+      });
+    }
+  } catch (error) {
+    console.error("Error running auto-move check:", error);
+    toast.add({
+      title: "Error",
+      description: "An unexpected error occurred while running the auto-move check.",
+      color: "error",
+    });
+  } finally {
+    runningAutoMoveNow.value = false;
+  }
+};
+
+const transitionRuleColumns = [
+  {
+    header: "From Group",
+    cell: ({ row }) => row.original.from_group_name || "Any",
+  },
+  {
+    header: "To Group",
+    cell: ({ row }) => row.original.to_group_name,
+  },
+  {
+    header: "After",
+    cell: ({ row }) => `${row.original.months_in_group} month(s)`,
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
+    cell: ({ row }) => row.original.description || "—",
+  },
+  {
+    header: "Status",
+    cell: ({ row }) =>
+      h(
+        resolveComponent("UBadge"),
+        {
+          color: row.original.active ? "success" : "neutral",
+          variant: "soft",
+          size: "sm",
+        },
+        () => (row.original.active ? "Active" : "Inactive"),
+      ),
+  },
+  {
+    header: "Actions",
+    cell: ({ row }) =>
+      h("div", { class: "flex gap-2 items-center justify-end" }, [
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Edit Rule" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-square-pen",
+                size: "md",
+                color: "success",
+                variant: "soft",
+                onClick: () => editTransitionRule(row.original),
+              }),
+          },
+        ),
+        h(
+          resolveComponent("UTooltip"),
+          { text: "Delete Rule" },
+          {
+            default: () =>
+              h(resolveComponent("UButton"), {
+                icon: "i-lucide-trash-2",
+                size: "md",
+                color: "error",
+                variant: "soft",
+                onClick: () => askDeleteTransitionRule(row.original),
+              }),
+          },
+        ),
+      ]),
+  },
+];
+
+const transitionLogColumns = [
+  {
+    header: "Student",
+    cell: ({ row }) =>
+      `${row.original.first_yiddish_name} ${row.original.last_yiddish_name}`,
+  },
+  {
+    header: "From Group",
+    cell: ({ row }) => row.original.from_group_name || "—",
+  },
+  {
+    header: "To Group",
+    cell: ({ row }) => row.original.to_group_name || "—",
+  },
+  {
+    header: "Months in Group",
+    cell: ({ row }) => row.original.months_in_group_at_move ?? "—",
+  },
+  {
+    header: "Moved At",
+    cell: ({ row }) => new Date(row.original.moved_at).toLocaleString(),
+  },
+];
 
 const handleAssignRuleToGroup = async (group, rule) => {
   const existingGroupIds = normalizeGroupIds(rule.group_ids);
@@ -1409,237 +1664,31 @@ const fetchAllStudents = async () => {
   }
 };
 
-// Handler for preview student on main page
-const handleMainPagePreviewStudentClick = async (student) => {
+// Handler for the single "Process" button on main page
+const handleMainPageProcessStudentClick = (student) => {
   selectedStudentForAction.value = student;
-  studentPreviewModal.value = true;
-  await fetchMainPageStudentPreview({
-    from_date: calendarRange.value.start?.toString(),
-    till_date: calendarRange.value.end?.toString(),
-  });
+  studentProcessModal.value = true;
 };
 
-// Fetch student preview data across all groups
-const fetchMainPageStudentPreview = async (data) => {
-  try {
-    if (selectedStudentForAction.value) {
-      fetchingStudentPreview.value = true;
-      const response = await api(
-        `/api/payroll/students/${selectedStudentForAction.value.id}/preview`,
-        {
-          method: "GET",
-          params: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        // Handle if response is an array or object
-        let previewArray = [];
-        if (
-          typeof response.data === "object" &&
-          !Array.isArray(response.data)
-        ) {
-          previewArray = Object.values(response.data).flatMap((item) =>
-            Array.isArray(item) ? item : Object.values(item || {}),
-          );
-        } else if (Array.isArray(response.data)) {
-          previewArray = response.data;
-        }
-        studentPreviewData.value = previewArray;
-      } else {
-        toast.add({
-          title: "Failed",
-          description: response?.message || "Failed to fetch student preview",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching student preview:", error);
+// Fired by StudentProcessModal once it has successfully created a real
+// Check/Deposit (including any manual adjustment rows the admin added).
+const onMainPageStudentProcessed = ({ outputType, response }) => {
+  if (outputType === "check") {
+    pdfChecks.value = Object.entries(response?.data || {}).map(
+      ([id, base64]) => ({
+        id,
+        url: base64ToPdfUrl(base64),
+      }),
+    );
+    pdfCheckModal.value = true;
+  } else {
     toast.add({
-      title: "Error",
-      description: "An error occurred while fetching preview",
-      color: "error",
+      title: "Success",
+      description: response?.message || "Deposit processed successfully",
+      color: "success",
       duration: 2000,
     });
-  } finally {
-    fetchingStudentPreview.value = false;
   }
-};
-
-// Date change handler for student preview
-const onMainPageStudentPreviewDateChange = async (val) => {
-  if (!val?.start || !val?.end) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchMainPageStudentPreview({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
-  });
-};
-
-// Handler for process check on main page
-const handleMainPageCheckStudentClick = async (student) => {
-  selectedStudentForAction.value = student;
-  singleStudentCheckModal.value = true;
-};
-
-// Handler for process deposit on main page
-const handleMainPageDepositStudentClick = async (student) => {
-  selectedStudentForAction.value = student;
-  singleStudentDepositModal.value = true;
-};
-
-// Process check for student across groups
-const fetchMainPageStudentCheck = async (data) => {
-  try {
-    if (selectedStudentForAction.value) {
-      processCheckSingleStudentLoading.value = true;
-
-      // Process check for student across all their groups
-      const response = await api(
-        `/api/payroll/students/${selectedStudentForAction.value.id}/process/check`,
-        {
-          method: "POST",
-          body: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-            check_date: data?.check_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        // Map API response
-        pdfChecks.value = Object.entries(response.data).map(([id, base64]) => ({
-          id,
-          url: base64ToPdfUrl(base64),
-        }));
-
-        pdfCheckModal.value = true;
-        singleStudentCheckModal.value = false;
-      } else {
-        toast.add({
-          title: "Failed",
-          description:
-            response?.message ||
-            response?._data?.errors ||
-            response?._data?.message ||
-            "Failed to process checks",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing checks:", error);
-    toast.add({
-      title: "Error",
-      description:
-        "An error occurred while processing checks. Please try again later.",
-      color: "error",
-      duration: 2000,
-    });
-  } finally {
-    processCheckSingleStudentLoading.value = false;
-  }
-};
-
-// Process deposit for student across groups
-const fetchMainPageStudentDeposit = async (data) => {
-  try {
-    if (selectedStudentForAction.value) {
-      processDepositSingleStudentLoading.value = true;
-
-      // Process deposit for student across all their groups
-      const response = await api(
-        `/api/payroll/students/${selectedStudentForAction.value.id}/process/deposit`,
-        {
-          method: "POST",
-          body: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        toast.add({
-          title: "Success",
-          description:
-            response?.message || "Student deposit processed successfully",
-          color: "success",
-          duration: 2000,
-        });
-        singleStudentDepositModal.value = false;
-      } else {
-        toast.add({
-          title: "Failed",
-          description:
-            response?.message ||
-            response?._data?.errors ||
-            response?._data?.message ||
-            "Failed to process deposit",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing deposit:", error);
-    toast.add({
-      title: "Error",
-      description: "An error occurred while processing deposit",
-      color: "error",
-      duration: 2000,
-    });
-  } finally {
-    processDepositSingleStudentLoading.value = false;
-  }
-};
-
-// Date change handlers for student modals
-const onMainPageStudentCheckDateChange = async (val) => {
-  if (!val?.from_date || !val?.till_date) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchMainPageStudentCheck({
-    from_date: val.from_date,
-    till_date: val.till_date,
-    check_date: val.check_date,
-  });
-};
-
-const onMainPageStudentDepositDateChange = async (val) => {
-  if (!val?.from_date || !val?.till_date) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchMainPageStudentDeposit({
-    from_date: val.from_date,
-    till_date: val.till_date,
-  });
 };
 
 const handleTabUpdate = (newValue) => {
@@ -1670,6 +1719,10 @@ watch(
       fetchGroups();
       fetchRules();
       rulesOptionsFetch();
+    } else if (newTab === "5") {
+      fetchGroups();
+      fetchTransitionRules();
+      fetchTransitionLogs();
     }
   },
   { immediate: true },
@@ -1691,7 +1744,9 @@ watch(
                 ? "All Students"
                 : activeTab === "3"
                   ? "Payroll Settings"
-                  : "Rules"
+                  : activeTab === "4"
+                    ? "Rules"
+                    : "Auto Group Moves"
         }}
       </h2>
 
@@ -1834,6 +1889,103 @@ watch(
       No rules found. Click <strong>Create Rule</strong> to add one.
     </div>
   </UCard>
+
+  <!-- Auto Group Moves Tab 6 -->
+  <UCard v-if="activeTab === '5'" class="rounded-2xl shadow-sm my-6">
+    <div
+      class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"
+    >
+      <h2 class="md:text-lg text-base font-bold">
+        Automatically move students between groups by tenure
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        <UButton
+          icon="i-lucide-play"
+          label="Run Now"
+          color="neutral"
+          variant="outline"
+          :loading="runningAutoMoveNow"
+          @click="runAutoMoveNow"
+        />
+        <UButton
+          icon="i-lucide-plus"
+          label="Create Rule"
+          color="primary"
+          @click="openCreateTransitionRuleModal"
+        />
+      </div>
+    </div>
+
+    <div
+      v-if="fetchingTransitionRules"
+      class="flex items-center justify-center py-10 w-full"
+    >
+      <BaseSpinner :show-loader="fetchingTransitionRules" size="md" />
+    </div>
+    <UTable
+      v-else-if="transitionRules.length"
+      :columns="transitionRuleColumns"
+      :data="transitionRules"
+      class="flex-1"
+    />
+    <div v-else class="text-center text-gray-500 mt-10">
+      No auto-move rules found. Click <strong>Create Rule</strong> to add one.
+    </div>
+
+    <h3 class="md:text-base text-sm font-bold mt-8 mb-4">Recent Auto-Moves</h3>
+    <div
+      v-if="fetchingTransitionLogs"
+      class="flex items-center justify-center py-10 w-full"
+    >
+      <BaseSpinner :show-loader="fetchingTransitionLogs" size="md" />
+    </div>
+    <UTable
+      v-else
+      :columns="transitionLogColumns"
+      :data="transitionLogs"
+      class="flex-1"
+    />
+  </UCard>
+
+  <CommonGroupTransitionRuleFormModal
+    v-model="transitionRuleModalOpen"
+    :rule="editingTransitionRule"
+    :all-groups="groups"
+    :submitting="isTransitionRuleSubmitting"
+    @submit="onTransitionRuleSubmit"
+  />
+
+  <UModal
+    v-model:open="transitionRuleDeleteModal"
+    title="Confirm Delete Rule"
+    :close="{
+      color: 'primary',
+      variant: 'outline',
+      class: 'rounded-full',
+    }"
+  >
+    <template #body>
+      <p>Are you sure you want to delete this auto-move rule?</p>
+      <div
+        class="flex gap-2 justify-end items-center border-t border-gray-200 mt-4 pt-4"
+      >
+        <UButton
+          color="neutral"
+          variant="solid"
+          label="Cancel"
+          @click="transitionRuleDeleteModal = false"
+        />
+        <UButton
+          color="error"
+          variant="solid"
+          label="Delete"
+          :loading="isTransitionRuleSubmitting"
+          :disabled="isTransitionRuleSubmitting"
+          @click="confirmDeleteTransitionRule()"
+        />
+      </div>
+    </template>
+  </UModal>
 
   <CommonPayRuleFormModal
     v-model="rulesModalOpen"
@@ -2102,48 +2254,12 @@ watch(
     </template>
   </UModal>
 
-  <!-- Single Student Processing Check Modal (Main Page) -->
-  <CommonProcessCheckDepositModal
-    v-model="singleStudentCheckModal"
-    :title="
-      selectedStudentForAction
-        ? `${selectedStudentForAction.first_yiddish_name} ${selectedStudentForAction.last_yiddish_name} : Process Checks`
-        : 'Process Checks'
-    "
-    :loading="processCheckSingleStudentLoading"
-    type="check"
-    isDescriptionRequired
-    @submit="onMainPageStudentCheckDateChange"
-  />
-
-  <!-- Single Student Processing Deposit Modal (Main Page) -->
-  <CommonProcessCheckDepositModal
-    v-model="singleStudentDepositModal"
-    :title="
-      selectedStudentForAction
-        ? `${selectedStudentForAction.first_yiddish_name} ${selectedStudentForAction.last_yiddish_name} : Process Deposit`
-        : 'Process Deposit'
-    "
-    :loading="processDepositSingleStudentLoading"
-    type="deposit"
-    isDescriptionRequired
-    @submit="onMainPageStudentDepositDateChange"
-  />
-
-  <!-- Student Preview Modal (Main Page) -->
-  <CommonRulesModal
-    v-model="studentPreviewModal"
-    :title="
-      selectedStudentForAction
-        ? `${selectedStudentForAction.first_yiddish_name} ${selectedStudentForAction.last_yiddish_name} : All Groups Preview`
-        : 'Student Preview'
-    "
-    :rules="studentPreviewData"
-    :loading="fetchingStudentPreview"
-    :metric-labels="{}"
-    :operater-labels="{}"
-    type="process"
-    @date-change="onMainPageStudentPreviewDateChange"
+  <!-- Single Student Process Modal (Main Page) -->
+  <PayrollStudentProcessModal
+    v-model="studentProcessModal"
+    :student="selectedStudentForAction"
+    :groups="selectedStudentForAction?.groups || []"
+    @processed="onMainPageStudentProcessed"
   />
 
   <!-- Check pdf preview modal -->
