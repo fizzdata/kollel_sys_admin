@@ -61,14 +61,7 @@ const addStudentModal = ref(false);
 const isStudentFormSubmiting = ref(false);
 const studentFetching = ref(false);
 
-const fetchingSingleStudentPreview = ref(false);
-
-const processGroupStudentModal = ref(false);
-const processGroupRules = ref([]);
-const singleStudentCheckModal = ref(false);
-const processCheckSingleStudentLoading = ref(false);
-const singleStudentDepositModal = ref(false);
-const processDepositSingleStudentLoading = ref(false);
+const studentProcessModal = ref(false);
 const selectedStudent = ref(null);
 
 const pdfCheckModal = ref(false);
@@ -976,215 +969,30 @@ const onAddStudentSubmit = async (event) => {
   }
 };
 
-const handlePreviewSingleStudentClick = async (student) => {
+const handleSingleStudentProcessClick = (student) => {
   selectedStudent.value = student;
-  processGroupStudentModal.value = true;
-  await fetchSingleStudentPreview({
-    from_date: calendarRange.value.start?.toString(),
-    till_date: calendarRange.value.end?.toString(),
-  });
+  studentProcessModal.value = true;
 };
 
-const handleSingleStudentCheckClick = async (student) => {
-  selectedStudent.value = student;
-  singleStudentCheckModal.value = true;
-};
-
-const handleSingleStudentDepositClick = async (student) => {
-  selectedStudent.value = student;
-  singleStudentDepositModal.value = true;
-};
-
-const fetchSingleStudentPreview = async (data) => {
-  try {
-    if (selectedStudent.value) {
-      fetchingSingleStudentPreview.value = true;
-      const response = await api(
-        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/preview`,
-        {
-          method: "GET",
-          params: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        // Handle the preview data - can be array or object
-        let previewArray = [];
-        if (
-          typeof response.data === "object" &&
-          !Array.isArray(response.data)
-        ) {
-          previewArray = Object.values(response.data).flatMap((item) =>
-            Array.isArray(item) ? item : Object.values(item || {}),
-          );
-        } else if (Array.isArray(response.data)) {
-          previewArray = response.data;
-        }
-
-        processGroupRules.value = previewArray;
-        processGroupStudentModal.value = true;
-      } else {
-        toast.add({
-          title: "Failed",
-          description: response?.message || "Failed to fetch student preview",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching student preview:", error);
+// Fired by StudentProcessModal once it has successfully created a real
+// Check/Deposit (including any manual adjustment rows the admin added).
+const onStudentProcessed = ({ outputType, response }) => {
+  if (outputType === "check") {
+    pdfChecks.value = Object.entries(response?.data || {}).map(
+      ([id, base64]) => ({
+        id,
+        url: base64ToPdfUrl(base64),
+      }),
+    );
+    pdfCheckModal.value = true;
+  } else {
     toast.add({
-      title: "Error",
-      description:
-        "An error occurred while fetching preview. Please try again later.",
-      color: "error",
+      title: "Success",
+      description: response?.message || "Deposit processed successfully",
+      color: "success",
       duration: 2000,
     });
-  } finally {
-    fetchingSingleStudentPreview.value = false;
   }
-};
-
-// single student check
-const fetchSingleStudentCheck = async (data) => {
-  try {
-    if (selectedStudent.value) {
-      processCheckSingleStudentLoading.value = true;
-      const response = await api(
-        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/process/checks`,
-        {
-          method: "POST",
-          body: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-            check_date: data?.check_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        // Map API response
-
-        pdfChecks.value = Object.entries(response?.data).map(
-          ([id, base64]) => ({
-            id,
-            url: base64ToPdfUrl(base64),
-          }),
-        );
-
-        pdfCheckModal.value = true;
-        singleStudentCheckModal.value = false;
-      } else {
-        toast.add({
-          title: "Failed",
-          description:
-            response?.message ||
-            response?._data?.errors ||
-            response?._data?.message ||
-            "Failed to process checks",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing checks:", error);
-    toast.add({
-      title: "Error",
-      description:
-        "An error occurred while processing checks. Please try again later.",
-      color: "error",
-      duration: 2000,
-    });
-  } finally {
-    processCheckSingleStudentLoading.value = false;
-  }
-};
-
-const fetchSingleStudentDeposit = async (data) => {
-  try {
-    if (selectedStudent.value) {
-      processDepositSingleStudentLoading.value = true;
-      const response = await api(
-        `/api/payroll/group/${groupId}/student/${selectedStudent.value.id}/process/deposit`,
-        {
-          method: "POST",
-          body: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        toast.add({
-          title: "Success",
-          description: response?.message || "Deposit processed successfully",
-          color: "success",
-          duration: 2000,
-        });
-        singleStudentDepositModal.value = false;
-      } else {
-        toast.add({
-          title: "Failed",
-          description:
-            response?.message ||
-            response?._data?.errors ||
-            response?._data?.message ||
-            "Failed to process deposit",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing deposit:", error);
-    toast.add({
-      title: "Error",
-      description:
-        "An error occurred while processing deposit. Please try again later.",
-      color: "error",
-      duration: 2000,
-    });
-  } finally {
-    processDepositSingleStudentLoading.value = false;
-  }
-};
-
-// single student check date change
-const onSingleGroupCheckDateChange = async (val) => {
-  if (!val?.from_date || !val?.till_date) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchSingleStudentCheck({
-    ...val,
-  });
-};
-
-// single student deposit date change
-const onSingleGroupDepositDateChange = async (val) => {
-  if (!val?.from_date || !val?.till_date) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchSingleStudentDeposit({
-    ...val,
-  });
 };
 
 onMounted(async () => {
@@ -1209,22 +1017,6 @@ const onDateChange = async (val) => {
   }
 
   await fetchProcessRules({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
-  });
-};
-
-const onSingleStudentPreviewDateChange = async (val) => {
-  if (!val?.start || !val?.end) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchSingleStudentPreview({
     from_date: val.start.toString(),
     till_date: val.end.toString(),
   });
@@ -1429,9 +1221,7 @@ watch(activeTab, (newTab) => {
         :metric-labels="metricLabels"
         :operater-labels="operaterLabels"
         @refresh="fetchGroupStudents"
-        @preview="handlePreviewSingleStudentClick"
-        @check="handleSingleStudentCheckClick"
-        @deposit="handleSingleStudentDepositClick"
+        @process="handleSingleStudentProcessClick"
       />
     </UCard>
   </template>
@@ -1604,48 +1394,12 @@ watch(activeTab, (newTab) => {
     </template>
   </UModal>
 
-  <!-- Single Student Processing Check Modal -->
-  <CommonProcessCheckDepositModal
-    v-model="singleStudentCheckModal"
-    :title="
-      selectedStudent
-        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : Single Student Process Checks`
-        : 'Single Student Process Checks'
-    "
-    :loading="processCheckSingleStudentLoading"
-    type="check"
-    isDescriptionRequired
-    @submit="onSingleGroupCheckDateChange"
-  />
-
-  <!-- Single Student Processing Deposit Modal -->
-  <CommonProcessCheckDepositModal
-    v-model="singleStudentDepositModal"
-    :title="
-      selectedStudent
-        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : Single  Student Process Deposit`
-        : 'Single  Student Process Deposit'
-    "
-    :loading="processDepositSingleStudentLoading"
-    type="deposit"
-    isDescriptionRequired
-    @submit="onSingleGroupDepositDateChange"
-  />
-
-  <!-- Single Student Processing Rules Modal -->
-  <CommonRulesModal
-    v-model="processGroupStudentModal"
-    :title="
-      selectedStudent
-        ? `${selectedStudent.first_yiddish_name} ${selectedStudent.last_yiddish_name} : Group Student Preview`
-        : 'Group Student Preview'
-    "
-    :rules="processGroupRules"
-    :loading="fetchingSingleStudentPreview"
-    :metric-labels="metricLabels"
-    :operater-labels="operaterLabels"
-    type="process"
-    @date-change="onSingleStudentPreviewDateChange"
+  <!-- Single Student Process Modal -->
+  <PayrollStudentProcessModal
+    v-model="studentProcessModal"
+    :student="selectedStudent"
+    :group-id="groupId"
+    @processed="onStudentProcessed"
   />
 
   <!-- Check pdf preview modal -->

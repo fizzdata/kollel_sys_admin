@@ -55,13 +55,7 @@ const settings = ref(null);
 const allStudentsData = ref([]);
 const fetchingAllStudents = ref(false);
 const selectedStudentForAction = ref(null);
-const singleStudentCheckModal = ref(false);
-const singleStudentDepositModal = ref(false);
-const processCheckSingleStudentLoading = ref(false);
-const processDepositSingleStudentLoading = ref(false);
-const studentPreviewModal = ref(false);
-const fetchingStudentPreview = ref(false);
-const studentPreviewData = ref([]);
+const studentProcessModal = ref(false);
 
 const pdfCheckModal = ref(false);
 const pdfChecks = ref([]);
@@ -419,50 +413,18 @@ const allStudentsColumns = [
     header: "Quick Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Preview Student Button
+        // Process Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Preview Student" },
+          { text: "Process" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
-                icon: "i-lucide-user-check",
-                size: "md",
-                color: "success",
-                variant: "soft",
-                onClick: () => handleMainPagePreviewStudentClick(row.original),
-              }),
-          },
-        ),
-
-        // Process Check Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Check" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-check-square",
+                icon: "i-lucide-play",
                 size: "md",
                 color: "info",
                 variant: "soft",
-                onClick: () => handleMainPageCheckStudentClick(row.original),
-              }),
-          },
-        ),
-
-        // Process Deposit Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Deposit" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-wallet",
-                size: "md",
-                color: "warning",
-                variant: "soft",
-                onClick: () => handleMainPageDepositStudentClick(row.original),
+                onClick: () => handleMainPageProcessStudentClick(row.original),
               }),
           },
         ),
@@ -1702,237 +1664,31 @@ const fetchAllStudents = async () => {
   }
 };
 
-// Handler for preview student on main page
-const handleMainPagePreviewStudentClick = async (student) => {
+// Handler for the single "Process" button on main page
+const handleMainPageProcessStudentClick = (student) => {
   selectedStudentForAction.value = student;
-  studentPreviewModal.value = true;
-  await fetchMainPageStudentPreview({
-    from_date: calendarRange.value.start?.toString(),
-    till_date: calendarRange.value.end?.toString(),
-  });
+  studentProcessModal.value = true;
 };
 
-// Fetch student preview data across all groups
-const fetchMainPageStudentPreview = async (data) => {
-  try {
-    if (selectedStudentForAction.value) {
-      fetchingStudentPreview.value = true;
-      const response = await api(
-        `/api/payroll/students/${selectedStudentForAction.value.id}/preview`,
-        {
-          method: "GET",
-          params: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        // Handle if response is an array or object
-        let previewArray = [];
-        if (
-          typeof response.data === "object" &&
-          !Array.isArray(response.data)
-        ) {
-          previewArray = Object.values(response.data).flatMap((item) =>
-            Array.isArray(item) ? item : Object.values(item || {}),
-          );
-        } else if (Array.isArray(response.data)) {
-          previewArray = response.data;
-        }
-        studentPreviewData.value = previewArray;
-      } else {
-        toast.add({
-          title: "Failed",
-          description: response?.message || "Failed to fetch student preview",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching student preview:", error);
+// Fired by StudentProcessModal once it has successfully created a real
+// Check/Deposit (including any manual adjustment rows the admin added).
+const onMainPageStudentProcessed = ({ outputType, response }) => {
+  if (outputType === "check") {
+    pdfChecks.value = Object.entries(response?.data || {}).map(
+      ([id, base64]) => ({
+        id,
+        url: base64ToPdfUrl(base64),
+      }),
+    );
+    pdfCheckModal.value = true;
+  } else {
     toast.add({
-      title: "Error",
-      description: "An error occurred while fetching preview",
-      color: "error",
+      title: "Success",
+      description: response?.message || "Deposit processed successfully",
+      color: "success",
       duration: 2000,
     });
-  } finally {
-    fetchingStudentPreview.value = false;
   }
-};
-
-// Date change handler for student preview
-const onMainPageStudentPreviewDateChange = async (val) => {
-  if (!val?.start || !val?.end) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchMainPageStudentPreview({
-    from_date: val.start.toString(),
-    till_date: val.end.toString(),
-  });
-};
-
-// Handler for process check on main page
-const handleMainPageCheckStudentClick = async (student) => {
-  selectedStudentForAction.value = student;
-  singleStudentCheckModal.value = true;
-};
-
-// Handler for process deposit on main page
-const handleMainPageDepositStudentClick = async (student) => {
-  selectedStudentForAction.value = student;
-  singleStudentDepositModal.value = true;
-};
-
-// Process check for student across groups
-const fetchMainPageStudentCheck = async (data) => {
-  try {
-    if (selectedStudentForAction.value) {
-      processCheckSingleStudentLoading.value = true;
-
-      // Process check for student across all their groups
-      const response = await api(
-        `/api/payroll/students/${selectedStudentForAction.value.id}/process/check`,
-        {
-          method: "POST",
-          body: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-            check_date: data?.check_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        // Map API response
-        pdfChecks.value = Object.entries(response.data).map(([id, base64]) => ({
-          id,
-          url: base64ToPdfUrl(base64),
-        }));
-
-        pdfCheckModal.value = true;
-        singleStudentCheckModal.value = false;
-      } else {
-        toast.add({
-          title: "Failed",
-          description:
-            response?.message ||
-            response?._data?.errors ||
-            response?._data?.message ||
-            "Failed to process checks",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing checks:", error);
-    toast.add({
-      title: "Error",
-      description:
-        "An error occurred while processing checks. Please try again later.",
-      color: "error",
-      duration: 2000,
-    });
-  } finally {
-    processCheckSingleStudentLoading.value = false;
-  }
-};
-
-// Process deposit for student across groups
-const fetchMainPageStudentDeposit = async (data) => {
-  try {
-    if (selectedStudentForAction.value) {
-      processDepositSingleStudentLoading.value = true;
-
-      // Process deposit for student across all their groups
-      const response = await api(
-        `/api/payroll/students/${selectedStudentForAction.value.id}/process/deposit`,
-        {
-          method: "POST",
-          body: {
-            from_date: data?.from_date,
-            till_date: data?.till_date,
-          },
-        },
-      );
-
-      if (response?.success) {
-        toast.add({
-          title: "Success",
-          description:
-            response?.message || "Student deposit processed successfully",
-          color: "success",
-          duration: 2000,
-        });
-        singleStudentDepositModal.value = false;
-      } else {
-        toast.add({
-          title: "Failed",
-          description:
-            response?.message ||
-            response?._data?.errors ||
-            response?._data?.message ||
-            "Failed to process deposit",
-          color: "error",
-          duration: 2000,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing deposit:", error);
-    toast.add({
-      title: "Error",
-      description: "An error occurred while processing deposit",
-      color: "error",
-      duration: 2000,
-    });
-  } finally {
-    processDepositSingleStudentLoading.value = false;
-  }
-};
-
-// Date change handlers for student modals
-const onMainPageStudentCheckDateChange = async (val) => {
-  if (!val?.from_date || !val?.till_date) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchMainPageStudentCheck({
-    from_date: val.from_date,
-    till_date: val.till_date,
-    check_date: val.check_date,
-  });
-};
-
-const onMainPageStudentDepositDateChange = async (val) => {
-  if (!val?.from_date || !val?.till_date) {
-    toast.add({
-      title: "Error",
-      description: "Please select a valid date range.",
-      color: "error",
-    });
-    return;
-  }
-
-  await fetchMainPageStudentDeposit({
-    from_date: val.from_date,
-    till_date: val.till_date,
-  });
 };
 
 const handleTabUpdate = (newValue) => {
@@ -2498,48 +2254,12 @@ watch(
     </template>
   </UModal>
 
-  <!-- Single Student Processing Check Modal (Main Page) -->
-  <CommonProcessCheckDepositModal
-    v-model="singleStudentCheckModal"
-    :title="
-      selectedStudentForAction
-        ? `${selectedStudentForAction.first_yiddish_name} ${selectedStudentForAction.last_yiddish_name} : Process Checks`
-        : 'Process Checks'
-    "
-    :loading="processCheckSingleStudentLoading"
-    type="check"
-    isDescriptionRequired
-    @submit="onMainPageStudentCheckDateChange"
-  />
-
-  <!-- Single Student Processing Deposit Modal (Main Page) -->
-  <CommonProcessCheckDepositModal
-    v-model="singleStudentDepositModal"
-    :title="
-      selectedStudentForAction
-        ? `${selectedStudentForAction.first_yiddish_name} ${selectedStudentForAction.last_yiddish_name} : Process Deposit`
-        : 'Process Deposit'
-    "
-    :loading="processDepositSingleStudentLoading"
-    type="deposit"
-    isDescriptionRequired
-    @submit="onMainPageStudentDepositDateChange"
-  />
-
-  <!-- Student Preview Modal (Main Page) -->
-  <CommonRulesModal
-    v-model="studentPreviewModal"
-    :title="
-      selectedStudentForAction
-        ? `${selectedStudentForAction.first_yiddish_name} ${selectedStudentForAction.last_yiddish_name} : All Groups Preview`
-        : 'Student Preview'
-    "
-    :rules="studentPreviewData"
-    :loading="fetchingStudentPreview"
-    :metric-labels="{}"
-    :operater-labels="{}"
-    type="process"
-    @date-change="onMainPageStudentPreviewDateChange"
+  <!-- Single Student Process Modal (Main Page) -->
+  <PayrollStudentProcessModal
+    v-model="studentProcessModal"
+    :student="selectedStudentForAction"
+    :groups="selectedStudentForAction?.groups || []"
+    @processed="onMainPageStudentProcessed"
   />
 
   <!-- Check pdf preview modal -->

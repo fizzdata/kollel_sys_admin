@@ -6,7 +6,7 @@ const props = defineProps({
   operaterLabels: Object,
 });
 
-const emit = defineEmits(["refresh", "preview", "check", "deposit"]);
+const emit = defineEmits(["refresh", "process"]);
 const route = useRoute();
 
 const selectedStudent = ref(null);
@@ -129,50 +129,18 @@ const studentColumns = [
     header: "Quick Actions",
     cell: ({ row }) =>
       h("div", { class: "flex gap-2 items-center" }, [
-        // Preview Student Button
+        // Process Button
         h(
           resolveComponent("UTooltip"),
-          { text: "Preview Student" },
+          { text: "Process" },
           {
             default: () =>
               h(resolveComponent("UButton"), {
-                icon: "i-lucide-user-check",
-                size: "md",
-                color: "success",
-                variant: "soft",
-                onClick: () => emit("preview", row.original),
-              }),
-          },
-        ),
-
-        // Process Check Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Check" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-check-square",
+                icon: "i-lucide-play",
                 size: "md",
                 color: "info",
                 variant: "soft",
-                onClick: () => emit("check", row.original),
-              }),
-          },
-        ),
-
-        // Process Depost Button
-        h(
-          resolveComponent("UTooltip"),
-          { text: "Process Depost" },
-          {
-            default: () =>
-              h(resolveComponent("UButton"), {
-                icon: "i-lucide-wallet",
-                size: "md",
-                color: "warning",
-                variant: "soft",
-                onClick: () => emit("deposit", row.original),
+                onClick: () => emit("process", row.original),
               }),
           },
         ),
