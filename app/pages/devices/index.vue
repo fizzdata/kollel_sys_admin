@@ -664,6 +664,14 @@ onMounted(async () => {
 						</UBadge>
 					</div>
 
+					<div v-if="selectedDevice.close_password" class="rounded-xl border border-gray-200 p-3">
+						<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+							Station close password
+						</div>
+						<div class="mt-1 font-mono text-lg tracking-widest" dir="ltr">
+							{{ selectedDevice.close_password }}
+						</div>
+					</div>
 					<div class="grid gap-3 sm:grid-cols-2">
 						<div class="rounded-xl border border-gray-200 p-3">
 							<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
