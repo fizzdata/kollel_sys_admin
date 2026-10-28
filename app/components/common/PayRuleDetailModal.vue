@@ -166,6 +166,12 @@ const edit = () => emit("edit", props.rule);
                 <dt class="text-gray-400">Days of Week</dt>
                 <dd class="font-medium">{{ daysOfWeekLabel(condition.days_of_week) }}</dd>
               </div>
+              <div v-if="condition.y_value" class="col-span-2">
+                <dt class="text-gray-400">Only counts after it happens</dt>
+                <dd class="font-medium">
+                  {{ operaterLabels[condition.y_operator] || condition.y_operator }} {{ condition.y_value }} time(s)
+                </dd>
+              </div>
             </dl>
           </div>
         </div>
